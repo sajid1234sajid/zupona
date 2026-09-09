@@ -1,0 +1,176 @@
+"use client";
+
+import { useActionState, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { isServedLocation } from "@/data/locations";
+import {
+  CODE_TTL_SECONDS,
+  normalizeBdPhone,
+  type DeliveryDetails,
+  type DeliveryMethod,
+  type PaymentMethodId,
+} from "@/lib/checkout";
+import { placeOrderAction, sendCodeAction, type PlaceOrderState } from "@/app/checkout/actions";
+import CheckoutHeader from "./CheckoutHeader";
+import CheckoutStepper from "./CheckoutStepper";
+import LeafBackdrop from "./LeafBackdrop";
+import StepDetails from "./StepDetails";
+import StepDelivery from "./StepDelivery";
+import StepPayment from "./StepPayment";
+import type { SummaryLine } from "./OrderSummary";
+
+interface CheckoutWizardProps {
+  /** Signed-out shoppers start on step 1 (the login step); everyone else skips it. */
+  signedIn: boolean;
+  initialDetails: DeliveryDetails;
+  /** The number already confirmed in this browser, if any. */
+  verifiedPhone: string | null;
+  lines: SummaryLine[];
+  subtotal: number;
+  /** Delivery options priced from the admin Settings page. */
+  deliveryMethods: DeliveryMethod[];
+}
+
+export default function CheckoutWizard({
+  signedIn,
+  initialDetails,
+  verifiedPhone,
+  lines,
+  subtotal,
+  deliveryMethods,
+}: CheckoutWizardProps) {
+  const router = useRouter();
+  const [step, setStep] = useState<1 | 2 | 3>(signedIn ? 2 : 1);
+  const [details, setDetails] = useState<DeliveryDetails>(initialDetails);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethodId>("cod");
+  const [code, setCode] = useState("");
+  const [demoCode, setDemoCode] = useState<string | null>(null);
+  const [codeSentAt, setCodeSentAt] = useState(0);
+  const [stepError, setStepError] = useState<string | undefined>();
+  const [sending, startSending] = useTransition();
+
+  const normalizedPhone = normalizeBdPhone(details.phone);
+  const fee = deliveryMethods.find((method) => method.id === details.deliveryMethod)?.fee ?? 0;
+
+  const [orderState, placeOrder, placing] = useActionState<PlaceOrderState, FormData>(
+    placeOrderAction.bind(null, { ...details, paymentMethod, code }),
+    {}
+  );
+
+  // A confirmation can lapse while the shopper is still on step 2, so an
+  // expiry from the server drops the card back to an active code entry.
+  const confirmationLapsed = /expired/i.test(orderState.error ?? "");
+  const phoneVerified =
+    normalizedPhone !== null && normalizedPhone === verifiedPhone && !confirmationLapsed;
+
+  function patchDetails(patch: Partial<DeliveryDetails>) {
+    setDetails((current) => ({ ...current, ...patch }));
+    setStepError(undefined);
+  }
+
+  function sendCode(isResend = false) {
+    startSending(async () => {
+      const result = await sendCodeAction(details.phone);
+      if (result.error) {
+        setStepError(result.error);
+        return;
+      }
+      setDemoCode(result.demoCode ?? null);
+      setCodeSentAt(Date.now());
+      if (isResend) setCode("");
+    });
+  }
+
+  function goToPayment() {
+    if (!details.fullName.trim()) {
+      setStepError("Enter the name we should deliver to.");
+      return;
+    }
+    if (!normalizedPhone) {
+      setStepError("Enter a valid Bangladeshi mobile number, e.g. 01712345678.");
+      return;
+    }
+    if (!isServedLocation(details.division, details.area)) {
+      setStepError("Pick a division and area we deliver to.");
+      return;
+    }
+    if (details.addressDetails.trim().length < 6) {
+      setStepError("Enter your full address so the rider can find you.");
+      return;
+    }
+
+    setStepError(undefined);
+    // Cash on Delivery orders are only accepted against a confirmed number, so
+    // a code goes out now unless this browser already confirmed this one.
+    if (!phoneVerified) sendCode();
+    setStep(3);
+  }
+
+  function goBack() {
+    setStepError(undefined);
+    if (step === 3) {
+      setStep(2);
+      return;
+    }
+    if (step === 2 && !signedIn) {
+      setStep(1);
+      return;
+    }
+    router.push("/cart");
+  }
+
+  return (
+    <div className="relative mx-auto flex min-h-screen w-full max-w-md flex-col overflow-hidden bg-gradient-to-b from-brand-tint/60 via-white to-brand-tint/40">
+      <LeafBackdrop />
+
+      <div className="relative flex flex-1 flex-col">
+        <CheckoutHeader
+          onBack={step === 1 ? undefined : goBack}
+          secureNote={step === 3 ? "Your information is safe" : undefined}
+        />
+
+        <div className="pb-5 pt-1">
+          <CheckoutStepper current={step} />
+        </div>
+
+        {step === 1 && <StepDetails />}
+
+        {step === 2 && (
+          <StepDelivery
+            details={details}
+            onChange={patchDetails}
+            lines={lines}
+            subtotal={subtotal}
+            deliveryMethods={deliveryMethods}
+            phoneVerified={phoneVerified}
+            onContinue={goToPayment}
+            pending={sending}
+            error={stepError}
+          />
+        )}
+
+        {step === 3 && (
+          <form action={placeOrder}>
+            <StepPayment
+              paymentMethod={paymentMethod}
+              onPaymentMethodChange={setPaymentMethod}
+              phone={normalizedPhone ?? details.phone}
+              phoneVerified={phoneVerified}
+              code={code}
+              onCodeChange={setCode}
+              onResend={() => sendCode(true)}
+              resending={sending}
+              demoCode={demoCode}
+              resendAt={codeSentAt + CODE_TTL_SECONDS * 1000}
+              lines={lines}
+              subtotal={subtotal}
+              deliveryFee={fee}
+              pending={placing}
+              error={orderState.error ?? stepError}
+            />
+          </form>
+        )}
+      </div>
+    </div>
+  );
+}

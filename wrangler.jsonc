@@ -1,0 +1,68 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "zupona",
+  "compatibility_date": "2026-09-06",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "main": "vinext/server/fetch-handler",
+  // The admin panel is served by this same Worker, chosen by Host header in
+  // src/proxy.ts -- `admin.zupona.com/products` is rewritten to `/admin/products`
+  // internally. Declaring it as a custom domain (rather than a route pattern)
+  // makes Cloudflare create the DNS record and the TLS certificate for it.
+  //
+  // The apex serves the storefront. It previously pointed at an older Worker
+  // named "asdf", which is still deployed but no longer bound to any hostname
+  // -- re-attaching zupona.com to it is how you would roll back.
+  "routes": [
+    {
+      "pattern": "zupona.com",
+      "custom_domain": true
+    },
+    {
+      "pattern": "admin.zupona.com",
+      "custom_domain": true
+    }
+  ],
+  "assets": {
+    "directory": "dist/client",
+    "not_found_handling": "none",
+    "binding": "ASSETS"
+  },
+  "cache": {
+    "enabled": true
+  },
+  "version_metadata": {
+    "binding": "CF_VERSION_METADATA"
+  },
+  "images": {
+    "binding": "IMAGES"
+  },
+  // Primary relational store: users, sellers, catalog, orders, payments.
+  // Schema lives in db/schema.sql (fresh installs) + db/migrations/ (upgrades).
+  // NOTE: the older "zupona-db" database belongs to a previous Zupona build
+  // with an incompatible schema; it is left untouched as an archive.
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "zupona-v3-db",
+      "database_id": "34714511-c7ec-4539-8db2-b0d0953bbdb5"
+    }
+  ],
+  // Object storage for product images, seller KYC documents and review photos.
+  // Database rows store the object key; the bytes live here.
+  "r2_buckets": [
+    {
+      "binding": "MEDIA",
+      "bucket_name": "zupona-product-media"
+    }
+  ],
+  // Edge cache for hot reads (homepage/catalog queries), OTP throttling and
+  // rate limiting -- keeps repeat traffic off D1.
+  "kv_namespaces": [
+    {
+      "binding": "CACHE",
+      "id": "d42d285e3d8a4f86a6bb8ea882fca621"
+    }
+  ]
+}

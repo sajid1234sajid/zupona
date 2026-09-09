@@ -1,0 +1,79 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { Home, LayoutGrid, Tag, Heart, User } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+
+interface NavItem {
+  label: string;
+  icon: LucideIcon;
+  href: string;
+  /** Extra routes that should light this tab up, for pages reached from it. */
+  alsoMatches?: string[];
+  /** Draws the unread dot; Offers always has something running. */
+  badge?: boolean;
+}
+
+const navItems: NavItem[] = [
+  { label: "Home", icon: Home, href: "/" },
+  // A category listing is reached from the browser, so both light up the tab.
+  { label: "Categories", icon: LayoutGrid, href: "/categories", alsoMatches: ["/category"] },
+  { label: "Offers", icon: Tag, href: "/offers", badge: true },
+  { label: "Wishlist", icon: Heart, href: "/wishlist" },
+  { label: "Account", icon: User, href: "/account" },
+];
+
+/** The five-tab bar, pinned to the bottom of the viewport on every page.
+ *
+ * It sits above the page content on its own stacking layer; the pages leave
+ * bottom padding equal to its height so the last card is never hidden behind
+ * it. The extra padding under the labels is the iOS home-indicator inset,
+ * which is zero on devices that do not have one. */
+export default function BottomNav() {
+  const pathname = usePathname();
+
+  return (
+    <nav
+      aria-label="Primary"
+      className="fixed inset-x-0 bottom-0 z-40 mx-auto flex max-w-md items-stretch border-t border-brand-tint bg-white pb-[env(safe-area-inset-bottom)] shadow-[0_-2px_12px_rgba(0,60,40,0.07)]"
+    >
+      {navItems.map(({ label, icon: Icon, href, alsoMatches, badge }) => {
+        const isActive =
+          href === "/"
+            ? pathname === "/"
+            : pathname.startsWith(href) ||
+              (alsoMatches?.some((prefix) => pathname.startsWith(prefix)) ?? false);
+
+        return (
+          <Link
+            key={label}
+            href={href}
+            aria-current={isActive ? "page" : undefined}
+            className="flex flex-1 flex-col items-center justify-center gap-1 py-2.5"
+          >
+            <span className="relative">
+              <Icon
+                className={`h-[17px] w-[17px] ${isActive ? "text-brand" : "text-ink-muted"}`}
+                strokeWidth={isActive ? 2.5 : 2}
+              />
+              {badge && (
+                <span
+                  aria-hidden
+                  className="absolute -right-1 -top-0.5 h-[7px] w-[7px] rounded-full border border-white bg-brand-light"
+                />
+              )}
+            </span>
+            <span
+              className={`text-[7.5px] leading-none ${
+                isActive ? "font-bold text-brand" : "font-medium text-ink-muted"
+              }`}
+            >
+              {label}
+            </span>
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}

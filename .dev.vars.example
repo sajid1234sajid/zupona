@@ -1,0 +1,10 @@
+# Copy to `.dev.vars` for local development (vinext dev / wrangler dev).
+# In production, set these with:
+#   npx wrangler secret put GOOGLE_CLIENT_ID
+#   npx wrangler secret put GOOGLE_CLIENT_SECRET
+#
+# Create credentials at https://console.cloud.google.com/apis/credentials
+# Authorized redirect URI: <your-app-origin>/api/auth/google/callback
+
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=

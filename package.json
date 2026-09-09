@@ -1,0 +1,41 @@
+{
+  "name": "zupona",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "vinext dev --port 3001",
+    "build": "vinext build",
+    "start": "wrangler dev --config dist/server/wrangler.json",
+    "deploy": "vinext-cloudflare deploy --config dist/server/wrangler.json",
+    "lint": "eslint",
+    "dev:next-native": "next dev",
+    "build:next-native": "next build",
+    "start:next-native": "next start"
+  },
+  "dependencies": {
+    "@vinext/cloudflare": "^1.0.0-beta.7",
+    "lucide-react": "^1.41.0",
+    "next": "16.3.4",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "react-server-dom-webpack": "^19.2.8"
+  },
+  "devDependencies": {
+    "@cloudflare/vite-plugin": "^1.54.4",
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@vitejs/plugin-react": "^6.1.1",
+    "@vitejs/plugin-rsc": "^0.5.34",
+    "eslint": "^9",
+    "eslint-config-next": "16.3.4",
+    "playwright": "^1.63.0",
+    "tailwindcss": "^4",
+    "typescript": "^5",
+    "vinext": "^1.0.0-beta.9",
+    "vite": "^8.2.2",
+    "wrangler": "^4.129.0"
+  },
+  "type": "module"
+}

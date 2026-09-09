@@ -1,0 +1,55 @@
+@import "tailwindcss";
+
+/* Zupona's green palette.
+ *
+ * One source of truth for the brand: the storefront, the admin panel and the
+ * checkout all colour themselves from these tokens, so the shop stays on-brand
+ * without any component naming a hex value of its own. */
+:root {
+  --color-brand-darkest: #00553d;
+  --color-brand-dark: #006b4d;
+  --color-brand: #00845f;
+  --color-brand-light: #0a936a;
+  --color-brand-tint: #e9f5ef;
+  --color-brand-mist: #f2f7f4;
+  /* Body copy is a very dark green rather than black, which keeps the page
+   * feeling like one palette instead of green accents on a grey page. */
+  --color-ink: #123527;
+  --color-ink-muted: #6b8078;
+  --color-accent-red: #e03131;
+  --color-accent-amber: #f5b323;
+}
+
+@theme inline {
+  --color-brand-darkest: var(--color-brand-darkest);
+  --color-brand-dark: var(--color-brand-dark);
+  --color-brand: var(--color-brand);
+  --color-brand-light: var(--color-brand-light);
+  --color-brand-tint: var(--color-brand-tint);
+  --color-brand-mist: var(--color-brand-mist);
+  --color-ink: var(--color-ink);
+  --color-ink-muted: var(--color-ink-muted);
+  --color-accent-red: var(--color-accent-red);
+  --color-accent-amber: var(--color-accent-amber);
+  /* Kept as aliases so the admin panel's existing orange utilities resolve. */
+  --color-accent-orange: var(--color-accent-amber);
+  --color-accent-orange-dark: #d99400;
+  --font-sans: var(--font-poppins);
+  --font-serif: var(--font-playfair);
+}
+
+body {
+  background: #ffffff;
+  color: var(--color-ink);
+  font-family: var(--font-poppins), Arial, Helvetica, sans-serif;
+  /* The design is a single mobile screen; nothing may spill sideways. */
+  overflow-x: hidden;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

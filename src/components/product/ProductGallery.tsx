@@ -13,6 +13,15 @@ type GalleryItem =
   | { kind: "image"; url: string }
   | { kind: "video"; url: string; poster: string };
 
+/** Anything uploaded by an admin is served by our own /api/media route, and
+ * the Next image optimizer cannot fetch it -- it answers 404 for those URLs,
+ * which is what turned uploaded imagery into broken thumbnails. Those objects
+ * are already stored at a sane size and served immutable, so they are passed
+ * through untouched; only remote stock photography is optimized. */
+function isUploadedMedia(url: string): boolean {
+  return url.startsWith("/api/media/");
+}
+
 export default function ProductGallery({ product }: { product: StoreProduct }) {
   const [activeIndex, setActiveIndex] = useState(0);
 
@@ -74,6 +83,7 @@ export default function ProductGallery({ product }: { product: StoreProduct }) {
                 sizes="220px"
                 className="object-cover"
                 priority
+                unoptimized={isUploadedMedia(active.url)}
               />
             )}
           </div>
@@ -163,6 +173,7 @@ export default function ProductGallery({ product }: { product: StoreProduct }) {
               fill
               sizes="48px"
               className="object-cover"
+              unoptimized={isUploadedMedia(item.kind === "video" ? item.poster : item.url)}
             />
             {item.kind === "video" && (
               <span className="absolute inset-0 flex items-center justify-center bg-black/30">

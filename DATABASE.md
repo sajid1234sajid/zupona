@@ -57,6 +57,14 @@ Migrations run once per existing database, in order:
 npx wrangler d1 execute zupona-v3-db --remote --file=./db/migrations/0003_marketplace_platform.sql
 ```
 
+**Deploying does not apply migrations.** Pushing to `main` builds and
+deploys the Worker (see [README.md](README.md#deployment)), but the pipeline
+never touches D1. Code that expects an unapplied migration returns server
+errors on zupona.com, and because the local database usually *does* have the
+migration the page looks perfectly fine in `npm run dev`. Run the file against
+`--local` and `--remote` both, and treat the remote run as part of shipping
+the change rather than a follow-up task.
+
 Two notes carried from building `0003`:
 
 - SQLite rejects `ALTER TABLE ... ADD COLUMN` with a non-constant default, so

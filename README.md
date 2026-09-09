@@ -18,6 +18,9 @@ action decides who may actually see the panel.
 | Admin panel | https://admin.zupona.com |
 | Repository | https://github.com/sajid1234sajid/zupona |
 
+How this project got here, what else lives in the Cloudflare account, and what
+is still outstanding: **[HISTORY.md](HISTORY.md)**.
+
 ## Getting started
 
 ```bash

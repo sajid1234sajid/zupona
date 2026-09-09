@@ -16,6 +16,10 @@ deployed as a **single Cloudflare Worker**. Read [README.md](README.md) for
 setup and [DATABASE.md](DATABASE.md) for the data layer — that one is the real
 reference, 44 tables with the reasoning behind them.
 
+[HISTORY.md](HISTORY.md) covers what lives outside the repository — the
+Cloudflare and GitHub state, why the deploy pipeline is shaped the way it is,
+and the open items. Read it before touching deployment, hosting or accounts.
+
 ## Deploying: push to `main` and it ships
 
 `.github/workflows/deploy.yml` builds on GitHub's runners and deploys to

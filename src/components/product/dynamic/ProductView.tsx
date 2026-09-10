@@ -128,7 +128,7 @@ export default function ProductView({
         type="button"
         onClick={() => startAdd(addToCart())}
         disabled={!canBuy || addPending || buyPending}
-        className="flex min-h-[48px] flex-1 items-center justify-center gap-2 rounded-full bg-brand px-4 text-sm font-black text-white transition disabled:cursor-not-allowed disabled:opacity-45 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+        className="flex min-h-[46px] flex-1 items-center justify-center gap-2 rounded-full bg-brand px-4 text-sm font-black text-white transition disabled:cursor-not-allowed disabled:opacity-45 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
       >
         {addPending ? (
           <LoaderCircle className="h-4 w-4 animate-spin" />
@@ -142,7 +142,7 @@ export default function ProductView({
         type="button"
         onClick={() => startBuy(addToCart(() => router.push("/checkout")))}
         disabled={!canBuy || addPending || buyPending}
-        className="flex min-h-[48px] flex-1 items-center justify-center gap-2 rounded-full border-2 border-brand bg-white px-4 text-sm font-black text-brand transition disabled:cursor-not-allowed disabled:opacity-45 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+        className="flex min-h-[46px] flex-1 items-center justify-center gap-2 rounded-full border-2 border-brand bg-white px-4 text-sm font-black text-brand transition disabled:cursor-not-allowed disabled:opacity-45 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
       >
         {buyPending ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Zap className="h-[18px] w-[18px] fill-current" />}
         Buy Now
@@ -183,7 +183,7 @@ export default function ProductView({
           </p>
 
           <div className="mt-1.5 flex items-start justify-between gap-3">
-            <h1 className="text-[26px] font-extrabold leading-tight tracking-tight text-heading tab:text-[32px]">
+            <h1 className="text-[clamp(22px,6.3vw,32px)] font-extrabold leading-[1.12] tracking-[-0.02em] text-heading">
               {product.name}
             </h1>
 

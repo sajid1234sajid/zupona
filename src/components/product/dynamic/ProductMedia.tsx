@@ -51,7 +51,7 @@ export default function ProductMedia({
 
   return (
     <div>
-      <div className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl bg-mint">
+      <div className="relative aspect-[6/5] w-full overflow-hidden rounded-2xl bg-mint">
         {active.type === "video" ? (
           <button
             type="button"
@@ -100,7 +100,7 @@ export default function ProductMedia({
       </div>
 
       {media.length > 1 && (
-        <ul className="no-scrollbar mt-2.5 flex gap-2 overflow-x-auto pb-1" aria-label="Product media">
+        <ul className="no-scrollbar mt-3 flex gap-[7px] overflow-x-auto pb-1" aria-label="Product media">
           {shownThumbs.map((item) => {
             const selected = item.id === active.id;
             return (
@@ -113,7 +113,7 @@ export default function ProductMedia({
                   }}
                   aria-label={item.type === "video" ? "Play product video" : item.alt}
                   aria-current={selected ? "true" : undefined}
-                  className={`relative block h-[70px] w-[70px] overflow-hidden rounded-xl border-2 bg-mint transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 ${
+                  className={`relative block h-[67px] w-[67px] overflow-hidden rounded-xl border-2 bg-mint transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 ${
                     selected ? "border-brand" : "border-transparent"
                   }`}
                 >
@@ -142,7 +142,7 @@ export default function ProductMedia({
                 type="button"
                 onClick={() => onSelect(media[VISIBLE_THUMBS].id)}
                 aria-label={`Show ${overflowCount} more`}
-                className="grid h-[70px] w-[70px] place-items-center rounded-xl border-2 border-transparent bg-mint text-sm font-bold text-brand-darkest transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+                className="grid h-[67px] w-[67px] place-items-center rounded-xl border-2 border-transparent bg-mint text-sm font-bold text-brand-darkest transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
               >
                 +{overflowCount}
               </button>

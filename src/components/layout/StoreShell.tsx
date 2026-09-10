@@ -27,9 +27,9 @@ export default function StoreShell({
   className?: string;
 }) {
   const bottomPadding = withStickyActions
-    ? "pb-[136px] tab:pb-0"
+    ? "pb-[calc(140px+env(safe-area-inset-bottom))] tab:pb-0"
     : withTabBar
-      ? "pb-[68px] tab:pb-0"
+      ? "pb-[calc(72px+env(safe-area-inset-bottom))] tab:pb-0"
       : "";
 
   return (
@@ -52,6 +52,6 @@ export function StoreContainer({
   className?: string;
 }) {
   return (
-    <div className={`mx-auto w-full max-w-[1180px] px-4 tab:px-6 ${className}`}>{children}</div>
+    <div className={`mx-auto w-full max-w-[1180px] px-3 tab:px-6 ${className}`}>{children}</div>
   );
 }

@@ -20,12 +20,12 @@ export default function FeatureBar({
         return (
           <li
             key={`${feature.label}-${index}`}
-            className={`flex min-h-[70px] flex-col items-center justify-center gap-1.5 px-2 py-3 text-center ${
+            className={`flex min-h-[42px] items-center justify-center gap-1.5 px-2 py-1.5 text-center ${
               index < 2 ? "border-r border-[#cfe4dc]" : ""
             }`}
           >
-            <Icon className="h-5 w-5 shrink-0 text-brand" aria-hidden />
-            <span className="text-[10px] font-bold leading-tight text-brand-dark">
+            <Icon className="h-[18px] w-[18px] shrink-0 text-brand" aria-hidden />
+            <span className="text-[11px] font-bold leading-tight text-brand-dark">
               {feature.label}
             </span>
           </li>

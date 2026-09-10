@@ -623,6 +623,23 @@ export async function getStoreProduct(id: string): Promise<StoreProduct | null> 
   return cached(CacheKeys.product(id), () => queryProduct(id), CATALOG_TTL_SECONDS);
 }
 
+/** Resolves the public `/products/<slug>` URL to a product.
+ *
+ * The slug is looked up on its own and the product then loaded by id, so both
+ * URL shapes share one cache entry instead of caching the same product twice.
+ * Only active products resolve, so an unpublished one 404s rather than being
+ * reachable by anyone who remembers the address. */
+export async function getStoreProductBySlug(slug: string): Promise<StoreProduct | null> {
+  const db = await getDB();
+  const row = await db
+    .prepare("SELECT id FROM products WHERE slug = ? AND status = 'active'")
+    .bind(slug)
+    .first<{ id: string }>();
+
+  if (!row) return null;
+  return getStoreProduct(row.id);
+}
+
 /** Ids only, for `generateStaticParams` and for cheap existence checks. */
 export async function listStoreProductIds(): Promise<string[]> {
   const db = await getDB();

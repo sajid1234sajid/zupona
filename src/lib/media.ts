@@ -109,11 +109,6 @@ export async function uploadMedia(
   return { key, size: file.size, contentType: file.type };
 }
 
-/** Fetches a stored object, optionally only part of it.
- *
- * `options` is passed through to R2 so the media route can answer a Range
- * request: browsers ask for byte ranges when scrubbing a <video>, and a server
- * that always replies with the whole file makes seeking impossible. */
 /** Stores an upload by streaming it straight into R2.
  *
  * The multipart path above has to hold the whole file in the Worker's memory
@@ -165,6 +160,11 @@ export async function uploadMediaStream(
   return { key, size: declaredSize, contentType };
 }
 
+/** Fetches a stored object, optionally only part of it.
+ *
+ * `options` is passed through to R2 so the media route can answer a Range
+ * request: browsers ask for byte ranges when scrubbing a <video>, and a server
+ * that always replies with the whole file makes seeking impossible. */
 export async function getMediaObject(
   key: string,
   options?: R2GetOptions

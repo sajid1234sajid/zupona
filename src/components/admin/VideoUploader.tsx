@@ -31,6 +31,25 @@ interface Pending {
 
 const MAX_MB = 50;
 
+/** Windows hands over some files -- .mov especially -- with an empty `type`,
+ * and an upload with no content type is rejected by the server. The extension
+ * is the only thing left to go on at that point. */
+function contentTypeOf(file: File): string {
+  if (file.type) return file.type;
+
+  const extension = file.name.split(".").pop()?.toLowerCase();
+  const byExtension: Record<string, string> = {
+    mp4: "video/mp4",
+    m4v: "video/mp4",
+    webm: "video/webm",
+    ogv: "video/ogg",
+    mov: "video/quicktime",
+    qt: "video/quicktime",
+  };
+
+  return byExtension[extension ?? ""] ?? "application/octet-stream";
+}
+
 /** Posts one file and resolves with the stored URL.
  *
  * XMLHttpRequest rather than fetch purely for `upload.onprogress` -- fetch
@@ -42,12 +61,12 @@ function uploadWithProgress(
   onProgress: (percent: number) => void
 ): Promise<string> {
   return new Promise((resolve, reject) => {
-    const body = new FormData();
-    body.append("file", file);
-    body.append("folder", folder);
-
     const request = new XMLHttpRequest();
-    request.open("POST", "/api/admin/upload");
+    // Sent as a raw body rather than multipart: the server can then stream it
+    // to storage instead of parsing it, which is what makes a large clip
+    // survive the Worker's per-request CPU budget.
+    request.open("POST", `/api/admin/upload?folder=${encodeURIComponent(folder)}`);
+    request.setRequestHeader("content-type", contentTypeOf(file));
 
     request.upload.onprogress = (event) => {
       if (event.lengthComputable) {
@@ -62,21 +81,31 @@ function uploadWithProgress(
       try {
         payload = JSON.parse(request.responseText) as typeof payload;
       } catch {
-        /* Falls through to the generic message below. */
+        /* Not JSON -- handled below. */
       }
 
       if (request.status >= 200 && request.status < 300 && payload.url) {
         onProgress(100);
         resolve(payload.url);
-      } else {
-        reject(new Error(payload.error ?? "That video could not be uploaded."));
+        return;
       }
+
+      // A reply that is not JSON did not come from the upload handler at all:
+      // the platform rejected or killed the request first. Saying so, with the
+      // status, is far more use than "could not be uploaded".
+      reject(
+        new Error(
+          payload.error ??
+            `Upload rejected by the server (HTTP ${request.status}). ` +
+              `Try a shorter clip or a smaller file.`
+        )
+      );
     };
 
     request.onerror = () => reject(new Error("Upload failed. Check your connection."));
     request.onabort = () => reject(new Error("Upload cancelled."));
 
-    request.send(body);
+    request.send(file);
   });
 }
 
@@ -376,7 +405,9 @@ export default function VideoUploader({
       <input
         id={inputId}
         type="file"
-        accept="video/mp4,video/webm,video/ogg,video/quicktime"
+        // Extensions as well as types: Windows reports no type for some
+        // files, and a types-only accept list then hides them in the picker.
+        accept="video/mp4,video/webm,video/ogg,video/quicktime,.mp4,.m4v,.webm,.ogv,.mov"
         multiple={max > 1}
         className="sr-only"
         onChange={(event) => {

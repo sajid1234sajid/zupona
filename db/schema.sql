@@ -630,6 +630,8 @@ CREATE TABLE IF NOT EXISTS order_items (
 );
 
 CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON order_items (order_id);
+CREATE INDEX IF NOT EXISTS idx_order_items_suborder ON order_items (suborder_id);
+CREATE INDEX IF NOT EXISTS idx_order_items_seller ON order_items (seller_id);
 
 -- A single checkout order splits into one suborder per seller, mirroring
 -- how Daraz/Amazon fulfillment and per-seller shipment tracking works.

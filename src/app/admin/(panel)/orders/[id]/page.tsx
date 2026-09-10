@@ -40,6 +40,10 @@ export default async function OrderDetailPage(props: PageProps<"/admin/orders/[i
   const order = await getOrderDetail(id);
   if (!order) notFound();
 
+  // Today an order has one fulfilment record; the form edits that one. When
+  // several sellers are involved this becomes a per-seller form.
+  const shipment = order.fulfilment[0] ?? null;
+
   const reachedIndex = TIMELINE.indexOf(order.status);
   const cancelled = order.status === "cancelled";
 
@@ -118,19 +122,96 @@ export default async function OrderDetailPage(props: PageProps<"/admin/orders/[i
                 <span className="mb-1.5 block text-[11px] font-medium text-neutral-500">
                   Courier
                 </span>
-                <input name="courier" placeholder="Pathao, Steadfast…" className={fieldStyles} />
+                <input
+                  key={`courier-${shipment?.courierName ?? ""}`}
+                  name="courier"
+                  defaultValue={shipment?.courierName ?? ""}
+                  placeholder="Pathao, Steadfast…"
+                  className={fieldStyles}
+                />
               </label>
               <label className="min-w-[9rem] flex-1">
                 <span className="mb-1.5 block text-[11px] font-medium text-neutral-500">
                   Tracking number
                 </span>
-                <input name="tracking" placeholder="TRK123456" className={fieldStyles} />
+                <input
+                  key={`tracking-${shipment?.trackingNumber ?? ""}`}
+                  name="tracking"
+                  defaultValue={shipment?.trackingNumber ?? ""}
+                  placeholder="TRK123456"
+                  className={fieldStyles}
+                />
               </label>
               <button type="submit" className={buttonStyles.secondary}>
                 <Truck className="h-4 w-4" />
-                Save tracking
+                {shipment?.trackingNumber ? "Update tracking" : "Save tracking"}
               </button>
             </form>
+          </Card>
+
+          {/* Fulfilment: one block per seller, and one for an order that is
+              entirely the platform's own goods. */}
+          <Card>
+            <CardHeader
+              title={`Fulfilment (${order.fulfilment.length})`}
+              subtitle="Who ships what, and where it has got to"
+            />
+            {order.fulfilment.length === 0 ? (
+              <p className="rounded-xl bg-neutral-50 px-3.5 py-2.5 text-sm text-neutral-500">
+                No fulfilment record yet — saving tracking will create one.
+              </p>
+            ) : (
+              <ul className="space-y-3">
+                {order.fulfilment.map((part) => (
+                  <li key={part.id} className="rounded-xl border border-neutral-100 p-3.5">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-sm font-semibold text-neutral-900">
+                        {part.sellerName ?? "Zupona (platform)"}
+                        <span className="ml-2 text-[12px] font-normal text-neutral-500">
+                          {part.itemCount} item{part.itemCount === 1 ? "" : "s"}
+                        </span>
+                      </p>
+                      <StatusPill status={part.status} />
+                    </div>
+
+                    <dl className="mt-2.5 grid grid-cols-2 gap-x-4 gap-y-1.5 text-[12px] sm:grid-cols-3">
+                      <div>
+                        <dt className="text-neutral-500">Courier</dt>
+                        <dd className="font-medium text-neutral-800">{part.courierName ?? "—"}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-neutral-500">Tracking</dt>
+                        <dd className="font-medium text-neutral-800">
+                          {part.trackingNumber ?? "—"}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="text-neutral-500">Subtotal</dt>
+                        <dd className="font-medium text-neutral-800">{formatPrice(part.subtotal)}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-neutral-500">Delivery</dt>
+                        <dd className="font-medium text-neutral-800">
+                          {formatPrice(part.shippingFee)}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="text-neutral-500">Shipped</dt>
+                        <dd className="font-medium text-neutral-800">
+                          {part.shippedAt ? formatDateTime(part.shippedAt) : "—"}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="text-neutral-500">Delivered</dt>
+                        <dd className="font-medium text-neutral-800">
+                          {part.deliveredAt ? formatDateTime(part.deliveredAt) : "—"}
+                        </dd>
+                      </div>
+                    </dl>
+                  </li>
+                ))}
+              </ul>
+            )}
           </Card>
 
           <Card>

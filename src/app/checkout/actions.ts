@@ -16,6 +16,7 @@ import {
 import { isServedLocation } from "@/data/locations";
 import { reserveStock, releaseReservation } from "@/lib/inventory";
 import { getBuyNowLine, consumeBuyNowSession, clearBuyNowCookie } from "@/lib/buyNow";
+import { planSuborders, commissionRates, createSuborders } from "@/lib/suborders";
 
 export interface SendCodeState {
   error?: string;
@@ -117,6 +118,8 @@ export interface CheckoutDetails {
 interface OrderLine {
   productId: string;
   variantId: string | null;
+  /** Who sold it, read at the moment of sale and never looked up again. */
+  sellerId: string | null;
   label: string;
   name: string;
   image: string;
@@ -174,6 +177,7 @@ export async function placeOrderAction(
         {
           productId: buyNow.productId,
           variantId: buyNow.variantId,
+          sellerId: null, // filled in below, from the product
           label: buyNow.label,
           name: buyNow.name,
           image: buyNow.image,
@@ -185,6 +189,8 @@ export async function placeOrderAction(
     : (await getCartItems(user.id)).map((item) => ({
         productId: item.productId,
         variantId: item.variantId,
+        sellerId: null, // filled in below, from the product
+
         label: item.color,
         name: item.product.name,
         image: item.product.image,
@@ -194,6 +200,20 @@ export async function placeOrderAction(
       }));
 
   if (lines.length === 0) return { error: "Your cart is empty." };
+
+  /* Who sells each line, read now and stored on the order line. A product that
+   * later moves to a different seller does not rewrite the history of orders
+   * already placed. */
+  const productIds = [...new Set(lines.map((line) => line.productId))];
+  const { results: owners } = await db
+    .prepare(
+      `SELECT id, seller_id FROM products WHERE id IN (${productIds.map(() => "?").join(",")})`
+    )
+    .bind(...productIds)
+    .all<{ id: string; seller_id: string | null }>();
+
+  const sellerOf = new Map(owners.map((row) => [row.id, row.seller_id]));
+  for (const line of lines) line.sellerId = sellerOf.get(line.productId) ?? null;
 
   // The fee charged comes from the shop's own settings, and the free-shipping
   // threshold is applied here so the amount recorded on the order is the
@@ -281,17 +301,29 @@ export async function placeOrderAction(
     throw error;
   }
 
+  /* One suborder per seller, and one for the platform's own goods. Delivery is
+   * shared in proportion to what each seller is owed; the parts add back up to
+   * exactly what the customer was charged. The suborder takes the order's
+   * status and follows it from here -- it never leads, and never touches stock. */
+  const rates = await commissionRates(lines.map((line) => line.sellerId));
+  const shares = planSuborders(lines, shippingFee, (sellerId) =>
+    sellerId ? (rates.get(sellerId) ?? 0) : 0
+  );
+  const suborderIds = await createSuborders(orderId, "placed", shares);
+
   for (const line of lines) {
     await db
       .prepare(
-        `INSERT INTO order_items (id, order_id, product_id, variant_id, name, image, color, price, old_price, quantity)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        `INSERT INTO order_items (id, order_id, product_id, variant_id, seller_id, suborder_id, name, image, color, price, old_price, quantity)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .bind(
         crypto.randomUUID(),
         orderId,
         line.productId,
         line.variantId,
+        line.sellerId,
+        suborderIds.get(line.sellerId) ?? null,
         line.name,
         line.image,
         line.label || null,

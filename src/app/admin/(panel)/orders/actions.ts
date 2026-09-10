@@ -5,6 +5,7 @@ import { getDB } from "@/lib/db";
 import { logAdminAction, requireStaff } from "@/lib/admin";
 import { statusLabel } from "@/lib/orders";
 import { applyStockForStatus } from "@/lib/orderStock";
+import { ensureSuborder } from "@/lib/suborders";
 import type { OrderStatus } from "@/types";
 
 const ORDER_STATUSES: OrderStatus[] = [
@@ -133,6 +134,13 @@ export async function setTrackingAction(formData: FormData): Promise<void> {
   const tracking = String(formData.get("tracking") ?? "").trim() || null;
 
   if (!orderId || (!courier && !tracking)) return;
+
+  /* Orders placed before suborders existed have none, and this used to write
+   * into nothing at all -- the admin typed a tracking number, the page
+   * reloaded, and it was gone. One is created for them here; the helper
+   * re-reads afterwards, so two admins saving at once cannot make two. */
+  const suborderId = await ensureSuborder(orderId);
+  if (!suborderId) return;
 
   const db = await getDB();
   await db

@@ -474,6 +474,22 @@ export interface AdminOrderDetail {
     quantity: number;
   }[];
   history: { status: string; note: string | null; at: string; by: string | null }[];
+  /** One entry per seller in the order -- and one for an order that is
+   * entirely the platform's. This is where courier and tracking live. */
+  fulfilment: {
+    id: string;
+    sellerId: string | null;
+    sellerName: string | null;
+    status: string;
+    subtotal: number;
+    shippingFee: number;
+    commissionAmount: number;
+    courierName: string | null;
+    trackingNumber: string | null;
+    shippedAt: string | null;
+    deliveredAt: string | null;
+    itemCount: number;
+  }[];
 }
 
 /** Accepts either the internal id or the human order number, so a support
@@ -490,7 +506,7 @@ export async function getOrderDetail(idOrNumber: string): Promise<AdminOrderDeta
 
   if (!row) return null;
 
-  const [items, history] = await db.batch<Record<string, unknown>>([
+  const [items, history, fulfilment] = await db.batch<Record<string, unknown>>([
     db
       .prepare(
         `SELECT id, product_id, name, image, color, price, quantity
@@ -503,6 +519,19 @@ export async function getOrderDetail(idOrNumber: string): Promise<AdminOrderDeta
          FROM order_status_history h
          LEFT JOIN users u ON u.id = h.changed_by
          WHERE h.order_id = ? ORDER BY h.created_at ASC`
+      )
+      .bind(row.id),
+    // Fulfilment: one row per seller, carrying the courier and tracking that
+    // the admin form writes and, until now, could never read back.
+    db
+      .prepare(
+        `SELECT s.id, s.seller_id, sel.store_name AS seller_name, s.status, s.subtotal,
+                s.shipping_fee, s.commission_amount, s.courier_name, s.tracking_number,
+                s.shipped_at, s.delivered_at,
+                (SELECT COUNT(*) FROM order_items oi WHERE oi.suborder_id = s.id) AS item_count
+         FROM suborders s
+         LEFT JOIN sellers sel ON sel.id = s.seller_id
+         WHERE s.order_id = ? ORDER BY s.rowid ASC`
       )
       .bind(row.id),
   ]);
@@ -557,6 +586,33 @@ export async function getOrderDetail(idOrNumber: string): Promise<AdminOrderDeta
       note: entry.note,
       at: entry.created_at,
       by: entry.by_name,
+    })),
+    fulfilment: (fulfilment.results as unknown as {
+      id: string;
+      seller_id: string | null;
+      seller_name: string | null;
+      status: string;
+      subtotal: number;
+      shipping_fee: number;
+      commission_amount: number;
+      courier_name: string | null;
+      tracking_number: string | null;
+      shipped_at: string | null;
+      delivered_at: string | null;
+      item_count: number;
+    }[]).map((entry) => ({
+      id: entry.id,
+      sellerId: entry.seller_id,
+      sellerName: entry.seller_name,
+      status: entry.status,
+      subtotal: entry.subtotal,
+      shippingFee: entry.shipping_fee,
+      commissionAmount: entry.commission_amount,
+      courierName: entry.courier_name,
+      trackingNumber: entry.tracking_number,
+      shippedAt: entry.shipped_at,
+      deliveredAt: entry.delivered_at,
+      itemCount: entry.item_count,
     })),
   };
 }

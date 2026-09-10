@@ -199,7 +199,11 @@ CREATE TABLE IF NOT EXISTS products (
   meta_description TEXT,
   rejection_reason TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  short_description TEXT, -- the attribute line under the title, e.g. "Premium Cotton | Regular Fit"
+  badge_label TEXT, -- hero badge: "Best Seller" | "Popular" | "New Arrival"
+  return_policy TEXT, -- e.g. "7 Days Return"
+  warranty TEXT -- e.g. "1 Year Warranty"
 );
 
 CREATE INDEX IF NOT EXISTS idx_products_seller_id ON products (seller_id);
@@ -214,7 +218,8 @@ CREATE TABLE IF NOT EXISTS product_images (
   product_id TEXT NOT NULL REFERENCES products(id) ON DELETE CASCADE,
   url TEXT NOT NULL,
   sort_order INTEGER NOT NULL DEFAULT 0,
-  is_primary INTEGER NOT NULL DEFAULT 0
+  is_primary INTEGER NOT NULL DEFAULT 0,
+  alt TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_product_images_product_id ON product_images (product_id);
@@ -229,7 +234,8 @@ CREATE TABLE IF NOT EXISTS product_videos (
   url TEXT NOT NULL,
   poster_url TEXT,
   sort_order INTEGER NOT NULL DEFAULT 0,
-  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  alt TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_product_videos_product_id ON product_videos (product_id);
@@ -255,10 +261,55 @@ CREATE TABLE IF NOT EXISTS product_variants (
   barcode TEXT,
   weight_grams INTEGER,
   is_active INTEGER NOT NULL DEFAULT 1,
-  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  -- Picking a colour swaps the main image. A still, never a video: nobody
+  -- expects the gallery to jump to a clip when they choose a colour.
+  image_id TEXT REFERENCES product_images(id) ON DELETE SET NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_product_variants_product_id ON product_variants (product_id);
+
+-- Dynamic options: however many a product actually has, named by whoever
+-- uploads it. A watch has Colour, a shoe has Size, a phone has Storage and
+-- Colour, a serum has Volume. `option1_*`/`option2_*` above are the older
+-- two-slot version, kept while both are written; these three tables are what
+-- the storefront reads.
+CREATE TABLE IF NOT EXISTS product_option_groups (
+  id TEXT PRIMARY KEY,
+  product_id TEXT NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  key TEXT NOT NULL, -- color | size | storage | volume | material
+  name TEXT NOT NULL, -- "Color", "Storage"
+  display TEXT NOT NULL DEFAULT 'pill', -- swatch | image | pill | dropdown
+  show_labels INTEGER NOT NULL DEFAULT 1, -- print the value name under a swatch
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  UNIQUE (product_id, key)
+);
+
+CREATE INDEX IF NOT EXISTS idx_option_groups_product ON product_option_groups (product_id, sort_order);
+
+CREATE TABLE IF NOT EXISTS product_option_values (
+  id TEXT PRIMARY KEY,
+  group_id TEXT NOT NULL REFERENCES product_option_groups(id) ON DELETE CASCADE,
+  value TEXT NOT NULL, -- "black-gold", "XL", "128gb"
+  label TEXT NOT NULL, -- "Black & Gold", "XL", "128 GB"
+  color_hex TEXT, -- hex or CSS gradient, same as product_variants.swatch
+  image_url TEXT,
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  UNIQUE (group_id, value)
+);
+
+CREATE INDEX IF NOT EXISTS idx_option_values_group ON product_option_values (group_id, sort_order);
+
+-- Which value a variant carries in each group. A reference rather than
+-- repeated text, so renaming a value cannot orphan the variants using it.
+CREATE TABLE IF NOT EXISTS product_variant_options (
+  variant_id TEXT NOT NULL REFERENCES product_variants(id) ON DELETE CASCADE,
+  group_id   TEXT NOT NULL REFERENCES product_option_groups(id) ON DELETE CASCADE,
+  value_id   TEXT NOT NULL REFERENCES product_option_values(id) ON DELETE CASCADE,
+  PRIMARY KEY (variant_id, group_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_variant_options_value ON product_variant_options (value_id);
 
 -- Free-form spec sheet (e.g. "Battery Life" -> "18 hours").
 CREATE TABLE IF NOT EXISTS product_attributes (
@@ -278,7 +329,8 @@ CREATE TABLE IF NOT EXISTS product_features (
   product_id TEXT NOT NULL REFERENCES products(id) ON DELETE CASCADE,
   icon TEXT NOT NULL,
   label TEXT NOT NULL,
-  sort_order INTEGER NOT NULL DEFAULT 0
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  value TEXT -- optional second line under the feature
 );
 
 CREATE INDEX IF NOT EXISTS idx_product_features_product_id ON product_features (product_id);
@@ -345,6 +397,20 @@ CREATE TABLE IF NOT EXISTS cart_items (
 );
 
 CREATE INDEX IF NOT EXISTS idx_cart_user_id ON cart_items (user_id);
+
+-- Buy Now, held apart from the cart so buying one item cannot sweep up
+-- whatever else the shopper had already put in there.
+CREATE TABLE IF NOT EXISTS buy_now_sessions (
+  id TEXT PRIMARY KEY,
+  user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
+  product_id TEXT NOT NULL,
+  variant_id TEXT,
+  quantity INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  expires_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_buy_now_user ON buy_now_sessions (user_id);
 
 CREATE TABLE IF NOT EXISTS recently_viewed (
   id TEXT PRIMARY KEY,

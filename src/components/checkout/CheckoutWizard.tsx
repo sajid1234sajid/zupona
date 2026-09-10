@@ -20,6 +20,9 @@ import StepPayment from "./StepPayment";
 import type { SummaryLine } from "./OrderSummary";
 
 interface CheckoutWizardProps {
+  /** Whether this is the cart being checked out or a single Buy Now line. The
+   * server needs to know which, because the two are emptied differently. */
+  source: "cart" | "buynow";
   /** Signed-out shoppers start on step 1 (the login step); everyone else skips it. */
   signedIn: boolean;
   initialDetails: DeliveryDetails;
@@ -32,6 +35,7 @@ interface CheckoutWizardProps {
 }
 
 export default function CheckoutWizard({
+  source,
   signedIn,
   initialDetails,
   verifiedPhone,
@@ -49,11 +53,20 @@ export default function CheckoutWizard({
   const [stepError, setStepError] = useState<string | undefined>();
   const [sending, startSending] = useTransition();
 
+  /* One key for this attempt at placing an order, generated once when the
+   * wizard mounts. A double-tapped button or a retried request carries the same
+   * key, and the server returns the order it already wrote instead of writing a
+   * second one. Navigating back into checkout mounts a fresh wizard and so
+   * starts a genuinely new attempt. */
+  const [idempotencyKey] = useState(() =>
+    typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}`
+  );
+
   const normalizedPhone = normalizeBdPhone(details.phone);
   const fee = deliveryMethods.find((method) => method.id === details.deliveryMethod)?.fee ?? 0;
 
   const [orderState, placeOrder, placing] = useActionState<PlaceOrderState, FormData>(
-    placeOrderAction.bind(null, { ...details, paymentMethod, code }),
+    placeOrderAction.bind(null, { ...details, paymentMethod, code, source, idempotencyKey }),
     {}
   );
 

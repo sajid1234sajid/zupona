@@ -231,3 +231,105 @@ export async function getMovements(variantId: string, limit = 50) {
     createdAt: row.created_at,
   }));
 }
+
+/* -------------------------------------------------------------------------- */
+/* Order-scoped stock moves, safe to attempt more than once                    */
+/* -------------------------------------------------------------------------- */
+
+/** True when the ledger already records this move for this order and variant.
+ *
+ * The ledger is append-only, so asking it is the same as asking "has this
+ * already happened?" -- there is no separate flag to keep in step. */
+async function hasOrderMovement(
+  orderId: string,
+  variantId: string,
+  reason: "sale" | "return"
+): Promise<boolean> {
+  const db = await getDB();
+  const row = await db
+    .prepare(
+      `SELECT 1 AS hit FROM inventory_movements
+       WHERE reference_type = 'order' AND reference_id = ? AND variant_id = ? AND reason = ?
+       LIMIT 1`
+    )
+    .bind(orderId, variantId, reason)
+    .first<{ hit: number }>();
+
+  return row !== null;
+}
+
+/** A rejected write from `idx_inventory_order_once`, which is what a second
+ * attempt looks like when two requests race past the check above. */
+function isDuplicateMovement(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /UNIQUE constraint failed/i.test(message);
+}
+
+/**
+ * Turns an order's reservation into a sale, at most once.
+ *
+ * Two guards, deliberately. The check is the fast path and keeps the common
+ * case quiet; the unique index behind it is what actually makes a second
+ * deduction impossible, because two requests can both read "not yet committed"
+ * before either writes. When the index rejects the write, D1 rolls the whole
+ * batch back -- including the stock decrement -- so a losing race changes
+ * nothing at all.
+ *
+ * Returns whether this call is the one that committed.
+ */
+export async function commitSaleOnce(
+  variantId: string,
+  quantity: number,
+  orderId: string
+): Promise<boolean> {
+  if (await hasOrderMovement(orderId, variantId, "sale")) return false;
+
+  try {
+    await commitSale(variantId, quantity, orderId);
+    return true;
+  } catch (error) {
+    if (isDuplicateMovement(error)) return false;
+    throw error;
+  }
+}
+
+/**
+ * Puts a sold item back on the shelf, at most once -- a cancellation or refund
+ * after the sale was already committed.
+ *
+ * The mirror of `commitSaleOnce`: stock goes back up, the sold counter goes
+ * back down without falling below zero, and the ledger gains the row that makes
+ * a second attempt impossible.
+ */
+export async function returnSaleOnce(
+  variantId: string,
+  quantity: number,
+  orderId: string
+): Promise<boolean> {
+  if (await hasOrderMovement(orderId, variantId, "return")) return false;
+  const db = await getDB();
+
+  try {
+    await db.batch([
+      db
+        .prepare("UPDATE product_variants SET stock_quantity = stock_quantity + ? WHERE id = ?")
+        .bind(quantity, variantId),
+      db
+        .prepare(
+          `UPDATE products SET sold_count = MAX(0, sold_count - ?)
+           WHERE id = (SELECT product_id FROM product_variants WHERE id = ?)`
+        )
+        .bind(quantity, variantId),
+      db
+        .prepare(
+          `INSERT INTO inventory_movements (id, variant_id, change_qty, reason, reference_type, reference_id)
+           VALUES (?, ?, ?, 'return', 'order', ?)`
+        )
+        .bind(crypto.randomUUID(), variantId, quantity, orderId),
+    ]);
+    return true;
+  } catch (error) {
+    if (isDuplicateMovement(error)) return false;
+    throw error;
+  }
+}

@@ -2,7 +2,9 @@
 
 import { getDB } from "@/lib/db";
 import { requireUser } from "@/lib/session";
-import { getStoreProduct, getStoreProductCard } from "@/lib/storefront";
+import { getStoreProductCard } from "@/lib/storefront";
+import { resolveSelection } from "@/lib/selection";
+import { createBuyNowSession } from "@/lib/buyNow";
 
 export async function addToCartAction(productId: string, color = "", quantity = 1): Promise<void> {
   const user = await requireUser();
@@ -38,9 +40,35 @@ export async function updateCartQuantityAction(itemId: string, quantity: number)
     return;
   }
 
+  /* Capped at what is actually on the shelf. The stepper already stops there,
+   * but the stepper is a convenience: a request that asks for more than exists
+   * is clamped here, where it counts, rather than being taken and refused at
+   * checkout. Lines with no variant keep their previous behaviour. */
+  const row = await db
+    .prepare(
+      `SELECT c.variant_id, v.stock_quantity, v.reserved_quantity
+       FROM cart_items c
+       LEFT JOIN product_variants v ON v.id = c.variant_id
+       WHERE c.id = ? AND c.user_id = ?`
+    )
+    .bind(itemId, user.id)
+    .first<{ variant_id: string | null; stock_quantity: number | null; reserved_quantity: number | null }>();
+
+  if (!row) return;
+
+  let wanted = Math.floor(quantity);
+  if (row.variant_id) {
+    const available = Math.max(0, (row.stock_quantity ?? 0) - (row.reserved_quantity ?? 0));
+    if (available <= 0) {
+      await db.prepare("DELETE FROM cart_items WHERE id = ? AND user_id = ?").bind(itemId, user.id).run();
+      return;
+    }
+    wanted = Math.min(wanted, available);
+  }
+
   await db
     .prepare("UPDATE cart_items SET quantity = ? WHERE id = ? AND user_id = ?")
-    .bind(quantity, itemId, user.id)
+    .bind(wanted, itemId, user.id)
     .run();
 }
 
@@ -81,47 +109,27 @@ export async function addSelectionToCartAction(input: {
 }): Promise<AddSelectionResult> {
   const user = await requireUser();
 
-  const quantity = Math.floor(Number(input.quantity));
-  if (!Number.isFinite(quantity) || quantity < 1) {
-    return { ok: false, error: "Choose how many you want." };
-  }
-
-  // Read from the catalog rather than trusting anything sent with the request.
-  const product = await getStoreProduct(input.productId);
-  if (!product) return { ok: false, error: "This product is no longer available." };
-
-  let variantId: string | null = null;
-  let available = product.stockTotal;
-  let selectionLabel = "";
-
-  if (product.variants.length > 0) {
-    const variant = product.variants.find((entry) => entry.id === input.variantId);
-    if (!variant) return { ok: false, error: "Choose an option before adding to the cart." };
-
-    variantId = variant.id;
-    available = variant.available;
-
-    // The label is what the cart and the order line print. Built in the order
-    // the options are shown, so "Olive / M" always reads the same way -- and,
-    // because cart rows are unique per (user, product, label), it is also what
-    // keeps two sizes of one shirt as two lines rather than one.
-    selectionLabel = product.optionGroups
-      .map((group) => variant.optionValues[group.key])
-      .filter(Boolean)
-      .join(" / ");
-  }
-
-  if (available <= 0) return { ok: false, error: "This option is out of stock." };
+  // The browser sends an id and a quantity; the price, the stock and the
+  // options all come back out of the database here.
+  const selection = await resolveSelection(input);
+  if (!selection.ok) return selection;
+  if (selection.available <= 0) return { ok: false, error: "This option is out of stock." };
 
   const db = await getDB();
   const existing = await db
-    .prepare("SELECT id, quantity FROM cart_items WHERE user_id = ? AND product_id = ? AND color = ?")
-    .bind(user.id, input.productId, selectionLabel)
+    .prepare(
+      selection.variantId
+        ? "SELECT id, quantity FROM cart_items WHERE user_id = ? AND product_id = ? AND variant_id = ?"
+        : "SELECT id, quantity FROM cart_items WHERE user_id = ? AND product_id = ? AND color = ?"
+    )
+    .bind(user.id, selection.productId, selection.variantId ?? selection.label)
     .first<{ id: string; quantity: number }>();
 
+  // What is already in the cart counts against the shelf, which is what stops
+  // three-then-three emptying a stock of five.
   const alreadyInCart = existing?.quantity ?? 0;
-  if (alreadyInCart + quantity > available) {
-    const room = available - alreadyInCart;
+  if (alreadyInCart + selection.quantity > selection.available) {
+    const room = selection.available - alreadyInCart;
     return {
       ok: false,
       error:
@@ -134,16 +142,37 @@ export async function addSelectionToCartAction(input: {
   if (existing) {
     await db
       .prepare("UPDATE cart_items SET quantity = ?, variant_id = ? WHERE id = ?")
-      .bind(alreadyInCart + quantity, variantId, existing.id)
+      .bind(alreadyInCart + selection.quantity, selection.variantId, existing.id)
       .run();
   } else {
     await db
       .prepare(
         "INSERT INTO cart_items (id, user_id, product_id, variant_id, color, quantity) VALUES (?, ?, ?, ?, ?, ?)"
       )
-      .bind(crypto.randomUUID(), user.id, input.productId, variantId, selectionLabel, quantity)
+      .bind(
+        crypto.randomUUID(),
+        user.id,
+        selection.productId,
+        selection.variantId,
+        selection.label,
+        selection.quantity
+      )
       .run();
   }
 
   return { ok: true };
+}
+
+/** Buy Now: opens a session for this one line and leaves the cart alone.
+ *
+ * Deliberately not "add to cart, then go to checkout" -- that bought whatever
+ * else was already there. */
+export async function buyNowAction(input: {
+  productId: string;
+  variantId?: string | null;
+  quantity: number;
+}): Promise<AddSelectionResult> {
+  const user = await requireUser();
+  const result = await createBuyNowSession(user.id, input);
+  return result.ok ? { ok: true } : { ok: false, error: result.error };
 }

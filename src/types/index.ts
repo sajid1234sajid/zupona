@@ -113,8 +113,17 @@ export interface ProductSummary {
 export interface CartItem {
   id: string;
   productId: string;
+  /** The variant this line is for, or null on lines added before variants. */
+  variantId: string | null;
+  /** The chosen options as shown on the line, e.g. "Olive / M". */
   color: string;
   quantity: number;
+  /** What is left of this variant after reservations, for the quantity cap.
+   * Falls back to the product's total where the line has no variant. */
+  available: number;
+  /** `product.price` on this line is the *line's* price -- the variant's own
+   * where it has one, the product's otherwise -- so every total downstream is
+   * computed from what this line actually costs. */
   product: ProductSummary;
 }
 

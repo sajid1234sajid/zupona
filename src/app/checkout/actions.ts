@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { getDB } from "@/lib/db";
 import { createSession, requireUser } from "@/lib/session";
-import { getCartItems, cartSubtotal } from "@/lib/cart";
+import { getCartItems } from "@/lib/cart";
 import { calcPointsEarned, generateOrderNumber } from "@/lib/orders";
 import { getDeliveryMethod, getPaymentOption, normalizeBdPhone, formatBdPhone } from "@/lib/checkout";
 import { getShopSettings, shippingFeeFor } from "@/lib/shopSettings";
@@ -14,6 +14,8 @@ import {
   issuePhoneCode,
 } from "@/lib/verification";
 import { isServedLocation } from "@/data/locations";
+import { reserveStock, releaseReservation } from "@/lib/inventory";
+import { getBuyNowLine, consumeBuyNowSession, clearBuyNowCookie } from "@/lib/buyNow";
 
 export interface SendCodeState {
   error?: string;
@@ -104,6 +106,23 @@ export interface CheckoutDetails {
   deliveryMethod: string;
   paymentMethod: string;
   code: string;
+  /** Whether the cart is being bought, or a single Buy Now line. */
+  source: "cart" | "buynow";
+  /** Identifies this attempt at placing an order. A retry carries the same key
+   * and lands on the order already written rather than a second one. */
+  idempotencyKey: string;
+}
+
+/** One line about to become an order line, priced from the database. */
+interface OrderLine {
+  productId: string;
+  variantId: string | null;
+  label: string;
+  name: string;
+  image: string;
+  price: number;
+  oldPrice: number;
+  quantity: number;
 }
 
 /** Step 3: verifies the number, snapshots the address and turns the cart into an order. */
@@ -134,8 +153,47 @@ export async function placeOrderAction(
     if (check.phone !== phone) return { error: "That code was sent to a different number." };
   }
 
-  const items = await getCartItems(user.id);
-  if (items.length === 0) return { error: "Your cart is empty." };
+  // Has this exact attempt already produced an order? A double-tapped button or
+  // a retried request gets the order it already wrote, not a second one.
+  if (details.idempotencyKey) {
+    const already = await db
+      .prepare("SELECT id FROM orders WHERE idempotency_key = ? AND user_id = ?")
+      .bind(details.idempotencyKey, user.id)
+      .first<{ id: string }>();
+    if (already) redirect(`/checkout/confirmed/${already.id}`);
+  }
+
+  // Buy Now buys its own line and never reads the cart.
+  const buyNow = details.source === "buynow" ? await getBuyNowLine(user.id) : null;
+  if (details.source === "buynow" && !buyNow) {
+    return { error: "That checkout session has expired. Please start again." };
+  }
+
+  const lines: OrderLine[] = buyNow
+    ? [
+        {
+          productId: buyNow.productId,
+          variantId: buyNow.variantId,
+          label: buyNow.label,
+          name: buyNow.name,
+          image: buyNow.image,
+          price: buyNow.price,
+          oldPrice: buyNow.oldPrice,
+          quantity: buyNow.quantity,
+        },
+      ]
+    : (await getCartItems(user.id)).map((item) => ({
+        productId: item.productId,
+        variantId: item.variantId,
+        label: item.color,
+        name: item.product.name,
+        image: item.product.image,
+        price: item.product.price,
+        oldPrice: item.product.oldPrice,
+        quantity: item.quantity,
+      }));
+
+  if (lines.length === 0) return { error: "Your cart is empty." };
 
   // The fee charged comes from the shop's own settings, and the free-shipping
   // threshold is applied here so the amount recorded on the order is the
@@ -146,56 +204,100 @@ export async function placeOrderAction(
     express: settings.expressShippingFee,
   });
   const payment = getPaymentOption(details.paymentMethod);
-  const subtotal = cartSubtotal(items);
+  const subtotal = lines.reduce((sum, line) => sum + line.price * line.quantity, 0);
   const shippingFee = shippingFeeFor(subtotal, delivery.id, settings);
   const total = subtotal + shippingFee;
   const pointsEarned = calcPointsEarned(total);
 
+  /* Hold the stock before the order exists. Each hold is a single conditional
+   * UPDATE, so two shoppers cannot both take the last one; if any line cannot
+   * be held, the holds already taken are given straight back and nothing is
+   * written. Lines with no variant -- rows added before variants existed --
+   * have nothing to hold. */
+  const held: { variantId: string; quantity: number }[] = [];
+  for (const line of lines) {
+    if (!line.variantId) continue;
+
+    if (!(await reserveStock(line.variantId, line.quantity))) {
+      for (const hold of held) await releaseReservation(hold.variantId, hold.quantity);
+      return {
+        error: `${line.name}${line.label ? ` (${line.label})` : ""} is no longer available in that quantity.`,
+      };
+    }
+    held.push({ variantId: line.variantId, quantity: line.quantity });
+  }
+
+  const releaseHolds = async () => {
+    for (const hold of held) await releaseReservation(hold.variantId, hold.quantity);
+  };
+
   const orderId = crypto.randomUUID();
   const orderNumber = generateOrderNumber();
 
-  await db
-    .prepare(
-      `INSERT INTO orders
-        (id, order_number, user_id, status, subtotal, shipping_fee, total, points_earned,
-         address_label, address_full_name, address_phone, address_line, address_area, address_city,
-         payment_label, delivery_method)
-       VALUES (?, ?, ?, 'placed', ?, ?, ?, ?, 'Home', ?, ?, ?, ?, ?, ?, ?)`
-    )
-    .bind(
-      orderId,
-      orderNumber,
-      user.id,
-      subtotal,
-      shippingFee,
-      total,
-      pointsEarned,
-      fullName,
-      phone,
-      addressDetails,
-      details.area,
-      details.division,
-      payment.name,
-      delivery.id
-    )
-    .run();
-
-  for (const item of items) {
+  /* Writing the order is what claims the idempotency key. If two submissions
+   * race past the check above, the unique index lets exactly one through; the
+   * loser gives its holds back and joins the winner\'s order rather than
+   * creating a second one. */
+  try {
     await db
       .prepare(
-        `INSERT INTO order_items (id, order_id, product_id, name, image, color, price, old_price, quantity)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        `INSERT INTO orders
+          (id, order_number, user_id, status, subtotal, shipping_fee, total, points_earned,
+           address_label, address_full_name, address_phone, address_line, address_area, address_city,
+           payment_label, delivery_method, idempotency_key, stock_state)
+         VALUES (?, ?, ?, 'placed', ?, ?, ?, ?, 'Home', ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      )
+      .bind(
+        orderId,
+        orderNumber,
+        user.id,
+        subtotal,
+        shippingFee,
+        total,
+        pointsEarned,
+        fullName,
+        phone,
+        addressDetails,
+        details.area,
+        details.division,
+        payment.name,
+        delivery.id,
+        details.idempotencyKey || null,
+        held.length > 0 ? "reserved" : "none"
+      )
+      .run();
+  } catch (error) {
+    // Released once, whatever went wrong, before anything else can throw.
+    await releaseHolds();
+
+    const message = error instanceof Error ? error.message : String(error);
+    if (/UNIQUE constraint failed/i.test(message)) {
+      const winner = await db
+        .prepare("SELECT id FROM orders WHERE idempotency_key = ? AND user_id = ?")
+        .bind(details.idempotencyKey, user.id)
+        .first<{ id: string }>();
+      if (winner) redirect(`/checkout/confirmed/${winner.id}`);
+    }
+    throw error;
+  }
+
+  for (const line of lines) {
+    await db
+      .prepare(
+        `INSERT INTO order_items (id, order_id, product_id, variant_id, name, image, color, price, old_price, quantity)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .bind(
         crypto.randomUUID(),
         orderId,
-        item.productId,
-        item.product.name,
-        item.product.image,
-        item.color || null,
-        item.product.price,
-        item.product.oldPrice,
-        item.quantity
+        line.productId,
+        line.variantId,
+        line.name,
+        line.image,
+        line.label || null,
+        line.price,
+        line.oldPrice,
+        line.quantity
       )
       .run();
   }
@@ -237,7 +339,14 @@ export async function placeOrderAction(
       await db.prepare("UPDATE users SET phone = ? WHERE id = ?").bind(phone, user.id).run();
     }
   }
-  await db.prepare("DELETE FROM cart_items WHERE user_id = ?").bind(user.id).run();
+  /* Empty whichever the shopper was actually buying from. A Buy Now order
+   * spends its session and leaves the cart exactly as it was. */
+  if (buyNow) {
+    await consumeBuyNowSession(buyNow.sessionId);
+    await clearBuyNowCookie();
+  } else {
+    await db.prepare("DELETE FROM cart_items WHERE user_id = ?").bind(user.id).run();
+  }
 
   await db
     .prepare(

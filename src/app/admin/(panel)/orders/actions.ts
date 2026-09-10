@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getDB } from "@/lib/db";
 import { logAdminAction, requireStaff } from "@/lib/admin";
 import { statusLabel } from "@/lib/orders";
+import { applyStockForStatus } from "@/lib/orderStock";
 import type { OrderStatus } from "@/types";
 
 const ORDER_STATUSES: OrderStatus[] = [
@@ -79,9 +80,16 @@ export async function setOrderStatusAction(formData: FormData): Promise<void> {
       ),
   ]);
 
+  /* Stock follows the status, at most once. Reaching confirmed or beyond turns
+   * the hold into a sale; cancelling gives it back, either as a released hold
+   * or as a return, depending on whether it was already sold. Repeating a
+   * status does nothing, because the order has already left the state the move
+   * would have claimed. */
+  const stockOutcome = await applyStockForStatus(orderId, status);
+
   await logAdminAction(staff.id, `order.${status}`, "order", orderId, {
     before: { status: before.status },
-    after: { status },
+    after: { status, stock: stockOutcome },
   });
 
   refresh(orderId);

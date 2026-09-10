@@ -6,7 +6,7 @@ import Link from "next/link";
 import { Heart, LoaderCircle, ShoppingCart, Star, Zap } from "lucide-react";
 import type { StoreMediaItem, StoreProduct } from "@/lib/storefront";
 import { formatPrice } from "@/lib/format";
-import { addSelectionToCartAction } from "@/app/cart/actions";
+import { addSelectionToCartAction, buyNowAction } from "@/app/cart/actions";
 import { toggleWishlistAction } from "@/app/wishlist/actions";
 import ProductMedia from "./ProductMedia";
 import VideoModal from "./VideoModal";
@@ -91,7 +91,7 @@ export default function ProductView({
     }
   }
 
-  function addToCart(then?: () => void) {
+  function addToCart() {
     setFeedback(null);
     return async () => {
       const result = await addSelectionToCartAction({
@@ -109,7 +109,26 @@ export default function ProductView({
       // Refreshes the header's cart count from the server rather than guessing
       // it, so what the badge shows is what the database holds.
       router.refresh();
-      then?.();
+    };
+  }
+
+  /** Buy Now opens a session for this line alone. It does not touch the cart,
+   * so a shopper with items saved does not pay for them by accident. */
+  function buyNow() {
+    setFeedback(null);
+    return async () => {
+      const result = await buyNowAction({
+        productId: product.id,
+        variantId: variant?.id ?? null,
+        quantity,
+      });
+
+      if (!result.ok) {
+        setFeedback({ ok: false, message: result.error ?? "Could not start checkout." });
+        return;
+      }
+
+      router.push("/checkout?mode=buynow");
     };
   }
 
@@ -140,7 +159,7 @@ export default function ProductView({
 
       <button
         type="button"
-        onClick={() => startBuy(addToCart(() => router.push("/checkout")))}
+        onClick={() => startBuy(buyNow())}
         disabled={!canBuy || addPending || buyPending}
         className="flex min-h-[46px] flex-1 items-center justify-center gap-2 rounded-full border-2 border-brand bg-white px-4 text-sm font-black text-brand transition disabled:cursor-not-allowed disabled:opacity-45 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
       >

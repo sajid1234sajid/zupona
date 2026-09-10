@@ -54,6 +54,61 @@ export interface StoreProductColor {
   swatch: string;
 }
 
+/** One image or clip, in the single ordered list the product gallery walks.
+ *
+ * `images` and `videos` below stay as they are and still feed the current
+ * gallery; this is the unified list, with the ids a variant can point at and
+ * the alt text a separate array of URLs had nowhere to keep. */
+export interface StoreMediaItem {
+  id: string;
+  type: "image" | "video";
+  url: string;
+  /** The still to show before a clip plays. For an image, the image itself. */
+  poster: string;
+  alt: string;
+}
+
+export interface StoreOptionValue {
+  id: string;
+  /** What a variant stores, e.g. "Black & Gold" or "XL". */
+  value: string;
+  label: string;
+  /** Hex or a CSS gradient, carried over from the old `swatch` column. */
+  colorHex: string | null;
+  imageUrl: string | null;
+}
+
+/** One option a product offers. A product has as many of these as it has --
+ * a watch one, a shirt two, a phone Storage and Colour -- and a product with
+ * none returns an empty array, which is what stops an empty selector from
+ * being drawn. */
+export interface StoreOptionGroup {
+  id: string;
+  key: string;
+  name: string;
+  display: "swatch" | "image" | "pill" | "dropdown";
+  /** Whether the value name is printed under a swatch. */
+  showLabels: boolean;
+  values: StoreOptionValue[];
+}
+
+/** A sellable combination: what it costs, what is left, and which picture it
+ * belongs to. Stock and price are read here, on the server, so nothing about
+ * either has to be believed from the browser. */
+export interface StoreVariant {
+  id: string;
+  /** Group key to option value, e.g. `{ color: "Black & Gold", size: "M" }`. */
+  optionValues: Record<string, string>;
+  /** The variant's own price, or the product's where it has none -- the
+   * `effectivePrice` DATABASE.md asks callers to read rather than `price`. */
+  price: number;
+  compareAtPrice: number;
+  /** stock_quantity minus what is already held, never below zero. */
+  available: number;
+  /** The product image this variant switches the gallery to, if any. */
+  imageId: string | null;
+}
+
 export interface StoreProduct extends StoreProductCard {
   slug: string;
   brand: string | null;
@@ -70,6 +125,26 @@ export interface StoreProduct extends StoreProductCard {
   attributes: { name: string; value: string }[];
   categoryName: string | null;
   stockTotal: number;
+
+  /* The dynamic option system. Everything above this line is unchanged and
+   * still feeds the existing product page; everything below is additive.
+   *
+   * Note for callers: product JSON is served out of KV, so for up to the
+   * cache TTL after a deploy these can be missing from an entry written
+   * before they existed. Read them as `product.optionGroups ?? []`, the same
+   * way `videos` already is. */
+  /** The attribute line under the title, e.g. "Premium Cotton | Regular Fit". */
+  shortDescription: string | null;
+  /** Hero badge: "Best Seller", "Popular", "New Arrival". */
+  badgeLabel: string | null;
+  returnPolicy: string | null;
+  warranty: string | null;
+  soldCount: number;
+  /** Images then clips, in one list -- the order the reference designs show,
+   * with the video last in the thumbnail strip. */
+  media: StoreMediaItem[];
+  optionGroups: StoreOptionGroup[];
+  variants: StoreVariant[];
 }
 
 export interface StoreSubcategory {
@@ -283,6 +358,8 @@ async function queryProduct(id: string): Promise<StoreProduct | null> {
       `SELECT p.id, p.name, p.price, p.old_price, p.rating_avg, p.rating_count,
               p.is_best_seller, p.category_id, p.slug, p.description,
               p.hero_headline, p.hero_subtitle,
+              p.short_description, p.badge_label, p.return_policy, p.warranty,
+              p.sold_count,
               c.parent_id, c.name AS category_name, b.name AS brand_name,
               (SELECT url FROM product_images i WHERE i.product_id = p.id
                 ORDER BY i.is_primary DESC, i.sort_order ASC LIMIT 1) AS image,
@@ -301,6 +378,11 @@ async function queryProduct(id: string): Promise<StoreProduct | null> {
         description: string | null;
         hero_headline: string | null;
         hero_subtitle: string | null;
+        short_description: string | null;
+        badge_label: string | null;
+        return_policy: string | null;
+        warranty: string | null;
+        sold_count: number;
         category_name: string | null;
         brand_name: string | null;
       }
@@ -308,15 +390,18 @@ async function queryProduct(id: string): Promise<StoreProduct | null> {
 
   if (!row) return null;
 
-  const [images, videos, variants, features, attributes] = await db.batch<Record<string, unknown>>([
+  // `variants` here is the *colour* list the existing gallery uses, not the
+  // sellable variants added below -- it is left exactly as it was.
+  const [images, videos, variants, features, attributes, optionRows, sellable, sellableOptions] =
+    await db.batch<Record<string, unknown>>([
     db
       .prepare(
-        "SELECT url FROM product_images WHERE product_id = ? ORDER BY is_primary DESC, sort_order ASC"
+        "SELECT id, url, alt FROM product_images WHERE product_id = ? ORDER BY is_primary DESC, sort_order ASC"
       )
       .bind(id),
     db
       .prepare(
-        "SELECT url, poster_url FROM product_videos WHERE product_id = ? ORDER BY sort_order ASC"
+        "SELECT id, url, poster_url, alt FROM product_videos WHERE product_id = ? ORDER BY sort_order ASC"
       )
       .bind(id),
     db
@@ -333,6 +418,38 @@ async function queryProduct(id: string): Promise<StoreProduct | null> {
       .prepare(
         `SELECT attr_name, attr_value FROM product_attributes
          WHERE product_id = ? AND attr_name != 'tag' ORDER BY sort_order ASC`
+      )
+      .bind(id),
+    // Option groups with their values. An inner join, so a group that somehow
+    // has no values never reaches the page as an empty selector.
+    db
+      .prepare(
+        `SELECT g.id AS group_id, g.key, g.name, g.display, g.show_labels,
+                ov.id AS value_id, ov.value, ov.label, ov.color_hex, ov.image_url
+         FROM product_option_groups g
+         JOIN product_option_values ov ON ov.group_id = g.id
+         WHERE g.product_id = ?
+         ORDER BY g.sort_order ASC, ov.sort_order ASC`
+      )
+      .bind(id),
+    // The sellable combinations, with the price and stock the server decides.
+    db
+      .prepare(
+        `SELECT id, price, old_price, stock_quantity, reserved_quantity, image_id
+         FROM product_variants
+         WHERE product_id = ? AND is_active = 1
+         ORDER BY rowid ASC`
+      )
+      .bind(id),
+    // Which value each variant carries, keyed by group so the page can match
+    // a selection without knowing anything about the option names.
+    db
+      .prepare(
+        `SELECT pvo.variant_id, g.key AS group_key, ov.value
+         FROM product_variant_options pvo
+         JOIN product_option_groups g ON g.id = pvo.group_id
+         JOIN product_option_values ov ON ov.id = pvo.value_id
+         WHERE g.product_id = ?`
       )
       .bind(id),
   ]);
@@ -354,6 +471,116 @@ async function queryProduct(id: string): Promise<StoreProduct | null> {
   }
 
   const card = toCard(row);
+
+  /* ------------------------------------------------------------------ */
+  /* The dynamic option system                                          */
+  /* ------------------------------------------------------------------ */
+
+  // One ordered list: the stills first, then the clips. That is the order the
+  // reference designs show, with the video sitting last in the thumbnail
+  // strip. `images` and `videos` above keep their own order for the existing
+  // gallery, which leads with clips.
+  const media: StoreMediaItem[] = [
+    ...(images.results as unknown as { id: string; url: string; alt: string | null }[]).map(
+      (image) => ({
+        id: image.id,
+        type: "image" as const,
+        url: image.url,
+        poster: image.url,
+        alt: image.alt ?? row.name,
+      })
+    ),
+    ...(
+      videos.results as unknown as {
+        id: string;
+        url: string;
+        poster_url: string | null;
+        alt: string | null;
+      }[]
+    ).map((video) => ({
+      id: video.id,
+      type: "video" as const,
+      url: video.url,
+      poster: video.poster_url ?? imageUrls[0] ?? card.image,
+      alt: video.alt ?? row.name,
+    })),
+  ];
+
+  // A product with no uploaded media still needs something for the gallery to
+  // draw, the same way `images` falls back to the placeholder rather than
+  // handing the page an empty array.
+  if (media.length === 0) {
+    media.push({ id: `${row.id}-placeholder`, type: "image", url: card.image, poster: card.image, alt: row.name });
+  }
+
+  // Groups arrive flattened, one row per value, already in display order.
+  const groupsById = new Map<string, StoreOptionGroup>();
+  for (const optionRow of optionRows.results as unknown as {
+    group_id: string;
+    key: string;
+    name: string;
+    display: string;
+    show_labels: number;
+    value_id: string;
+    value: string;
+    label: string;
+    color_hex: string | null;
+    image_url: string | null;
+  }[]) {
+    let group = groupsById.get(optionRow.group_id);
+    if (!group) {
+      group = {
+        id: optionRow.group_id,
+        key: optionRow.key,
+        name: optionRow.name,
+        display: optionRow.display as StoreOptionGroup["display"],
+        showLabels: optionRow.show_labels === 1,
+        values: [],
+      };
+      groupsById.set(optionRow.group_id, group);
+    }
+    group.values.push({
+      id: optionRow.value_id,
+      value: optionRow.value,
+      label: optionRow.label,
+      colorHex: optionRow.color_hex,
+      imageUrl: optionRow.image_url,
+    });
+  }
+  const optionGroups = [...groupsById.values()];
+
+  // A variant's selections, gathered before the variants themselves so each
+  // one can be handed a finished map.
+  const selectionsByVariant = new Map<string, Record<string, string>>();
+  for (const link of sellableOptions.results as unknown as {
+    variant_id: string;
+    group_key: string;
+    value: string;
+  }[]) {
+    const selections = selectionsByVariant.get(link.variant_id) ?? {};
+    selections[link.group_key] = link.value;
+    selectionsByVariant.set(link.variant_id, selections);
+  }
+
+  const sellableVariants: StoreVariant[] = (
+    sellable.results as unknown as {
+      id: string;
+      price: number | null;
+      old_price: number | null;
+      stock_quantity: number;
+      reserved_quantity: number;
+      image_id: string | null;
+    }[]
+  ).map((variant) => ({
+    id: variant.id,
+    optionValues: selectionsByVariant.get(variant.id) ?? {},
+    // NULL means "inherit the product price", which is why this is not read
+    // as `variant.price` anywhere.
+    price: variant.price ?? row.price,
+    compareAtPrice: variant.old_price ?? row.old_price,
+    available: Math.max(0, variant.stock_quantity - variant.reserved_quantity),
+    imageId: variant.image_id,
+  }));
 
   return {
     ...card,
@@ -381,6 +608,14 @@ async function queryProduct(id: string): Promise<StoreProduct | null> {
       attr_value: string;
     }[]).map((a) => ({ name: a.attr_name, value: a.attr_value })),
     stockTotal: row.stock_total ?? 0,
+    shortDescription: row.short_description,
+    badgeLabel: row.badge_label,
+    returnPolicy: row.return_policy,
+    warranty: row.warranty,
+    soldCount: row.sold_count ?? 0,
+    media,
+    optionGroups,
+    variants: sellableVariants,
   };
 }
 

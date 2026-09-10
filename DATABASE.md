@@ -76,7 +76,7 @@ Two notes carried from building `0003`:
 
 ## Schema map
 
-44 tables, grouped by concern.
+50 tables, grouped by concern.
 
 **Identity and access** — `users` (with `role`, `status`, verification flags,
 referral fields), `sessions` (with device metadata), `oauth_accounts` for
@@ -87,15 +87,17 @@ multi-provider sign-in, `login_attempts` for lockout and the security page,
 details) and `seller_documents` for KYC paperwork held in R2.
 
 **Catalog** — `categories` (self-referencing for subcategories), `brands`,
-`products`, `product_images`, `product_variants`, `product_attributes`
-(spec sheet), `product_features` (badge icons), `inventory_movements` (the
-stock ledger) and `price_history`.
+`products`, `product_images`, `product_videos`, `product_variants`,
+`product_option_groups` / `product_option_values` / `product_variant_options`
+(the dynamic option system), `product_attributes` (spec sheet),
+`product_features` (badge icons), `inventory_movements` (the stock ledger) and
+`price_history`.
 
-**Shopping** — `cart_items`, `wishlist_items`, `recently_viewed`,
-`search_queries`.
+**Shopping** — `cart_items`, `buy_now_sessions`, `wishlist_items`,
+`recently_viewed`, `search_queries`.
 
 **Merchandising** — `coupons`, `coupon_redemptions`, `flash_sales`,
-`flash_sale_items`.
+`flash_sale_items`, `banners`.
 
 **Social proof** — `reviews`, `review_images`, `product_questions`,
 `product_answers`.

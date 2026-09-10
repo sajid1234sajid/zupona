@@ -350,6 +350,14 @@ CREATE TABLE IF NOT EXISTS inventory_movements (
 );
 
 CREATE INDEX IF NOT EXISTS idx_inventory_movements_variant_id ON inventory_movements (variant_id);
+CREATE INDEX IF NOT EXISTS idx_inventory_reference ON inventory_movements (reference_type, reference_id);
+
+-- One sale and one return per order per variant, enforced here rather than by
+-- remembering to check first. Manual stock edits use reference_type 'manual'
+-- and are outside this index.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_inventory_order_once
+  ON inventory_movements (reference_id, variant_id, reason)
+  WHERE reference_type = 'order' AND reason IN ('sale', 'return');
 
 -- Price change audit trail (analytics + "price history" chart on PDP).
 CREATE TABLE IF NOT EXISTS price_history (
@@ -390,12 +398,17 @@ CREATE TABLE IF NOT EXISTS cart_items (
   product_id TEXT NOT NULL,
   variant_id TEXT,
   seller_id TEXT,
-  color TEXT NOT NULL DEFAULT '',
+  color TEXT NOT NULL DEFAULT '', -- the selection as shown on the line
   quantity INTEGER NOT NULL DEFAULT 1,
-  created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  UNIQUE (user_id, product_id, color)
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+-- One line per variant; rows written before variants existed (variant_id NULL)
+-- keep their original (user, product, label) rule.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_cart_variant_unique
+  ON cart_items (user_id, product_id, variant_id) WHERE variant_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_cart_legacy_unique
+  ON cart_items (user_id, product_id, color) WHERE variant_id IS NULL;
 CREATE INDEX IF NOT EXISTS idx_cart_user_id ON cart_items (user_id);
 
 -- Buy Now, held apart from the cart so buying one item cannot sweep up
@@ -407,10 +420,12 @@ CREATE TABLE IF NOT EXISTS buy_now_sessions (
   variant_id TEXT,
   quantity INTEGER NOT NULL DEFAULT 1,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  expires_at TEXT NOT NULL
+  expires_at TEXT NOT NULL,
+  consumed_at TEXT -- spent once; a replayed session cannot become a second order
 );
 
 CREATE INDEX IF NOT EXISTS idx_buy_now_user ON buy_now_sessions (user_id);
+CREATE INDEX IF NOT EXISTS idx_buy_now_expiry ON buy_now_sessions (expires_at);
 
 CREATE TABLE IF NOT EXISTS recently_viewed (
   id TEXT PRIMARY KEY,
@@ -588,8 +603,13 @@ CREATE TABLE IF NOT EXISTS orders (
   delivery_method TEXT NOT NULL DEFAULT 'standard', -- standard|express
   placed_at TEXT NOT NULL DEFAULT (datetime('now')),
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  idempotency_key TEXT, -- one order per checkout attempt; NULL on anything older
+  stock_state TEXT NOT NULL DEFAULT 'none' -- none|reserved|committed|released|returned
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_orders_idempotency
+  ON orders (idempotency_key) WHERE idempotency_key IS NOT NULL;
 
 CREATE INDEX IF NOT EXISTS idx_orders_user_id ON orders (user_id);
 

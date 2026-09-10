@@ -24,6 +24,11 @@ export interface ShopSettings {
   reviewsNeedApproval: boolean;
   guestCheckoutEnabled: boolean;
   maintenanceMode: boolean;
+  /** Echoes the one-time code back to the browser so checkout can be tested
+   * without an SMS gateway. Off by default: with it on, anyone can request a
+   * code for any number and read it out of the response, which is enough to
+   * sign in as that person. Only turn it on against a throwaway database. */
+  otpDemoMode: boolean;
 }
 
 /** What the storefront falls back to. These match the values that used to be
@@ -41,6 +46,7 @@ export const DEFAULT_SETTINGS: ShopSettings = {
   reviewsNeedApproval: false,
   guestCheckoutEnabled: true,
   maintenanceMode: false,
+  otpDemoMode: false,
 };
 
 function readInt(raw: string | undefined, fallback: number): number {
@@ -91,6 +97,7 @@ async function querySettings(): Promise<ShopSettings> {
       DEFAULT_SETTINGS.guestCheckoutEnabled
     ),
     maintenanceMode: readFlag(map.get("maintenance_mode"), DEFAULT_SETTINGS.maintenanceMode),
+    otpDemoMode: readFlag(map.get("otp_demo_mode"), DEFAULT_SETTINGS.otpDemoMode),
   };
 }
 

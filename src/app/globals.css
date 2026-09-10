@@ -8,7 +8,9 @@
 :root {
   --color-brand-darkest: #00553d;
   --color-brand-dark: #006b4d;
-  --color-brand: #00845f;
+  /* Measured from the reference screenshot (#027E5A). The previous #00845f
+   * was a shade brighter; everything else in the ramp is left alone. */
+  --color-brand: #027e5a;
   --color-brand-light: #0a936a;
   --color-brand-tint: #e9f5ef;
   --color-brand-mist: #f2f7f4;
@@ -18,6 +20,20 @@
   --color-ink-muted: #6b8078;
   --color-accent-red: #e03131;
   --color-accent-amber: #f5b323;
+
+  /* Storefront surfaces measured from the reference screenshot. These are
+   * additions: `brand-tint`, `ink-muted` and `accent-amber` above keep their
+   * values so every existing screen, including the admin panel, is unchanged.
+   *   surface   -- the pale mint the storefront sits on (the shop, not <body>)
+   *   mint      -- the deeper mint of the trust/feature bar
+   *   gold      -- rating stars
+   *   ink-soft  -- the lavender-grey used for meta text (sold count, tab bar)
+   *   heading   -- the near-black green of the product title and price */
+  --color-surface: #f6fbf9;
+  --color-mint: #def3ed;
+  --color-gold: #fcae0e;
+  --color-ink-soft: #8183b0;
+  --color-heading: #062c1e;
 }
 
 @theme inline {
@@ -34,8 +50,18 @@
   /* Kept as aliases so the admin panel's existing orange utilities resolve. */
   --color-accent-orange: var(--color-accent-amber);
   --color-accent-orange-dark: #d99400;
+  --color-surface: var(--color-surface);
+  --color-mint: var(--color-mint);
+  --color-gold: var(--color-gold);
+  --color-ink-soft: var(--color-ink-soft);
+  --color-heading: var(--color-heading);
   --font-sans: var(--font-poppins);
   --font-serif: var(--font-playfair);
+
+  /* The storefront turns from one column into two here. 700px rather than a
+   * stock Tailwind breakpoint because that is where the product layout stops
+   * being a phone screen and the mobile tab bar is no longer wanted. */
+  --breakpoint-tab: 700px;
 }
 
 body {

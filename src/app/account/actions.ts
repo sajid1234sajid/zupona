@@ -1,7 +1,9 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { getDB } from "@/lib/db";
+import { rateLimit } from "@/lib/cache";
 import { hashPassword, verifyPassword } from "@/lib/password";
 import { createSession, destroySession, requireUser } from "@/lib/session";
 
@@ -24,6 +26,37 @@ function readMethod(formData: FormData): "email" | "phone" {
 
 function normalizePhone(value: string): string {
   return value.replace(/[^\d+]/g, "");
+}
+
+/** Records the attempt whatever the outcome, the same way the admin door does.
+ * The row is what makes a burst of failures visible after the fact. */
+async function recordAttempt(identifier: string, userId: string | null, success: boolean) {
+  const headerStore = await headers();
+  const db = await getDB();
+  await db
+    .prepare(
+      `INSERT INTO login_attempts (id, identifier, user_id, success, ip_address, user_agent)
+       VALUES (?, ?, ?, ?, ?, ?)`
+    )
+    .bind(
+      crypto.randomUUID(),
+      identifier,
+      userId,
+      success ? 1 : 0,
+      headerStore.get("cf-connecting-ip"),
+      headerStore.get("user-agent")
+    )
+    .run();
+}
+
+/** A brake on credential stuffing. Looser than the admin door's ten per
+ * fifteen minutes, because a shopper mistyping their own password is far more
+ * common than an attack, and being locked out of a shop is worse than a slow
+ * attacker. KV being unavailable never blocks a sign-in: the password check
+ * is the real boundary, this only slows a burst down. */
+async function throttle(bucket: string, identifier: string): Promise<boolean> {
+  const limit = await rateLimit(`${bucket}:${identifier}`, 20, 15 * 60).catch(() => null);
+  return limit ? limit.allowed : true;
 }
 
 export async function signUpAction(
@@ -54,6 +87,10 @@ export async function signUpAction(
     if (!PHONE_RE.test(normalized)) return { error: "Enter a valid mobile number." };
     phone = normalized;
     name = normalized;
+  }
+
+  if (!(await throttle("signup", (email ?? phone) as string))) {
+    return { error: "Too many attempts. Wait a few minutes and try again." };
   }
 
   const db = await getDB();
@@ -101,6 +138,10 @@ export async function logInAction(
 
   const identifier = method === "email" ? identifierRaw.toLowerCase() : normalizePhone(identifierRaw);
 
+  if (!(await throttle("login", identifier))) {
+    return { error: "Too many attempts. Wait a few minutes and try again." };
+  }
+
   const db = await getDB();
   const row = await db
     .prepare(`SELECT id, password_hash FROM users WHERE ${method === "email" ? "email" : "phone"} = ?`)
@@ -108,9 +149,11 @@ export async function logInAction(
     .first<{ id: string; password_hash: string | null }>();
 
   if (!row || !row.password_hash || !(await verifyPassword(password, row.password_hash))) {
+    await recordAttempt(identifier, row?.id ?? null, false);
     return { error: "Incorrect details. Please try again." };
   }
 
+  await recordAttempt(identifier, row.id, true);
   await createSession(row.id);
   redirect("/account");
 }

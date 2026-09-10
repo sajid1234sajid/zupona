@@ -19,7 +19,10 @@ export interface SendCodeState {
   error?: string;
   /** Normalized `+8801XXXXXXXXX` the code was sent to. */
   phone?: string;
-  /** Only set while no SMS gateway is connected - shown as a demo hint. */
+  /** The issued code, echoed back so checkout can be exercised without an SMS
+   * gateway. Only ever populated when the `otp_demo_mode` setting is on, which
+   * is off by default -- returning it unconditionally let anyone sign in as any
+   * phone number by reading it out of this response. */
   demoCode?: string;
 }
 
@@ -39,7 +42,12 @@ export async function sendCodeAction(rawPhone: string): Promise<SendCodeState> {
   if (recent) return { error: "A code was just sent. Please wait a moment before asking for another." };
 
   const { code } = await issuePhoneCode(phone);
-  return { phone, demoCode: code };
+
+  // The code goes back to the browser only in demo mode. With no SMS gateway
+  // connected and the setting off, the code is issued and simply not shown --
+  // which is the correct production behaviour, not a bug.
+  const { otpDemoMode } = await getShopSettings();
+  return otpDemoMode ? { phone, demoCode: code } : { phone };
 }
 
 export interface SignInState {

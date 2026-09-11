@@ -9,7 +9,7 @@ export default async function PointsPage() {
   const earningOrders = orders.filter((o) => o.pointsEarned > 0);
 
   return (
-    <div className="mx-auto flex min-h-screen w-full max-w-md flex-col bg-[#f3f5f4] pb-10">
+    <div className="mx-auto flex min-h-screen w-full max-w-md flex-col bg-brand-mist pb-10">
       <header className="flex items-center gap-3 border-b border-line-soft bg-white px-4 py-3">
         <Link href="/account" aria-label="Back to account">
           <ChevronLeft className="h-5 w-5 text-ink" />

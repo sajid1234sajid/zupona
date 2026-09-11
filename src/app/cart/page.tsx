@@ -18,7 +18,7 @@ export default async function CartPage() {
   const total = subtotal + shippingFee;
 
   return (
-    <div className="mx-auto flex min-h-screen w-full max-w-md flex-col bg-[#f3f5f4] pb-40">
+    <div className="mx-auto flex min-h-screen w-full max-w-md flex-col bg-brand-mist pb-40">
       <ProductHeader />
       <main className="flex-1 px-4 pt-4">
         <h1 className="text-lg font-bold text-heading">My Cart</h1>

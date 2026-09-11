@@ -144,9 +144,9 @@ export default async function OrderConfirmedPage({ params }: PageProps<"/checkou
                     <Icon className="h-[11px] w-[11px] text-brand" strokeWidth={2.5} />
                   </span>
                   <div className="min-w-0">
-                    <p className="text-[9.5px] font-medium leading-tight text-ink-slate">{label}</p>
+                    <p className="text-[10px] font-medium leading-tight text-ink-slate">{label}</p>
                     <p className="mt-0.5 text-[10px] font-bold leading-tight text-heading">{value}</p>
-                    <p className="mt-0.5 flex flex-wrap items-center gap-1 text-[9px] leading-tight text-ink-slate">
+                    <p className="mt-0.5 flex flex-wrap items-center gap-1 text-[9.5px] leading-tight text-ink-slate">
                       {note}
                       {pill && (
                         <span className="rounded-full bg-brand-tint px-1.5 py-px font-bold text-brand-dark">
@@ -264,7 +264,7 @@ export default async function OrderConfirmedPage({ params }: PageProps<"/checkou
                     <Icon className="h-[11px] w-[11px] text-brand" strokeWidth={2.5} />
                   </span>
                   <div className="min-w-0">
-                    <p className="text-[9.5px] font-medium leading-tight text-ink-slate">{label}</p>
+                    <p className="text-[10px] font-medium leading-tight text-ink-slate">{label}</p>
                     <p className="mt-0.5 break-words text-[10.5px] font-bold leading-snug text-heading">
                       {value}
                     </p>

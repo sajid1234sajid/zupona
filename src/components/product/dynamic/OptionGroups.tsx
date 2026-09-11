@@ -56,7 +56,7 @@ export default function OptionGroups({
                       className={`grid place-items-center overflow-hidden rounded-full ${
                         group.showLabels ? "h-12 w-12" : "h-10 w-10"
                       } ${selected ? "ring-2 ring-brand ring-offset-2" : "ring-1 ring-black/10"}`}
-                      style={value.imageUrl ? undefined : { background: value.colorHex ?? "#dfe8e3" }}
+                      style={value.imageUrl ? undefined : { background: value.colorHex ?? "var(--color-line)" }}
                     >
                       {value.imageUrl && (
                         <Image

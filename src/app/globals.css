@@ -44,7 +44,7 @@
   --color-brand-grad-bottom: #01634a;
   /* Body copy is a very dark green rather than black, which keeps the page
    * feeling like one palette instead of green accents on a grey page. */
-  --color-ink: #123527;
+  --color-ink: #12352c;
   /* Contrast measured, not assumed. #6b8078 sits at 4.21:1 on white and
    * #7879ae at 4.08 -- both under AA for body text, and that is what reads as
    * washed out rather than as quiet. These are the smallest steps that clear

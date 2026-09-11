@@ -105,6 +105,10 @@ export interface PaymentOption {
   tagline: string;
   note?: string;
   badge?: string;
+  /** False until the gateway behind it has real credentials. An unconfigured
+   * method is shown, so the shopper knows it is coming, but cannot be chosen:
+   * offering a button that cannot take money is worse than not offering it. */
+  available?: boolean;
 }
 
 export const paymentOptions: PaymentOption[] = [

@@ -6,6 +6,7 @@ import { getAddresses } from "@/lib/addresses";
 import { getVerifiedPhone } from "@/lib/verification";
 import { divisionNames } from "@/data/locations";
 import { deliveryMethodsWithFees, type DeliveryDetails } from "@/lib/checkout";
+import { availablePaymentMethods } from "@/lib/payments";
 import { getDeliveryFees } from "@/lib/shopSettings";
 import CheckoutWizard from "@/components/checkout/CheckoutWizard";
 
@@ -23,6 +24,7 @@ export default async function CheckoutPage({ searchParams }: PageProps<"/checkou
   const user = await getCurrentUser();
   const [verifiedPhone, fees] = await Promise.all([getVerifiedPhone(), getDeliveryFees()]);
   const pricedDelivery = deliveryMethodsWithFees(fees);
+  const payableWith = await availablePaymentMethods();
 
   // Signed-out shoppers get step 1 (the mobile-number login) instead of being
   // bounced to the login page, so checkout carries on where they left off.
@@ -37,6 +39,7 @@ export default async function CheckoutPage({ searchParams }: PageProps<"/checkou
         lines={[]}
         subtotal={0}
         deliveryMethods={pricedDelivery}
+        payableWith={payableWith}
       />
     );
   }
@@ -105,6 +108,7 @@ export default async function CheckoutPage({ searchParams }: PageProps<"/checkou
       }
       subtotal={buyNow ? buyNow.price * buyNow.quantity : cartSubtotal(items)}
       deliveryMethods={pricedDelivery}
+      payableWith={payableWith}
     />
   );
 }

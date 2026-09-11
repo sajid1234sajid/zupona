@@ -34,6 +34,10 @@ const WALLET_MARKS = [
 
 interface StepPaymentProps {
   paymentMethod: PaymentMethodId;
+  /** The methods with working credentials behind them. Anything else is shown
+   * but cannot be selected -- a button that cannot take money is worse than no
+   * button at all. */
+  payableWith: string[];
   onPaymentMethodChange: (id: PaymentMethodId) => void;
   phone: string;
   phoneVerified: boolean;
@@ -52,6 +56,7 @@ interface StepPaymentProps {
 
 export default function StepPayment({
   paymentMethod,
+  payableWith,
   onPaymentMethodChange,
   phone,
   phoneVerified,
@@ -85,13 +90,19 @@ export default function StepPayment({
         <div className="flex flex-col gap-2">
           {paymentOptions.map((option) => {
             const Icon = PAYMENT_ICONS[option.id];
-            const selected = paymentMethod === option.id;
+            const usable = payableWith.includes(option.id);
+            const selected = usable && paymentMethod === option.id;
 
             return (
               <label
                 key={option.id}
-                className={`flex cursor-pointer items-start gap-2.5 rounded-xl border p-3 transition-colors ${
-                  selected ? "border-brand bg-brand-tint/50" : "border-line bg-white"
+                aria-disabled={!usable}
+                className={`flex items-start gap-2.5 rounded-xl border p-3 transition-colors ${
+                  !usable
+                    ? "cursor-not-allowed border-line bg-brand-mist opacity-70"
+                    : selected
+                      ? "cursor-pointer border-brand bg-brand-tint/50"
+                      : "cursor-pointer border-line bg-white"
                 }`}
               >
                 <span
@@ -105,9 +116,14 @@ export default function StepPayment({
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center gap-1.5">
                     <span className="truncate text-xs font-bold text-ink-strong">{option.name}</span>
-                    {option.badge && (
+                    {option.badge && usable && (
                       <span className="shrink-0 rounded-md bg-brand-tint px-1.5 py-0.5 text-[9px] font-bold text-brand-dark">
                         {option.badge}
+                      </span>
+                    )}
+                    {!usable && (
+                      <span className="shrink-0 rounded-md bg-line px-1.5 py-0.5 text-[9px] font-bold text-ink-slate">
+                        Coming soon
                       </span>
                     )}
                   </span>
@@ -143,8 +159,9 @@ export default function StepPayment({
                   type="radio"
                   name="paymentMethod"
                   checked={selected}
+                  disabled={!usable}
                   onChange={() => onPaymentMethodChange(option.id)}
-                  className="mt-1 h-4 w-4 shrink-0 accent-brand"
+                  className="mt-1 h-4 w-4 shrink-0 accent-brand disabled:cursor-not-allowed"
                 />
               </label>
             );

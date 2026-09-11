@@ -177,6 +177,12 @@ export function StoreSettingsForm({ settings }: { settings: ShopSettings }) {
             detail="Shows a holding page to shoppers — the admin panel stays open"
             checked={settings.maintenanceMode}
           />
+          <Toggle
+            name="otp_demo_mode"
+            label="Show verification codes on screen"
+            detail="No SMS gateway is connected yet. With this on, the checkout prints the code so orders can be completed and tested — turn it off the moment a real provider is configured"
+            checked={settings.otpDemoMode}
+          />
         </div>
       </Card>
 

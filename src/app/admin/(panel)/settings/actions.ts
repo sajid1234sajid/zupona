@@ -31,6 +31,7 @@ const EDITABLE: Record<string, "text" | "number" | "boolean"> = {
   reviews_need_approval: "boolean",
   guest_checkout_enabled: "boolean",
   maintenance_mode: "boolean",
+  otp_demo_mode: "boolean",
 };
 
 function toFormError(error: unknown): SettingsFormState {

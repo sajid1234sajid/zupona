@@ -14,6 +14,8 @@ import {
   issuePhoneCode,
 } from "@/lib/verification";
 import { isServedLocation } from "@/data/locations";
+import { availablePaymentMethods, createPaymentStatement } from "@/lib/payments";
+import { formatPrice } from "@/lib/format";
 import { reserveStock, releaseReservation } from "@/lib/inventory";
 import { getBuyNowLine, consumeBuyNowSession, clearBuyNowCookie } from "@/lib/buyNow";
 import { planSuborders, commissionRates, createSuborders } from "@/lib/suborders";
@@ -153,6 +155,13 @@ export async function placeOrderAction(
     return { error: "Pick a division, district and area we deliver to." };
   }
   if (addressDetails.length < 6) return { error: "Enter your full address so the rider can find you." };
+
+  // Hiding a button is not a control. A method with no credentials behind it is
+  // refused here too, so a crafted request cannot place an order against a
+  // gateway that cannot take the money.
+  if (!(await availablePaymentMethods()).includes(details.paymentMethod)) {
+    return { error: "That payment method is not available yet. Please choose another." };
+  }
 
   // The delivery number has to be confirmed before a Cash on Delivery order is
   // accepted - unless this browser already confirmed that exact number.
@@ -408,19 +417,103 @@ export async function placeOrderAction(
     await db.prepare("DELETE FROM cart_items WHERE user_id = ?").bind(user.id).run();
   }
 
-  await db
-    .prepare(
-      `INSERT INTO notifications (id, user_id, title, body, type, order_id)
-       VALUES (?, ?, ?, ?, 'order', ?)`
-    )
-    .bind(
-      crypto.randomUUID(),
-      user.id,
-      "Order placed",
-      `Your order ${orderNumber} has been placed and you earned ${pointsEarned} points.`,
-      orderId
-    )
-    .run();
+  /* Three records that belong to every order and were not being written.
+   *
+   * The payment row: `payment_transactions` has existed since the marketplace
+   * migration and nothing ever inserted into it, so an order carried a payment
+   * status and no payment. It starts `pending` for every method -- cash on
+   * delivery is not paid until someone confirms the cash arrived, and an online
+   * payment is not paid until a callback this server verified says so.
+   *
+   * The first timeline event: the history table only ever got rows when an
+   * admin changed something, so every order's timeline began at its second
+   * state. "Order placed" is a state change like any other.
+   *
+   * The admin notification: only the customer was told an order existed. Every
+   * admin now gets one, addressed to them, carrying the order id so the
+   * notification opens the order it is about.
+   *
+   * All of it goes in one batch, which D1 runs as a single transaction, so a
+   * retry that loses the idempotency race cannot leave a payment or an event
+   * behind without its order. */
+  const itemSummary =
+    lines.length === 1
+      ? lines[0].name
+      : `${lines[0]?.name ?? "items"} and ${lines.length - 1} more`;
+
+  await db.batch([
+    createPaymentStatement(db, {
+      orderId,
+      method: payment.id,
+      provider: payment.id,
+      amount: total,
+      idempotencyKey: details.idempotencyKey || null,
+    }),
+    db
+      .prepare(
+        `INSERT INTO order_status_history (id, order_id, status, note, changed_by)
+         VALUES (?, ?, 'placed', ?, ?)`
+      )
+      .bind(
+        crypto.randomUUID(),
+        orderId,
+        `Placed by the customer · ${payment.name}`,
+        user.id
+      ),
+    db
+      .prepare(
+        `INSERT INTO notifications (id, user_id, title, body, type, order_id)
+         VALUES (?, ?, ?, ?, 'order', ?)`
+      )
+      .bind(
+        crypto.randomUUID(),
+        user.id,
+        "Order placed",
+        `Your order ${orderNumber} has been placed and you earned ${pointsEarned} points.`,
+        orderId
+      ),
+  ]);
+
+  /* Telling the shop about the order is not part of placing it.
+   *
+   * It was in the batch above until a test shop with eighty-six admin accounts
+   * made the problem obvious: every admin adds a statement to the transaction
+   * that writes the order, so the customer waits on work that has nothing to do
+   * with their purchase, and a failure in it would roll back a perfectly good
+   * order. It now runs after the commit, bounded, and a failure is logged
+   * rather than thrown -- a missing notification is a nuisance; a lost order is
+   * not. */
+  try {
+    const admins = await db
+      .prepare(
+        `SELECT id FROM users WHERE role IN ('admin', 'super_admin')
+         ORDER BY CASE role WHEN 'super_admin' THEN 0 ELSE 1 END, created_at ASC
+         LIMIT 25`
+      )
+      .all<{ id: string }>();
+
+    const recipients = admins.results ?? [];
+    if (recipients.length > 0) {
+      await db.batch(
+        recipients.map((admin) =>
+          db
+            .prepare(
+              `INSERT INTO notifications (id, user_id, title, body, type, order_id)
+               VALUES (?, ?, ?, ?, 'order', ?)`
+            )
+            .bind(
+              crypto.randomUUID(),
+              admin.id,
+              `New order ${orderNumber}`,
+              `${fullName} · ${itemSummary} · ${formatPrice(total)} · ${payment.name}`,
+              orderId
+            )
+        )
+      );
+    }
+  } catch (error) {
+    console.error("admin new-order notification failed", { orderId, error });
+  }
 
   await clearPhoneVerification();
 

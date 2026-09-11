@@ -26,6 +26,8 @@ interface CheckoutWizardProps {
   /** Signed-out shoppers start on step 1 (the login step); everyone else skips it. */
   signedIn: boolean;
   initialDetails: DeliveryDetails;
+  /** Which payment methods have working credentials behind them. */
+  payableWith: string[];
   /** The number already confirmed in this browser, if any. */
   verifiedPhone: string | null;
   lines: SummaryLine[];
@@ -38,6 +40,7 @@ export default function CheckoutWizard({
   source,
   signedIn,
   initialDetails,
+  payableWith,
   verifiedPhone,
   lines,
   subtotal,
@@ -171,6 +174,7 @@ export default function CheckoutWizard({
           <form action={placeOrder}>
             <StepPayment
               paymentMethod={paymentMethod}
+              payableWith={payableWith}
               onPaymentMethodChange={setPaymentMethod}
               phone={normalizedPhone ?? details.phone}
               phoneVerified={phoneVerified}

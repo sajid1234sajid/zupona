@@ -135,16 +135,36 @@ export default function StepDelivery({
           </div>
         )}
 
+        {/* The reference draws each of these as one card: a pale icon tile, the
+            label above the chosen value, and a chevron. The native <select> is
+            kept and laid over the card at zero opacity, so the phone's own
+            picker still opens and the control stays focusable and labelled --
+            only its painting is replaced. */}
         <div className="mt-2 grid grid-cols-2 gap-2">
-          <label className="block">
-            <span className="mb-1 flex items-center gap-1 text-[10px] font-semibold text-neutral-500">
-              <MapPin className="h-3 w-3 text-brand" />
-              Division / City
+          <label className="relative block rounded-xl border border-neutral-200 bg-white px-2.5 py-2 focus-within:border-brand">
+            <span className="flex items-center gap-2">
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-brand-tint">
+                <MapPin className="h-3.5 w-3.5 text-brand" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-[9.5px] font-semibold text-neutral-400">
+                  Division / City
+                </span>
+                <span
+                  className={`block truncate text-[13px] font-semibold ${
+                    details.division ? "text-neutral-800" : "text-neutral-300"
+                  }`}
+                >
+                  {details.division || "Select"}
+                </span>
+              </span>
+              <ChevronDown className="h-4 w-4 shrink-0 text-neutral-400" />
             </span>
             <select
               value={details.division}
               onChange={(event) => onChange({ division: event.target.value, area: "" })}
-              className="w-full appearance-none rounded-xl border border-neutral-200 bg-white px-3 py-2.5 text-sm font-medium text-neutral-800 outline-none focus:border-brand"
+              aria-label="Division / City"
+              className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
             >
               <option value="">Select</option>
               {divisionNames.map((name) => (
@@ -155,16 +175,31 @@ export default function StepDelivery({
             </select>
           </label>
 
-          <label className="block">
-            <span className="mb-1 flex items-center gap-1 text-[10px] font-semibold text-neutral-500">
-              <MapPin className="h-3 w-3 text-brand" />
-              Area / Thana
+          <label className="relative block rounded-xl border border-neutral-200 bg-white px-2.5 py-2 focus-within:border-brand">
+            <span className="flex items-center gap-2">
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-brand-tint">
+                <MapPin className="h-3.5 w-3.5 text-brand" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-[9.5px] font-semibold text-neutral-400">
+                  Area / Thana
+                </span>
+                <span
+                  className={`block truncate text-[13px] font-semibold ${
+                    details.area ? "text-neutral-800" : "text-neutral-300"
+                  }`}
+                >
+                  {details.area || (areas.length === 0 ? "Pick a division" : "Select")}
+                </span>
+              </span>
+              <ChevronDown className="h-4 w-4 shrink-0 text-neutral-400" />
             </span>
             <select
               value={details.area}
               onChange={(event) => onChange({ area: event.target.value })}
               disabled={areas.length === 0}
-              className="w-full appearance-none rounded-xl border border-neutral-200 bg-white px-3 py-2.5 text-sm font-medium text-neutral-800 outline-none focus:border-brand disabled:text-neutral-300"
+              aria-label="Area / Thana"
+              className="absolute inset-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
             >
               <option value="">{areas.length === 0 ? "Pick a division" : "Select"}</option>
               {areas.map((name) => (
@@ -176,18 +211,24 @@ export default function StepDelivery({
           </label>
         </div>
 
-        <label className="mt-2 block">
-          <span className="mb-1 flex items-center gap-1 text-[10px] font-semibold text-neutral-500">
-            <House className="h-3 w-3 text-brand" />
-            Address details
+        {/* Address is typed, not picked, so it gets the same card without a
+            chevron: a chevron here would promise a picker that does not exist. */}
+        <label className="mt-2 flex items-center gap-2 rounded-xl border border-neutral-200 bg-white px-2.5 py-2 focus-within:border-brand">
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-brand-tint">
+            <House className="h-3.5 w-3.5 text-brand" />
           </span>
-          <input
-            value={details.addressDetails}
-            onChange={(event) => onChange({ addressDetails: event.target.value })}
-            placeholder="House 12, Road 5"
-            autoComplete="street-address"
-            className="w-full rounded-xl border border-neutral-200 px-3 py-2.5 text-sm text-neutral-800 outline-none placeholder:text-neutral-300 focus:border-brand"
-          />
+          <span className="min-w-0 flex-1">
+            <span className="block text-[9.5px] font-semibold text-neutral-400">
+              Address details
+            </span>
+            <input
+              value={details.addressDetails}
+              onChange={(event) => onChange({ addressDetails: event.target.value })}
+              placeholder="House 12, Road 5"
+              autoComplete="street-address"
+              className="w-full border-0 p-0 text-[13px] font-semibold text-neutral-800 outline-none placeholder:font-normal placeholder:text-neutral-300"
+            />
+          </span>
         </label>
 
         <p className="mt-3 flex items-start gap-1.5 rounded-xl bg-brand-tint/60 px-2.5 py-2 text-[10px] text-brand-dark">

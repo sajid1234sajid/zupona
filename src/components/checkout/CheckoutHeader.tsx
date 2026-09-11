@@ -1,6 +1,7 @@
 "use client";
 
-import { ChevronLeft, Leaf, Lock } from "lucide-react";
+import { ChevronLeft, Lock } from "lucide-react";
+import ZuponaMark from "@/components/brand/ZuponaMark";
 
 interface CheckoutHeaderProps {
   /** Omitted on the first step, where there is nothing to go back to in-flow. */
@@ -24,19 +25,17 @@ export default function CheckoutHeader({ onBack, secureNote }: CheckoutHeaderPro
       )}
 
       <div className="flex min-w-0 items-center gap-2">
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-darkest">
-          <Leaf className="h-5 w-5 text-brand-light" />
-        </span>
+        <ZuponaMark className="h-10 w-10 shrink-0" />
         <div className="min-w-0 leading-tight">
-          <p className="text-base font-extrabold text-brand-darkest">Zupona</p>
-          <p className="truncate text-[10px] font-medium text-brand">Trusted Online Shop</p>
+          <p className="text-[21px] font-extrabold leading-none text-brand-darkest">Zupona</p>
+          <p className="truncate text-[11px] font-medium text-brand">Trusted Online Shop</p>
         </div>
       </div>
 
       <div className="ml-auto flex shrink-0 items-center gap-1.5 text-right">
-        <Lock className="h-3.5 w-3.5 text-brand-darkest" />
+        <Lock className="h-4 w-4 text-brand-darkest" />
         <div className="leading-tight">
-          <p className="text-[11px] font-bold text-brand-darkest">Secure Checkout</p>
+          <p className="text-[12px] font-bold text-brand-darkest">Secure Checkout</p>
           {secureNote && <p className="text-[9px] text-neutral-400">{secureNote}</p>}
         </div>
       </div>

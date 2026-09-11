@@ -38,7 +38,9 @@ export default function CheckoutStepper({ current }: { current: 1 | 2 | 3 }) {
                 >
                   {step.label}
                 </span>
-                <span className="text-[9px] leading-none text-neutral-400">{caption}</span>
+                {current !== 1 && (
+                  <span className="text-[9px] leading-none text-neutral-400">{caption}</span>
+                )}
               </div>
 
               {index < STEPS.length - 1 && (

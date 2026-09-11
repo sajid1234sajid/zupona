@@ -81,9 +81,14 @@ export async function verifyAndSignInAction(rawPhone: string, code: string): Pro
   if (!userId) {
     userId = crypto.randomUUID();
     await db
-      .prepare("INSERT INTO users (id, name, phone) VALUES (?, ?, ?)")
+      .prepare("INSERT INTO users (id, name, phone, phone_verified) VALUES (?, ?, ?, 1)")
       .bind(userId, formatBdPhone(phone), phone)
       .run();
+  } else {
+    // Reaching here means a code sent to this number was just confirmed on the
+    // server, so the flag is simply true. It was never written before, which
+    // left the admin customer list reporting every OTP customer as unverified.
+    await db.prepare("UPDATE users SET phone_verified = 1 WHERE id = ?").bind(userId).run();
   }
 
   await createSession(userId);

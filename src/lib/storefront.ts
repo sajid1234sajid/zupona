@@ -40,6 +40,8 @@ export interface StoreProductCard {
   subcategoryId: string | null;
   bestSeller: boolean;
   inStock: boolean;
+  /** Ticked "Featured" in the admin panel; the home page leads with these. */
+  featured: boolean;
 }
 
 export interface StoreProductVideo {
@@ -132,6 +134,7 @@ interface CardRow {
   category_id: string | null;
   parent_id: string | null;
   stock_total: number | null;
+  is_featured: number;
 }
 
 function discountPercent(price: number, oldPrice: number): number {
@@ -157,6 +160,7 @@ function toCard(row: CardRow): StoreProductCard {
     subcategoryId: isSub ? row.category_id : null,
     bestSeller: row.is_best_seller === 1,
     inStock: (row.stock_total ?? 0) > 0,
+    featured: row.is_featured === 1,
   };
 }
 
@@ -164,7 +168,7 @@ function toCard(row: CardRow): StoreProductCard {
  * department from subcategory. */
 const CARD_SELECT = `
   SELECT p.id, p.name, p.price, p.old_price, p.rating_avg, p.rating_count,
-         p.is_best_seller, p.category_id, c.parent_id,
+         p.is_best_seller, p.is_featured, p.category_id, c.parent_id,
          (SELECT url FROM product_images i WHERE i.product_id = p.id
            ORDER BY i.is_primary DESC, i.sort_order ASC LIMIT 1) AS image,
          (SELECT COALESCE(SUM(v.stock_quantity - v.reserved_quantity), 0)
@@ -259,8 +263,8 @@ async function queryCards(query: StoreQuery): Promise<StoreProductCard[]> {
  * absent from the list. Keeping it short means the worst case is a few stale
  * seconds rather than a shopkeeper reloading and wondering why their price
  * change has not appeared. */
-const CATALOG_TTL_SECONDS = 15;
-const CATEGORY_TTL_SECONDS = 60;
+const CATALOG_TTL_SECONDS = 120;
+const CATEGORY_TTL_SECONDS = 600;
 
 /** The whole shoppable catalog.
  *
@@ -408,25 +412,41 @@ interface CategoryRow {
   subtitle: string | null;
   image_url: string | null;
   sort_order: number;
-  product_count: number;
+  own_count: number;
 }
 
 async function queryCategories(): Promise<StoreCategory[]> {
   const db = await getDB();
 
+  // The counts used to be a correlated COUNT(*) per category, each one
+  // re-scanning products and the category table. On a catalog of forty
+  // products that read nearly three thousand rows per call and was, on its
+  // own, most of a day's D1 row budget. Counting every category once in a
+  // grouped join and rolling the children up in JS reads the two tables a
+  // single time and gives exactly the same numbers.
   const { results } = await db
     .prepare(
       `SELECT c.id, c.parent_id, c.name, c.subtitle, c.image_url, c.sort_order,
-              (SELECT COUNT(*) FROM products p
-                WHERE p.status = 'active'
-                  AND (p.category_id = c.id
-                       OR p.category_id IN (SELECT id FROM categories WHERE parent_id = c.id)))
-                AS product_count
+              COALESCE(counts.n, 0) AS own_count
        FROM categories c
+       LEFT JOIN (SELECT category_id, COUNT(*) AS n
+                    FROM products
+                   WHERE status = 'active'
+                   GROUP BY category_id) counts
+         ON counts.category_id = c.id
        WHERE c.is_active = 1
        ORDER BY c.sort_order ASC, c.name ASC`
     )
     .all<CategoryRow>();
+
+  // A category's total is its own products plus those of its children, which
+  // is what the old subquery's OR clause meant.
+  const childTotals = new Map<string, number>();
+  for (const row of results) {
+    if (row.parent_id === null) continue;
+    childTotals.set(row.parent_id, (childTotals.get(row.parent_id) ?? 0) + row.own_count);
+  }
+  const totalFor = (row: CategoryRow) => row.own_count + (childTotals.get(row.id) ?? 0);
 
   const departments = results.filter((row) => row.parent_id === null);
 
@@ -436,14 +456,14 @@ async function queryCategories(): Promise<StoreCategory[]> {
     subtitle: department.subtitle,
     image: department.image_url ?? PLACEHOLDER_IMAGE,
     accent: CATEGORY_ACCENTS[department.id] ?? FALLBACK_ACCENT,
-    productCount: department.product_count,
+    productCount: totalFor(department),
     subcategories: results
       .filter((row) => row.parent_id === department.id)
       .map((row) => ({
         id: row.id,
         name: row.name,
         image: row.image_url ?? PLACEHOLDER_IMAGE,
-        productCount: row.product_count,
+        productCount: totalFor(row),
       })),
   }));
 }

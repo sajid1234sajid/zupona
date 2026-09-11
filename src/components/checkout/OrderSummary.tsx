@@ -46,7 +46,7 @@ export default function OrderSummary({
 
               <div className="min-w-0 flex-1">
                 <p className="truncate text-xs font-bold text-ink-strong">{line.name}</p>
-                <p className="mt-0.5 text-[11px] text-ink-slate">
+                <p className="mt-0.5 text-[12px] text-ink-slate">
                   {[line.color, `Qty ${line.quantity}`].filter(Boolean).join(" · ")}
                 </p>
                 {saved > 0 && (
@@ -77,11 +77,11 @@ export default function OrderSummary({
       </div>
 
       <div className="mt-3 space-y-1.5 border-t border-dashed border-line pt-3">
-        <div className="flex items-center justify-between text-[11px] text-ink-slate">
+        <div className="flex items-center justify-between text-[12px] text-ink-slate">
           <span>Item price (after discount)</span>
           <span className="font-semibold text-ink-strong">{formatPrice(subtotal)}</span>
         </div>
-        <div className="flex items-center justify-between text-[11px] text-ink-slate">
+        <div className="flex items-center justify-between text-[12px] text-ink-slate">
           <span>Delivery charge</span>
           <span className="font-semibold text-ink-strong">{formatPrice(deliveryFee)}</span>
         </div>
@@ -89,7 +89,7 @@ export default function OrderSummary({
 
       <div className="mt-2 flex items-center justify-between border-t border-line px-1 pt-2.5">
         <span className="text-sm font-bold text-brand-darkest">Total</span>
-        <span className="text-base font-extrabold text-brand-darkest">{formatPrice(total)}</span>
+        <span className="text-[19px] font-extrabold leading-none text-brand-darkest">{formatPrice(total)}</span>
       </div>
     </>
   );
@@ -97,13 +97,13 @@ export default function OrderSummary({
   if (bare) return body;
 
   return (
-    <section className="rounded-2xl border border-line-soft bg-white p-4 shadow-sm">
+    <section className="rounded-2xl border border-line bg-white p-4 shadow-card">
       <div className="mb-3 flex items-center gap-2">
         <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-tint">
           <ReceiptText className="h-4 w-4 text-brand" />
         </span>
         <div>
-          <h2 className="text-sm font-bold text-ink-strong">Order summary</h2>
+          <h2 className="text-[16px] font-bold leading-tight text-ink-strong">Order summary</h2>
           <p className="text-[10px] text-ink-slate">{subtitle}</p>
         </div>
       </div>

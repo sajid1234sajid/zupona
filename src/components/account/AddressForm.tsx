@@ -20,7 +20,7 @@ export default function AddressForm({
   useRefreshOnSuccess(state.success, onDone);
 
   return (
-    <form action={formAction} className="flex flex-col gap-3 rounded-2xl bg-white p-4 shadow-sm">
+    <form action={formAction} className="flex flex-col gap-3 rounded-2xl bg-white p-4 shadow-card">
       <div className="grid grid-cols-3 gap-1 rounded-full bg-brand-tint p-1">
         {LABELS.map((label) => (
           <label key={label} className="relative">
@@ -31,7 +31,7 @@ export default function AddressForm({
               defaultChecked={(address?.label ?? "Home") === label}
               className="peer sr-only"
             />
-            <span className="flex cursor-pointer items-center justify-center rounded-full py-2 text-xs font-semibold text-brand-dark/50 peer-checked:bg-white peer-checked:text-brand-dark peer-checked:shadow-sm">
+            <span className="flex cursor-pointer items-center justify-center rounded-full py-2 text-xs font-semibold text-brand-dark/50 peer-checked:bg-white peer-checked:text-brand-dark peer-checked:shadow-card">
               {label}
             </span>
           </label>

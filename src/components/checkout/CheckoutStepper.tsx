@@ -19,9 +19,9 @@ export default function CheckoutStepper({ current }: { current: 1 | 2 | 3 }) {
 
           return (
             <div key={step.number} className="flex flex-1 items-start last:flex-none">
-              <div className="flex w-16 shrink-0 flex-col items-center gap-1 text-center">
+              <div className="flex w-[72px] shrink-0 flex-col items-center gap-1.5 text-center">
                 <span
-                  className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold transition-colors ${
+                  className={`flex h-9 w-9 items-center justify-center rounded-full text-[13px] font-bold transition-colors ${
                     done
                       ? "bg-brand text-white"
                       : active
@@ -29,23 +29,23 @@ export default function CheckoutStepper({ current }: { current: 1 | 2 | 3 }) {
                         : "bg-line text-ink-slate"
                   }`}
                 >
-                  {done ? <Check className="h-4 w-4" strokeWidth={3} /> : step.number}
+                  {done ? <Check className="h-[18px] w-[18px]" strokeWidth={3} /> : step.number}
                 </span>
                 <span
-                  className={`text-[11px] font-semibold leading-none ${
+                  className={`text-[12.5px] font-bold leading-none ${
                     done || active ? "text-brand-darkest" : "text-ink-slate"
                   }`}
                 >
                   {step.label}
                 </span>
                 {current !== 1 && (
-                  <span className="text-[9px] leading-none text-ink-slate">{caption}</span>
+                  <span className="text-[10.5px] leading-none text-ink-slate">{caption}</span>
                 )}
               </div>
 
               {index < STEPS.length - 1 && (
                 <span
-                  className={`mt-3.5 h-0.5 flex-1 rounded-full ${
+                  className={`mt-[17px] h-[3px] flex-1 rounded-full ${
                     step.number < current ? "bg-brand" : "bg-line"
                   }`}
                 />
@@ -56,7 +56,7 @@ export default function CheckoutStepper({ current }: { current: 1 | 2 | 3 }) {
       </div>
 
       {current === 1 && (
-        <span className="mt-0.5 shrink-0 rounded-full border border-line bg-white px-2.5 py-1 text-[10px] font-semibold text-ink-slate">
+        <span className="mt-1 shrink-0 rounded-full bg-brand-tint px-3 py-1 text-[11px] font-bold text-brand-dark">
           1 of 3
         </span>
       )}

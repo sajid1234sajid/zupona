@@ -52,7 +52,7 @@ export default function CouponWallet({ coupons }: { coupons: OfferCoupon[] }) {
         return (
           <div
             key={coupon.code}
-            className="flex w-[210px] shrink-0 overflow-hidden rounded-xl bg-white shadow-sm"
+            className="flex w-[210px] shrink-0 overflow-hidden rounded-xl bg-white shadow-card"
           >
             <div className="flex w-[62px] shrink-0 flex-col items-center justify-center bg-brand-tint px-1 py-2 text-center">
               <Ticket className="h-3.5 w-3.5 text-brand" />

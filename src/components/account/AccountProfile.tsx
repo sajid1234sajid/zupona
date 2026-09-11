@@ -51,7 +51,7 @@ const MENU_ITEMS = [
 /** Shared by every tappable card, so the surface and the focus ring stay
  * identical whether the element is a link or a button. */
 const CARD =
-  "rounded-2xl bg-white shadow-sm ring-1 ring-brand-darkest/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2";
+  "rounded-2xl bg-white shadow-card ring-1 ring-brand-darkest/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2";
 
 /** The signed-in account screen.
  *
@@ -118,7 +118,7 @@ export default function AccountProfile({
               </span>
               <span
                 aria-hidden
-                className="absolute -bottom-0.5 -right-0.5 grid h-[22px] w-[22px] place-items-center rounded-full bg-white text-brand-dark shadow-sm"
+                className="absolute -bottom-0.5 -right-0.5 grid h-[22px] w-[22px] place-items-center rounded-full bg-white text-brand-dark shadow-card"
               >
                 <Camera className="h-3 w-3" strokeWidth={2.5} />
               </span>
@@ -139,7 +139,7 @@ export default function AccountProfile({
 
             <Link
               href="/account/edit"
-              className="flex min-h-11 shrink-0 items-center rounded-full bg-white px-3 text-[11px] font-bold text-brand-darkest shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-brand-dark sm:px-3.5 sm:text-[12px]"
+              className="flex min-h-11 shrink-0 items-center rounded-full bg-white px-3 text-[11px] font-bold text-brand-darkest shadow-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-brand-dark sm:px-3.5 sm:text-[12px]"
             >
               Edit Profile
             </Link>
@@ -280,7 +280,7 @@ export default function AccountProfile({
           <h2 className="mb-2 px-0.5 text-[13.5px] font-bold text-brand-darkest">
             Account &amp; Preferences
           </h2>
-          <div className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-brand-darkest/[0.04]">
+          <div className="overflow-hidden rounded-2xl bg-white shadow-card ring-1 ring-brand-darkest/[0.04]">
             {MENU_ITEMS.map(({ label, subtitle, icon: Icon, href }, index) => (
               <Link
                 key={label}
@@ -315,7 +315,7 @@ export default function AccountProfile({
         <form action={logOutAction} className="mt-3 pb-2">
           <button
             type="submit"
-            className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border border-accent-red/25 bg-white text-[12.5px] font-bold text-accent-red shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-red focus-visible:ring-offset-2"
+            className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border border-accent-red/25 bg-white text-[12.5px] font-bold text-accent-red shadow-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-red focus-visible:ring-offset-2"
           >
             <LogOut className="h-4 w-4" />
             Log Out

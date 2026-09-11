@@ -44,7 +44,7 @@ export default async function CartPage() {
               ))}
             </div>
 
-            <div className="mt-4 space-y-2 rounded-2xl bg-white p-4 shadow-sm">
+            <div className="mt-4 space-y-2 rounded-2xl bg-white p-4 shadow-card">
               <div className="flex items-center justify-between text-sm text-ink-slate">
                 <span>Subtotal</span>
                 <span className="font-semibold text-heading">{formatPrice(subtotal)}</span>

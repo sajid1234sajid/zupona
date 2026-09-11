@@ -27,12 +27,12 @@ export default async function OrderDetailPage({ params }: PageProps<"/account/or
       </header>
 
       <main className="flex-1 px-4 pt-4">
-        <section className="rounded-2xl bg-white p-4 shadow-sm">
+        <section className="rounded-2xl bg-white p-4 shadow-card">
           <h2 className="mb-3 text-sm font-bold text-heading">Order Tracking</h2>
           <OrderTracker steps={order.steps} />
         </section>
 
-        <section className="mt-3 rounded-2xl bg-white p-4 shadow-sm">
+        <section className="mt-3 rounded-2xl bg-white p-4 shadow-card">
           <h2 className="mb-2 flex items-center gap-1.5 text-sm font-bold text-heading">
             <MapPin className="h-4 w-4 text-brand" />
             Delivery Address
@@ -49,7 +49,7 @@ export default async function OrderDetailPage({ params }: PageProps<"/account/or
           </p>
         </section>
 
-        <section className="mt-3 rounded-2xl bg-white p-4 shadow-sm">
+        <section className="mt-3 rounded-2xl bg-white p-4 shadow-card">
           <h2 className="mb-2 flex items-center gap-1.5 text-sm font-bold text-heading">
             <CreditCard className="h-4 w-4 text-brand" />
             Payment Method
@@ -57,7 +57,7 @@ export default async function OrderDetailPage({ params }: PageProps<"/account/or
           <p className="text-sm text-ink-slate">{order.paymentLabel}</p>
         </section>
 
-        <section className="mt-3 rounded-2xl bg-white p-4 shadow-sm">
+        <section className="mt-3 rounded-2xl bg-white p-4 shadow-card">
           <h2 className="mb-2 text-sm font-bold text-heading">Items</h2>
           <div className="flex flex-col gap-3">
             {order.items.map((item) => (

@@ -9,7 +9,7 @@ export default function ChangePasswordForm({ hasPassword }: { hasPassword: boole
   const [state, formAction, pending] = useActionState<AuthActionState, FormData>(changePasswordAction, {});
 
   return (
-    <form action={formAction} className="flex flex-col gap-4 rounded-2xl bg-white p-4 shadow-sm">
+    <form action={formAction} className="flex flex-col gap-4 rounded-2xl bg-white p-4 shadow-card">
       {hasPassword && (
         <label className="flex flex-col gap-1.5">
           <span className="text-xs font-semibold text-ink-slate">Current password</span>

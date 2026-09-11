@@ -149,7 +149,7 @@ export default function WishlistClient({
       </div>
 
       {selecting && (
-        <div className="mt-2 flex items-center gap-2 rounded-lg bg-white px-2.5 py-2 shadow-sm">
+        <div className="mt-2 flex items-center gap-2 rounded-lg bg-white px-2.5 py-2 shadow-card">
           <button
             onClick={() => (allSelected ? setSelected(new Set()) : selectAll())}
             className="text-[10px] font-semibold text-brand"
@@ -188,7 +188,7 @@ export default function WishlistClient({
           return (
             <div
               key={product.id}
-              className={`flex gap-2.5 rounded-xl bg-white p-2 shadow-sm ${
+              className={`flex gap-2.5 rounded-xl bg-white p-2 shadow-card ${
                 isSelected ? "ring-2 ring-brand" : ""
               }`}
             >

@@ -80,7 +80,7 @@ export default function ProductCard({
         </Link>
 
         {product.discountPercent > 0 && (
-          <span className="pointer-events-none absolute left-1 top-1 rounded-md bg-white/95 px-1 py-[1px] text-[7.5px] font-extrabold text-brand shadow-sm">
+          <span className="pointer-events-none absolute left-1 top-1 rounded-md bg-white/95 px-1 py-[1px] text-[7.5px] font-extrabold text-brand shadow-card">
             -{product.discountPercent}%
           </span>
         )}
@@ -91,7 +91,7 @@ export default function ProductCard({
           aria-pressed={wishlisted}
           onClick={handleWishlistToggle}
           disabled={wishlistPending}
-          className="absolute right-1 top-1 grid h-[18px] w-[18px] place-items-center rounded-full bg-white/95 shadow-sm"
+          className="absolute right-1 top-1 grid h-[18px] w-[18px] place-items-center rounded-full bg-white/95 shadow-card"
         >
           <Heart
             className={`h-[11px] w-[11px] ${

@@ -21,10 +21,13 @@ const PAYMENT_ICONS: Record<PaymentMethodId, typeof Banknote> = {
 };
 
 /** Wallet/card marks shown under the online-payment option. */
+/* Four marks and an overflow chip, as the reference shows, so the row stays on
+ * one line at 390px. Each wordmark keeps its own brand colour -- those are the
+ * providers' marks, not Zupona's palette -- on a white chip, which is how the
+ * reference presents them. */
 const WALLET_MARKS = [
   { label: "bKash", className: "text-[#e2136e]" },
   { label: "Nagad", className: "text-[#ec1c24]" },
-  { label: "Rocket", className: "text-[#8c3494]" },
   { label: "VISA", className: "text-[#1a1f71]" },
   { label: "Mastercard", className: "text-[#eb001b]" },
 ];
@@ -68,13 +71,13 @@ export default function StepPayment({
 
   return (
     <div className="flex flex-col gap-3 px-4 pb-4">
-      <section className="rounded-2xl border border-line-soft bg-white p-4 shadow-sm">
+      <section className="rounded-2xl border border-line bg-white p-4 shadow-card">
         <div className="mb-3 flex items-center gap-2">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand">
             <CreditCard className="h-4 w-4 text-white" />
           </span>
           <div>
-            <h2 className="text-sm font-bold text-ink-strong">Payment method</h2>
+            <h2 className="text-[16px] font-bold leading-tight text-ink-strong">Payment method</h2>
             <p className="text-[10px] text-ink-slate">Choose your preferred payment method</p>
           </div>
         </div>
@@ -117,11 +120,14 @@ export default function StepPayment({
                       {WALLET_MARKS.map((mark) => (
                         <span
                           key={mark.label}
-                          className={`rounded border border-line bg-white px-1.5 py-0.5 text-[8px] font-bold ${mark.className}`}
+                          className={`rounded-md border border-line bg-white px-1.5 py-1 text-[9px] font-bold leading-none ${mark.className}`}
                         >
                           {mark.label}
                         </span>
                       ))}
+                      <span className="rounded-md border border-line bg-white px-1.5 py-1 text-[9px] font-bold leading-none text-ink-faint">
+                        &#8943;
+                      </span>
                     </span>
                   )}
 

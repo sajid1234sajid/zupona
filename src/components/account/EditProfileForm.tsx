@@ -9,7 +9,7 @@ export default function EditProfileForm({ user }: { user: AuthUser }) {
   const [state, formAction, pending] = useActionState<ProfileActionState, FormData>(updateProfileAction, {});
 
   return (
-    <form action={formAction} className="flex flex-col gap-4 rounded-2xl bg-white p-4 shadow-sm">
+    <form action={formAction} className="flex flex-col gap-4 rounded-2xl bg-white p-4 shadow-card">
       <label className="flex flex-col gap-1.5">
         <span className="text-xs font-semibold text-ink-slate">Full name</span>
         <input

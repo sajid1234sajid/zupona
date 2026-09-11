@@ -6,13 +6,18 @@
  * checkout all colour themselves from these tokens, so the shop stays on-brand
  * without any component naming a hex value of its own. */
 :root {
-  --color-brand-darkest: #015730;
-  --color-brand-dark: #026840;
+  /* The identity is teal + dark green, not a generic emerald. The ramp leans
+   * a few steps bluer than a plain green at every stop, which is the character
+   * the references carry: R1's flat Buy Now samples #037e5b and the checkout
+   * mid tone #027b4f, so `brand` sits between them; the darkest stop is the
+   * #014f32 measured on R1's outline button. */
+  --color-brand-darkest: #014f36;
+  --color-brand-dark: #02644a;
   /* Sampled from the five reference screens rather than chosen: the mid green
    * reads #017e59 / #02804d / #06784f / #028055 / #067740 across them, and
    * this is their mean. The ramp was a shade bluer than every one of them,
    * which is what made the rendered screens look teal beside the design. */
-  --color-brand: #047f51;
+  --color-brand: #047d56;
   --color-brand-light: #04965b;
   --color-brand-tint: #e8f6ec;
   --color-brand-mist: #f6fcf7;
@@ -35,7 +40,11 @@
    * light blue-grey. Tailwind's neutral ramp is a pure grey and reads flat and
    * a little cold beside them. */
   --color-ink-strong: #013a32;
-  --color-ink-slate: #5e7e97;
+  /* #5e7e97 is the mean of the references' muted copy, but it lands at 4.28:1
+   * on white -- under AA for body text. This is the darkest of the samples
+   * (R2 #5b7a8b, R3 #597c96, R4 #6384aa) pulled far enough to reach 4.84:1,
+   * which also stops the secondary copy reading as washed out. */
+  --color-ink-slate: #56758f;
   --color-ink-faint: #a1b2c0;
   --color-line: #e1e9ee;
   --color-line-soft: #e8eff4;
@@ -99,6 +108,16 @@ body {
   font-family: var(--font-poppins), Arial, Helvetica, sans-serif;
   /* The design is a single mobile screen; nothing may spill sideways. */
   overflow-x: hidden;
+}
+
+/* Cards sit on a mint page, a few steps off white. The references separate
+ * them with a soft tinted lift rather than a hard border or a grey drop
+ * shadow -- deep enough to read as a raised surface, shallow enough not to
+ * look glossy. */
+.shadow-card {
+  box-shadow:
+    0 1px 2px rgba(1, 79, 54, 0.04),
+    0 6px 18px -6px rgba(1, 79, 54, 0.1);
 }
 
 /* The checkout's primary button. A class rather than a pair of gradient

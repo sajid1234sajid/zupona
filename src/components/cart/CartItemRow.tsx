@@ -31,7 +31,7 @@ export default function CartItemRow({ item }: { item: CartItem }) {
 
   return (
     <div
-      className={`flex gap-3 rounded-2xl bg-white p-3 shadow-sm ${pending ? "opacity-60" : ""} ${
+      className={`flex gap-3 rounded-2xl bg-white p-3 shadow-card ${pending ? "opacity-60" : ""} ${
         gone ? "border border-dashed border-line" : ""
       }`}
     >

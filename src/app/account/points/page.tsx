@@ -33,7 +33,7 @@ export default async function PointsPage() {
         ) : (
           <div className="flex flex-col gap-2">
             {earningOrders.map((order) => (
-              <div key={order.id} className="flex items-center gap-3 rounded-2xl bg-white p-4 shadow-sm">
+              <div key={order.id} className="flex items-center gap-3 rounded-2xl bg-white p-4 shadow-card">
                 <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-tint text-brand">
                   <ShoppingBag className="h-4 w-4" />
                 </span>

@@ -74,7 +74,7 @@ export default async function CategoryPage({
           <Link
             href="/categories"
             aria-label="Back to categories"
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white shadow-sm"
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white shadow-card"
           >
             <ChevronLeft className="h-4 w-4 text-ink-slate" />
           </Link>

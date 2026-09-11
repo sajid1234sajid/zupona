@@ -93,7 +93,7 @@ export default async function WishlistPage({ searchParams }: PageProps<"/wishlis
           <>
             {/* What changed since these were saved — the reason to come back. */}
             {(savings.total > 0 || savings.droppedCount > 0) && (
-              <div className="mt-3 rounded-xl bg-white p-3 shadow-sm">
+              <div className="mt-3 rounded-xl bg-white p-3 shadow-card">
                 <div className="flex items-center gap-1.5">
                   <PiggyBank className="h-4 w-4 text-brand" />
                   <p className="text-[11px] font-bold text-heading">

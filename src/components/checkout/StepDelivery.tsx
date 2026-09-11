@@ -63,13 +63,13 @@ export default function StepDelivery({
 
   return (
     <div className="flex flex-col gap-3 px-4 pb-4">
-      <section className="rounded-2xl border border-line-soft bg-white p-4 shadow-sm">
+      <section className="rounded-2xl border border-line bg-white p-4 shadow-card">
         <div className="mb-3 flex items-start gap-2">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand">
             <MapPin className="h-4 w-4 text-white" />
           </span>
           <div className="min-w-0 flex-1">
-            <h2 className="text-sm font-bold text-ink-strong">Delivery address</h2>
+            <h2 className="text-[16px] font-bold leading-tight text-ink-strong">Delivery address</h2>
             <p className="text-[10px] text-ink-slate">Where should we deliver your order?</p>
           </div>
           {phoneVerified && (
@@ -92,7 +92,7 @@ export default function StepDelivery({
             <span className="block truncate text-sm font-semibold text-ink-strong">
               {details.fullName || "Add your name"}
             </span>
-            <span className="block truncate text-[11px] text-ink-slate">
+            <span className="block truncate text-[12px] text-ink-slate">
               {displayPhone || "Add your mobile number"}
             </span>
           </span>
@@ -241,13 +241,13 @@ export default function StepDelivery({
         </p>
       </section>
 
-      <section className="rounded-2xl border border-line-soft bg-white p-4 shadow-sm">
+      <section className="rounded-2xl border border-line bg-white p-4 shadow-card">
         <div className="mb-3 flex items-center gap-2">
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-tint">
             <Truck className="h-4 w-4 text-brand" />
           </span>
           <div>
-            <h2 className="text-sm font-bold text-ink-strong">Delivery method</h2>
+            <h2 className="text-[16px] font-bold leading-tight text-ink-strong">Delivery method</h2>
             <p className="text-[10px] text-ink-slate">
               Choose how you would like to receive your order
             </p>

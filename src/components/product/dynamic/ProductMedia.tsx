@@ -84,7 +84,7 @@ export default function ProductMedia({
         )}
 
         {badgeLabel && (
-          <span className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-brand-darkest/95 px-3 py-1.5 text-[11px] font-bold text-white shadow-sm">
+          <span className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-brand-darkest/95 px-3 py-1.5 text-[11px] font-bold text-white shadow-card">
             <Crown className="h-3.5 w-3.5" />
             {badgeLabel}
           </span>

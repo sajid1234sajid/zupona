@@ -65,7 +65,7 @@ export default function NotificationsClient({ notifications }: { notifications: 
         const Icon = ICONS[notification.type];
         const content = (
           <div
-            className={`flex gap-3 rounded-2xl p-4 shadow-sm ${
+            className={`flex gap-3 rounded-2xl p-4 shadow-card ${
               notification.isRead ? "bg-white" : "bg-brand-tint/60"
             }`}
           >

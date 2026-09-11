@@ -45,7 +45,7 @@ export default function PaymentMethodsClient({ methods }: { methods: PaymentMeth
   return (
     <div className="flex flex-col gap-3">
       {methods.length === 0 && (
-        <div className="flex flex-col items-center gap-2 rounded-2xl bg-white py-10 text-center shadow-sm">
+        <div className="flex flex-col items-center gap-2 rounded-2xl bg-white py-10 text-center shadow-card">
           <CreditCard className="h-6 w-6 text-ink-faint" />
           <p className="text-sm font-semibold text-ink-slate">No payment methods yet</p>
           <p className="max-w-[220px] text-xs text-ink-slate">
@@ -57,7 +57,7 @@ export default function PaymentMethodsClient({ methods }: { methods: PaymentMeth
       {methods.map((method) => {
         const Icon = ICONS[method.type];
         return (
-          <div key={method.id} className="flex items-center gap-3 rounded-2xl bg-white p-4 shadow-sm">
+          <div key={method.id} className="flex items-center gap-3 rounded-2xl bg-white p-4 shadow-card">
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-tint text-brand">
               <Icon className="h-5 w-5" />
             </span>

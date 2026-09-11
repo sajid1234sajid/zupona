@@ -66,7 +66,7 @@ export default async function OffersPage({ searchParams }: PageProps<"/offers">)
             this states the number shoppers actually care about — the Taka on
             the table right now — computed from the live catalog, not typed in. */}
         <section className="px-4 pt-3">
-          <div className="rounded-2xl bg-gradient-to-br from-brand-darkest via-brand-dark to-brand p-4 text-white shadow-sm">
+          <div className="rounded-2xl bg-gradient-to-br from-brand-darkest via-brand-dark to-brand p-4 text-white shadow-card">
             <div className="flex items-center gap-1.5">
               <PiggyBank className="h-4 w-4 text-brand-light" />
               <p className="text-[10px] font-semibold uppercase tracking-wide text-white/70">

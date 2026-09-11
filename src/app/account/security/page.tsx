@@ -27,7 +27,7 @@ export default async function SecurityPage() {
         <h1 className="text-base font-bold text-heading">Profile &amp; Security</h1>
       </header>
       <main className="flex-1 px-4 pt-4">
-        <div className="mb-3 flex items-center gap-3 rounded-2xl bg-white p-4 shadow-sm">
+        <div className="mb-3 flex items-center gap-3 rounded-2xl bg-white p-4 shadow-card">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-tint text-brand">
             <ShieldCheck className="h-5 w-5" />
           </span>
@@ -37,7 +37,7 @@ export default async function SecurityPage() {
           </div>
         </div>
 
-        <div className="mb-3 flex items-center gap-3 rounded-2xl bg-white p-4 shadow-sm">
+        <div className="mb-3 flex items-center gap-3 rounded-2xl bg-white p-4 shadow-card">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-tint text-brand">
             <Calendar className="h-5 w-5" />
           </span>

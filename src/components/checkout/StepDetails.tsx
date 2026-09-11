@@ -106,7 +106,7 @@ export default function StepDetails() {
         <PhoneShieldArt className="-mr-1 -mt-1 h-28 w-28 shrink-0" />
       </section>
 
-      <section className="rounded-2xl border border-line-soft bg-white p-4 shadow-sm">
+      <section className="rounded-2xl border border-line bg-white p-4 shadow-card">
         {stage === "phone" ? (
           <>
             <div className="mb-3 flex items-center gap-2.5">

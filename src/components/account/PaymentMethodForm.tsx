@@ -25,7 +25,7 @@ export default function PaymentMethodForm({ onDone }: { onDone: () => void }) {
   useRefreshOnSuccess(state.success, onDone);
 
   return (
-    <form action={formAction} className="flex flex-col gap-3 rounded-2xl bg-white p-4 shadow-sm">
+    <form action={formAction} className="flex flex-col gap-3 rounded-2xl bg-white p-4 shadow-card">
       <div className="grid grid-cols-4 gap-1 rounded-full bg-brand-tint p-1">
         {TYPES.map(({ value, label }) => (
           <label key={value} className="relative">
@@ -37,7 +37,7 @@ export default function PaymentMethodForm({ onDone }: { onDone: () => void }) {
               onChange={() => setType(value)}
               className="peer sr-only"
             />
-            <span className="flex cursor-pointer items-center justify-center rounded-full px-1 py-2 text-center text-[10px] font-semibold leading-tight text-brand-dark/50 peer-checked:bg-white peer-checked:text-brand-dark peer-checked:shadow-sm">
+            <span className="flex cursor-pointer items-center justify-center rounded-full px-1 py-2 text-center text-[10px] font-semibold leading-tight text-brand-dark/50 peer-checked:bg-white peer-checked:text-brand-dark peer-checked:shadow-card">
               {label}
             </span>
           </label>

@@ -16,7 +16,7 @@ export default function SearchBar() {
     <form
       role="search"
       onSubmit={(event) => event.preventDefault()}
-      className="flex h-9 flex-1 items-center gap-2 rounded-full bg-white pl-3 pr-1 shadow-[0_2px_8px_rgba(0,0,0,0.12)]"
+      className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-full bg-white pl-3 pr-1 shadow-[0_2px_8px_rgba(0,0,0,0.12)]"
     >
       <Search className="h-4 w-4 shrink-0 text-ink-muted" strokeWidth={2.25} />
       <input

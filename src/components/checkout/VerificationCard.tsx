@@ -64,18 +64,16 @@ export default function VerificationCard({
     <>
       <div className="mb-3 flex items-center gap-2">
         <span
-          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
-            verified ? "bg-brand" : "bg-brand-tint"
-          }`}
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand"
         >
           {verified ? (
-            <BadgeCheck className="h-4 w-4 text-white" />
+            <BadgeCheck className="h-[22px] w-[22px] text-white" />
           ) : (
-            <ShieldCheck className="h-4 w-4 text-brand" />
+            <ShieldCheck className="h-[22px] w-[22px] text-white" />
           )}
         </span>
         <div className="min-w-0">
-          <h2 className="text-sm font-bold text-ink-strong">
+          <h2 className="text-[16px] font-bold leading-tight text-ink-strong">
             {verified ? "Mobile number verified" : "Enter verification code"}
           </h2>
           <p className="text-[10px] leading-tight text-ink-slate">
@@ -160,5 +158,5 @@ export default function VerificationCard({
 
   if (bare) return body;
 
-  return <section className="rounded-2xl border border-line-soft bg-white p-4 shadow-sm">{body}</section>;
+  return <section className="rounded-2xl border border-line bg-white p-4 shadow-card">{body}</section>;
 }

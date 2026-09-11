@@ -44,7 +44,7 @@ export default function AddressesClient({ addresses }: { addresses: Address[] })
   return (
     <div className="flex flex-col gap-3">
       {addresses.length === 0 && (
-        <div className="flex flex-col items-center gap-2 rounded-2xl bg-white py-10 text-center shadow-sm">
+        <div className="flex flex-col items-center gap-2 rounded-2xl bg-white py-10 text-center shadow-card">
           <MapPin className="h-6 w-6 text-ink-faint" />
           <p className="text-sm font-semibold text-ink-slate">No saved addresses yet</p>
           <p className="max-w-[220px] text-xs text-ink-slate">
@@ -54,7 +54,7 @@ export default function AddressesClient({ addresses }: { addresses: Address[] })
       )}
 
       {addresses.map((address) => (
-        <div key={address.id} className="rounded-2xl bg-white p-4 shadow-sm">
+        <div key={address.id} className="rounded-2xl bg-white p-4 shadow-card">
           <div className="flex items-start justify-between gap-2">
             <div className="flex items-center gap-2">
               <span className="rounded-full bg-brand-tint px-2.5 py-1 text-[11px] font-semibold text-brand-dark">

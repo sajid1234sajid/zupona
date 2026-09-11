@@ -88,7 +88,7 @@ export default async function OrderConfirmedPage({ params }: PageProps<"/checkou
         </section>
 
         <div className="flex flex-col gap-3 px-4">
-          <section className="rounded-2xl border border-line-soft bg-white p-4 shadow-sm">
+          <section className="rounded-2xl border border-line bg-white p-4 shadow-card">
             <div className="mb-3 flex items-start gap-2">
               <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-tint">
                 <Package className="h-4 w-4 text-brand" />
@@ -139,7 +139,7 @@ export default async function OrderConfirmedPage({ params }: PageProps<"/checkou
             </div>
           </section>
 
-          <section className="rounded-2xl border border-line-soft bg-white p-4 shadow-sm">
+          <section className="rounded-2xl border border-line bg-white p-4 shadow-card">
             <div className="mb-3 flex items-center gap-2">
               <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand">
                 <MapPin className="h-4 w-4 text-white" />
@@ -168,7 +168,7 @@ export default async function OrderConfirmedPage({ params }: PageProps<"/checkou
 
           <Link
             href={`/account/orders/${order.id}`}
-            className="block rounded-2xl border border-line-soft bg-white p-4 shadow-sm"
+            className="block rounded-2xl border border-line bg-white p-4 shadow-card"
           >
             <div className="mb-3 flex items-center gap-2">
               <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-tint">

@@ -49,7 +49,7 @@ export default function OrderCard({ order }: { order: Order }) {
     .join(" · ");
 
   return (
-    <article className="rounded-2xl bg-white p-3.5 shadow-sm ring-1 ring-brand-darkest/[0.04]">
+    <article className="rounded-2xl bg-white p-3.5 shadow-card ring-1 ring-brand-darkest/[0.04]">
       <div className="flex items-start gap-3">
         {/* Decorative: the product name sits right beside it, so a second
             link to the same order would only add noise for a screen reader. */}

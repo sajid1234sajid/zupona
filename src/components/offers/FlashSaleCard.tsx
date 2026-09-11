@@ -17,7 +17,7 @@ export default function FlashSaleCard({ item }: { item: FlashSaleItem }) {
   return (
     <Link
       href={`/product/${product.id}`}
-      className="w-[112px] shrink-0 rounded-lg bg-white p-1.5 shadow-sm"
+      className="w-[112px] shrink-0 rounded-lg bg-white p-1.5 shadow-card"
     >
       <div className="relative h-[92px] overflow-hidden rounded-md bg-brand-mist">
         <Image

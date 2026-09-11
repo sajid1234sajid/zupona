@@ -243,13 +243,13 @@ export default function StepDelivery({
 
       <section className="rounded-2xl border border-line bg-white p-4 shadow-card">
         <div className="mb-3 flex items-center gap-2">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-tint">
-            <Truck className="h-4 w-4 text-brand" />
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand">
+            <Truck className="h-[22px] w-[22px] text-white" strokeWidth={2} />
           </span>
           <div>
             <h2 className="text-[16px] font-bold leading-tight text-ink-strong">Delivery method</h2>
-            <p className="text-[10px] text-ink-slate">
-              Choose how you would like to receive your order
+            <p className="text-[12px] text-ink-slate">
+              Choose how you&apos;d like to receive your order
             </p>
           </div>
         </div>
@@ -301,7 +301,7 @@ export default function StepDelivery({
         subtotal={subtotal}
         deliveryFee={fee}
         total={subtotal + fee}
-        subtitle="Review your items and total"
+        subtitle="Review your items and final amount"
       />
 
       {error && (

@@ -45,15 +45,10 @@ export default function OrderSummary({
               </div>
 
               <div className="min-w-0 flex-1">
-                <p className="truncate text-xs font-bold text-ink-strong">{line.name}</p>
+                <p className="truncate text-[14px] font-bold leading-tight text-ink-strong">{line.name}</p>
                 <p className="mt-0.5 text-[12px] text-ink-slate">
                   {[line.color, `Qty ${line.quantity}`].filter(Boolean).join(" · ")}
                 </p>
-                {saved > 0 && (
-                  <span className="mt-1 inline-block rounded-md bg-brand-tint px-1.5 py-0.5 text-[9px] font-semibold text-brand-dark">
-                    You save {formatPrice(saved)}
-                  </span>
-                )}
               </div>
 
               <div className="shrink-0 text-right">
@@ -67,9 +62,16 @@ export default function OrderSummary({
                     {formatPrice(line.oldPrice * line.quantity)}
                   </p>
                 )}
-                <p className="text-sm font-bold text-brand-darkest">
+                <p className="text-[15px] font-extrabold leading-none text-brand-darkest">
                   {formatPrice(line.price * line.quantity)}
                 </p>
+                {/* The reference hangs the saving under the price, not under
+                    the variant line: the number it refers to is on this side. */}
+                {saved > 0 && (
+                  <span className="mt-1 inline-block rounded-md bg-brand-tint px-1.5 py-0.5 text-[9.5px] font-semibold text-brand-dark">
+                    You save {formatPrice(saved)}
+                  </span>
+                )}
               </div>
             </div>
           );
@@ -99,12 +101,12 @@ export default function OrderSummary({
   return (
     <section className="rounded-2xl border border-line bg-white p-4 shadow-card">
       <div className="mb-3 flex items-center gap-2">
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-tint">
-          <ReceiptText className="h-4 w-4 text-brand" />
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand">
+          <ReceiptText className="h-[22px] w-[22px] text-white" strokeWidth={2} />
         </span>
         <div>
           <h2 className="text-[16px] font-bold leading-tight text-ink-strong">Order summary</h2>
-          <p className="text-[10px] text-ink-slate">{subtitle}</p>
+          <p className="text-[12px] text-ink-slate">{subtitle}</p>
         </div>
       </div>
       {body}

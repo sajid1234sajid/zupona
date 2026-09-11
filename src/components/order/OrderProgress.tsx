@@ -7,10 +7,11 @@ const SHOWN = ["placed", "confirmed", "out_for_delivery", "delivered"] as const;
 function formatAt(iso: string | null, fallback: string): string {
   if (!iso) return fallback;
   const date = new Date(iso);
-  return `${date.toLocaleDateString("en-GB", { day: "2-digit", month: "short" })} · ${date.toLocaleTimeString(
-    "en-US",
-    { hour: "2-digit", minute: "2-digit" }
-  )}`;
+  // "Sept" is en-GB's only four-letter short month, and on a rail this narrow
+  // it is the difference between one line and two.
+  const day = date.toLocaleDateString("en-GB", { day: "2-digit", month: "short" }).replace("Sept", "Sep");
+  const time = date.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
+  return `${day} · ${time}`;
 }
 
 export default function OrderProgress({ steps, eta }: { steps: OrderStep[]; eta: string }) {
@@ -33,7 +34,7 @@ export default function OrderProgress({ steps, eta }: { steps: OrderStep[]; eta:
 
         return (
           <div key={step.status} className="flex flex-1 items-start last:flex-none">
-            <div className="flex w-[62px] shrink-0 flex-col items-center gap-1 text-center">
+            <div className="flex w-[66px] shrink-0 flex-col items-center gap-1 text-center">
               <span
                 className={`flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-bold ${
                   step.done

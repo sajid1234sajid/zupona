@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { ImagePlus, Loader2, Star, Trash2, UploadCloud } from "lucide-react";
 
 interface ImageUploaderProps {
@@ -11,6 +11,10 @@ interface ImageUploaderProps {
   max?: number;
   label?: string;
   hint?: string;
+  /** Told to the form whenever the gallery changes, so the variant matrix can
+   * offer the pictures that actually exist right now rather than the ones the
+   * page loaded with. */
+  onChange?: (urls: string[]) => void;
 }
 
 /** Drag-and-drop image picker that uploads as you go.
@@ -30,8 +34,21 @@ export default function ImageUploader({
   max = 8,
   label = "Product Images",
   hint = "JPG, PNG or WEBP · up to 10 MB each",
+  onChange,
 }: ImageUploaderProps) {
   const [urls, setUrls] = useState<string[]>(initialUrls);
+  // Held in a ref so a parent that passes a fresh closure on every render does
+  // not re-fire the notification below.
+  const notify = useRef(onChange);
+  useEffect(() => {
+    notify.current = onChange;
+  });
+
+  // Told after the render that produced the new list, so the parent is never
+  // asked to update while this component is still rendering.
+  useEffect(() => {
+    notify.current?.(urls);
+  }, [urls]);
   const [busy, setBusy] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);

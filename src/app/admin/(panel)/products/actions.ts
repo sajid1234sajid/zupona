@@ -8,11 +8,20 @@ import { AuthorizationError, logAdminAction, requireAdmin } from "@/lib/admin";
 import { setProductStatus } from "@/lib/catalog";
 import { adminUrl } from "@/lib/adminUrl";
 import { adjustStock } from "@/lib/inventory";
+import {
+  applyStockChanges,
+  OptionValidationError,
+  parseOptionsPayload,
+  planOptionWrite,
+} from "@/lib/productOptions";
 import type { ProductStatus } from "@/types";
 
 export interface ProductFormState {
   error?: string;
   success?: string;
+  /** The product's new `updated_at`, handed back so the open form can save
+   * again without being told it is out of date by its own previous save. */
+  savedAt?: string;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -99,6 +108,9 @@ function readList(formData: FormData, key: string): string[] {
  * screen; anything else is a real bug and is left to surface. */
 function toFormError(error: unknown): ProductFormState {
   if (error instanceof AuthorizationError) return { error: error.message };
+  // Something the admin can fix -- a duplicate SKU, too many combinations --
+  // belongs on the form rather than on a crash screen.
+  if (error instanceof OptionValidationError) return { error: error.message };
   throw error;
 }
 
@@ -113,56 +125,71 @@ function refreshProductViews(productId?: string): void {
 /* Create & update                                                            */
 /* -------------------------------------------------------------------------- */
 
-/** Builds every variant the colour/size selections imply.
+/** `products.sku` is globally unique, the same as a variant's.
  *
- * Stock always lives on a variant, so a product with no options still gets one
- * row. With options, the entered stock is spread evenly across combinations so
- * the totals still add up to what was typed. */
-function buildVariants(
-  colors: string[],
-  sizes: string[],
-  stock: number,
-  threshold: number,
-  sku: string | null
-): {
-  option1Name: string | null;
-  option1Value: string | null;
-  option2Name: string | null;
-  option2Value: string | null;
-  stock: number;
-  threshold: number;
-  sku: string | null;
-}[] {
-  const colorList = colors.length ? colors : [null];
-  const sizeList = sizes.length ? sizes : [null];
-  const count = colorList.length * sizeList.length;
-  const each = Math.floor(stock / count);
-  let remainder = stock - each * count;
+ * Without this the constraint surfaces as a raw D1 error in the middle of the
+ * batch, which reaches the admin as a crash screen rather than as "that code is
+ * already in use". */
+async function assertProductSkuIsFree(sku: string | null, productId: string | null): Promise<void> {
+  if (!sku) return;
+  const db = await getDB();
+  const owner = await db
+    .prepare("SELECT id FROM products WHERE sku = ?")
+    .bind(sku)
+    .first<{ id: string }>();
 
-  const variants = [];
-  let index = 0;
+  if (owner && owner.id !== productId) {
+    throw new OptionValidationError(`The product code "${sku}" is already used by another product.`);
+  }
+}
 
-  for (const color of colorList) {
-    for (const size of sizeList) {
-      index += 1;
-      // The remainder goes to the first variants so nothing is lost to
-      // rounding: 10 units across 3 variants becomes 4/3/3, not 3/3/3.
-      const extra = remainder > 0 ? 1 : 0;
-      if (remainder > 0) remainder -= 1;
+/** The product's gallery after a save, as url -> image id.
+ *
+ * A variant points at a `product_images` row, so the id has to survive a save
+ * or every picture assignment would be lost the moment anything else on the
+ * product changed. Images are therefore diffed by URL rather than replaced: a
+ * row whose URL is still in the list keeps its id, one that has gone is
+ * deleted, and only a genuinely new URL gets a new row. Because the new ids are
+ * generated here, the map is complete before the batch has even run. */
+function planImages(
+  db: D1Database,
+  productId: string,
+  postedUrls: string[],
+  existing: { id: string; url: string }[]
+): { statements: D1PreparedStatement[]; imageIdByUrl: Map<string, string> } {
+  const urls = [...new Set(postedUrls)];
+  const idByUrl = new Map(existing.map((image) => [image.url, image.id]));
+  const statements: D1PreparedStatement[] = [];
+  const imageIdByUrl = new Map<string, string>();
 
-      variants.push({
-        option1Name: color ? "Color" : null,
-        option1Value: color,
-        option2Name: size ? "Size" : null,
-        option2Value: size,
-        stock: each + extra,
-        threshold,
-        sku: sku && count > 1 ? `${sku}-${index}` : sku,
-      });
+  for (const image of existing) {
+    if (!urls.includes(image.url)) {
+      // The variants pointing at it have their image_id set to NULL by the
+      // foreign key, which is the right answer: the picture is gone.
+      statements.push(db.prepare("DELETE FROM product_images WHERE id = ?").bind(image.id));
     }
   }
 
-  return variants;
+  urls.forEach((url, index) => {
+    const existingId = idByUrl.get(url);
+    const id = existingId ?? crypto.randomUUID();
+    imageIdByUrl.set(url, id);
+
+    statements.push(
+      existingId
+        ? db
+            .prepare("UPDATE product_images SET sort_order = ?, is_primary = ? WHERE id = ?")
+            .bind(index, index === 0 ? 1 : 0, id)
+        : db
+            .prepare(
+              `INSERT INTO product_images (id, product_id, url, sort_order, is_primary)
+               VALUES (?, ?, ?, ?, ?)`
+            )
+            .bind(id, productId, url, index, index === 0 ? 1 : 0)
+    );
+  });
+
+  return { statements, imageIdByUrl };
 }
 
 /** Reads the video list the form posts back.
@@ -185,9 +212,12 @@ export async function createProductAction(
   formData: FormData
 ): Promise<ProductFormState> {
   let productId: string;
+  let optionWrite: Awaited<ReturnType<typeof planOptionWrite>> | null = null;
+  let adminId: string;
 
   try {
     const admin = await requireAdmin();
+    adminId = admin.id;
 
     const name = String(formData.get("name") ?? "").trim();
     if (!name) return { error: "Enter a product name." };
@@ -199,15 +229,13 @@ export async function createProductAction(
     productId = crypto.randomUUID();
     const slug = await uniqueSlug(slugify(name));
     const sku = readText(formData, "sku");
+    await assertProductSkuIsFree(sku, null);
     const status = (String(formData.get("status") ?? "draft") as ProductStatus) ?? "draft";
-    const stock = Math.max(0, readInt(formData, "stock"));
-    const threshold = Math.max(0, readInt(formData, "lowStockAlert", 5));
 
-    const colors = readList(formData, "colors");
-    const sizes = readList(formData, "sizes");
     const tags = readList(formData, "tags");
     const images = formData.getAll("images").map(String).filter(Boolean);
     const videos = readVideos(formData);
+    const options = parseOptionsPayload(formData.get("options"));
 
     const length = readInt(formData, "length");
     const width = readInt(formData, "width");
@@ -250,39 +278,19 @@ export async function createProductAction(
         .bind(crypto.randomUUID(), productId, pricing.price, pricing.oldPrice),
     ];
 
-    for (const variant of buildVariants(colors, sizes, stock, threshold, sku)) {
-      statements.push(
-        db
-          .prepare(
-            `INSERT INTO product_variants (id, product_id, sku, option1_name, option1_value,
-                                           option2_name, option2_value, stock_quantity,
-                                           low_stock_threshold)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-          )
-          .bind(
-            crypto.randomUUID(),
-            productId,
-            variant.sku,
-            variant.option1Name,
-            variant.option1Value,
-            variant.option2Name,
-            variant.option2Value,
-            variant.stock,
-            variant.threshold
-          )
-      );
-    }
+    const gallery = planImages(db, productId, images, []);
+    statements.push(...gallery.statements);
 
-    images.forEach((url, index) => {
-      statements.push(
-        db
-          .prepare(
-            `INSERT INTO product_images (id, product_id, url, sort_order, is_primary)
-             VALUES (?, ?, ?, ?, ?)`
-          )
-          .bind(crypto.randomUUID(), productId, url, index, index === 0 ? 1 : 0)
-      );
+    // Options, values, combinations and the legacy colour/size mirror, all
+    // through the one module that writes them -- and in this same batch, so a
+    // product either arrives complete or not at all.
+    optionWrite = await planOptionWrite({
+      productId,
+      input: options,
+      imageIdByUrl: gallery.imageIdByUrl,
+      isNewProduct: true,
     });
+    statements.push(...optionWrite.statements);
 
     videos.forEach((video, index) => {
       statements.push(
@@ -308,14 +316,28 @@ export async function createProductAction(
 
     await db.batch(statements);
     await logAdminAction(admin.id, "product.create", "product", productId, {
-      after: { name, price: pricing.price, status },
+      after: { name, price: pricing.price, status, combinations: optionWrite.plan.variants.length },
     });
     await invalidateCatalog();
   } catch (error) {
     return toFormError(error);
   }
 
+  // Stage C, after the structure has committed: stock moves through the ledger
+  // so `stock_quantity` and `inventory_movements` cannot disagree.
+  const stockResult = await applyStockChanges(optionWrite.stockChanges, {
+    userId: adminId,
+    note: "Opening stock from the product form",
+  });
+
   refreshProductViews(productId);
+  if (stockResult.failed.length > 0) {
+    return {
+      error: `The product was saved, but stock could not be set for ${stockResult.failed
+        .map((change) => change.label)
+        .join(", ")}. Open it and set those figures again.`,
+    };
+  }
   redirect(await adminUrl(`/admin/products/${productId}`) + "?saved=1");
 }
 
@@ -326,8 +348,13 @@ export async function updateProductAction(
   const productId = String(formData.get("productId") ?? "");
   if (!productId) return { error: "Missing product." };
 
+  let optionWrite: Awaited<ReturnType<typeof planOptionWrite>> | null = null;
+  let adminId = "";
+  let savedAt: string | null = null;
+
   try {
     const admin = await requireAdmin();
+    adminId = admin.id;
 
     const name = String(formData.get("name") ?? "").trim();
     if (!name) return { error: "Enter a product name." };
@@ -343,15 +370,42 @@ export async function updateProductAction(
 
     if (!before) return { error: "That product no longer exists." };
 
+    // Two admins on the same product would otherwise each overwrite the
+    // other's options with their own idea of them. Claiming the row with a
+    // conditional UPDATE is the same trick the order code uses for stock: it
+    // is atomic, so exactly one of two simultaneous saves can win, and the
+    // loser is told rather than silently discarded. The claim moves
+    // `updated_at`, which is what the condition tests, so the second save sees
+    // no rows matched.
+    const expectedUpdatedAt = readText(formData, "updatedAt");
+    const claim = await db
+      .prepare("UPDATE products SET updated_at = datetime('now') WHERE id = ? AND updated_at IS ?")
+      .bind(productId, expectedUpdatedAt)
+      .run();
+
+    if (claim.meta.changes !== 1) {
+      return {
+        error:
+          "Someone else saved this product while you were editing it. Reload the page so you are working from their version, then make your change again.",
+      };
+    }
+
     // Renaming re-slugs, but an unchanged name keeps the URL it already has so
     // existing links and shares don't break on an unrelated edit.
     const slug =
       before.name === name ? before.slug : await uniqueSlug(slugify(name), productId);
 
     const status = String(formData.get("status") ?? before.status) as ProductStatus;
+    await assertProductSkuIsFree(readText(formData, "sku"), productId);
     const tags = readList(formData, "tags");
     const images = formData.getAll("images").map(String).filter(Boolean);
     const videos = readVideos(formData);
+    const options = parseOptionsPayload(formData.get("options"));
+
+    const currentImages = await db
+      .prepare("SELECT id, url FROM product_images WHERE product_id = ?")
+      .bind(productId)
+      .all<{ id: string; url: string }>();
 
     const length = readInt(formData, "length");
     const width = readInt(formData, "width");
@@ -389,25 +443,26 @@ export async function updateProductAction(
           readText(formData, "metaDescription"),
           productId
         ),
-      // Images, videos and tags are replace-all: the form always posts the
-      // complete list, so diffing them would be more code for the same result.
-      db.prepare("DELETE FROM product_images WHERE product_id = ?").bind(productId),
+      // Videos and tags are replace-all: the form always posts the complete
+      // list and nothing references either row, so diffing them would be more
+      // code for the same result. Images are the exception -- a variant points
+      // at one -- and are diffed by URL below.
       db.prepare("DELETE FROM product_videos WHERE product_id = ?").bind(productId),
       db
         .prepare("DELETE FROM product_attributes WHERE product_id = ? AND attr_name = 'tag'")
         .bind(productId),
     ];
 
-    images.forEach((url, index) => {
-      statements.push(
-        db
-          .prepare(
-            `INSERT INTO product_images (id, product_id, url, sort_order, is_primary)
-             VALUES (?, ?, ?, ?, ?)`
-          )
-          .bind(crypto.randomUUID(), productId, url, index, index === 0 ? 1 : 0)
-      );
+    const gallery = planImages(db, productId, images, currentImages.results ?? []);
+    statements.push(...gallery.statements);
+
+    optionWrite = await planOptionWrite({
+      productId,
+      input: options,
+      imageIdByUrl: gallery.imageIdByUrl,
+      isNewProduct: false,
     });
+    statements.push(...optionWrite.statements);
 
     videos.forEach((video, index) => {
       statements.push(
@@ -443,17 +498,57 @@ export async function updateProductAction(
     }
 
     await db.batch(statements);
+    savedAt =
+      (
+        await db
+          .prepare("SELECT updated_at FROM products WHERE id = ?")
+          .bind(productId)
+          .first<{ updated_at: string | null }>()
+      )?.updated_at ?? null;
     await logAdminAction(admin.id, "product.update", "product", productId, {
       before,
-      after: { name, price: pricing.price, status },
+      after: {
+        name,
+        price: pricing.price,
+        status,
+        combinations: optionWrite.plan.variants.length,
+        retired: optionWrite.plan.retireVariantIds.length,
+      },
     });
     await invalidateCatalog();
   } catch (error) {
     return toFormError(error);
   }
 
+  const stockResult = await applyStockChanges(optionWrite.stockChanges, {
+    userId: adminId,
+    note: "Set from the product options editor",
+  });
+
   refreshProductViews(productId);
-  return { success: "Product saved." };
+  await invalidateCatalog();
+
+  if (stockResult.failed.length > 0) {
+    // The structure saved; these combinations simply still hold the stock they
+    // held before. Nothing is half-written and saving again re-applies the same
+    // difference, so the fix is to say which ones rather than to undo anything.
+    return {
+      savedAt: savedAt ?? undefined,
+      error: `Saved, but stock could not be changed for ${stockResult.failed
+        .map((change) => change.label)
+        .join(", ")}. Check those figures and save again.`,
+    };
+  }
+
+  return {
+    savedAt: savedAt ?? undefined,
+    success:
+      stockResult.applied > 0
+        ? `Product saved. Stock updated for ${stockResult.applied} combination${
+            stockResult.applied === 1 ? "" : "s"
+          }.`
+        : "Product saved.",
+  };
 }
 
 /* -------------------------------------------------------------------------- */

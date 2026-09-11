@@ -1,12 +1,21 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useState } from "react";
+import { useActionState, useMemo, useState } from "react";
 import { Info, Loader2, Save, Sparkles } from "lucide-react";
 import ChipInput from "./ChipInput";
 import ImageUploader from "./ImageUploader";
 import VideoUploader from "./VideoUploader";
+import OptionGroupBuilder from "./OptionGroupBuilder";
+import VariantMatrix from "./VariantMatrix";
+import {
+  buildMatrix,
+  buildOptionsPayload,
+  type BuilderGroup,
+  type CellOverride,
+} from "./optionBuilder";
 import { Card, CardHeader, Field, FormMessage, buttonStyles, fieldStyles, textareaStyles } from "./ui";
+import { MAX_GROUPS, MAX_VALUES_PER_GROUP, MAX_VARIANTS } from "@/lib/optionModel";
 import type { ProductFormState } from "@/app/admin/(panel)/products/actions";
 
 export interface ProductFormOption {
@@ -32,6 +41,10 @@ export interface ProductFormValues {
   tags: string[];
   images: string[];
   videos: string[];
+  /** The options the product already has, and the figures its combinations
+   * carry. Empty on a new product. */
+  optionGroups: BuilderGroup[];
+  variantCells: Record<string, CellOverride>;
   /** Poster still for each video, positionally aligned with `videos`. */
   videoPosters: string[];
   weight: string;
@@ -43,6 +56,9 @@ export interface ProductFormValues {
   status: string;
   isFeatured: boolean;
   isBestSeller: boolean;
+  /** What the product's `updated_at` was when this form was loaded. Posted
+   * back so a save can tell whether anyone else has saved in the meantime. */
+  updatedAt?: string | null;
 }
 
 interface ProductFormProps {
@@ -56,9 +72,6 @@ interface ProductFormProps {
   showStockFields?: boolean;
 }
 
-const SIZE_SUGGESTIONS = ["XS", "S", "M", "L", "XL", "XXL", "3XL"];
-const COLOR_SUGGESTIONS = ["Black", "White", "Navy", "Grey", "Green", "Red", "Beige"];
-
 export default function ProductForm({
   mode,
   action,
@@ -68,10 +81,32 @@ export default function ProductForm({
   showStockFields = true,
 }: ProductFormProps) {
   const [state, formAction, pending] = useActionState<ProductFormState, FormData>(action, {});
+  // Moves forward with every successful save, so saving twice from the same
+  // open form is not mistaken for two people editing at once.
+  const loadedAt = state.savedAt ?? values.updatedAt ?? "";
   const [discountType, setDiscountType] = useState(values.discountType);
   const [price, setPrice] = useState(String(values.price || ""));
   const [discountValue, setDiscountValue] = useState(String(values.discountValue || ""));
   const [description, setDescription] = useState(values.description);
+
+  // The options, the figures each combination carries, and the gallery they can
+  // pick a picture from all live here rather than inside the two panels: the
+  // matrix is derived from the groups, and both are posted as one field.
+  const [groups, setGroups] = useState<BuilderGroup[]>(values.optionGroups);
+  const [cells, setCells] = useState<Record<string, CellOverride>>(values.variantCells);
+  const [gallery, setGallery] = useState<string[]>(values.images);
+  const [stock, setStock] = useState(String(values.stock || ""));
+  const [lowStockAlert, setLowStockAlert] = useState(String(values.lowStockAlert || ""));
+
+  const matrix = useMemo(() => buildMatrix(groups), [groups]);
+  // Only the create form spreads a single entered total across the rows; the
+  // edit form shows each combination's real stock instead.
+  const defaultStock = showStockFields ? Math.max(0, Number(stock) || 0) : undefined;
+  const defaultThreshold = showStockFields ? Math.max(0, Number(lowStockAlert) || 0) : undefined;
+  const optionsPayload = useMemo(
+    () => buildOptionsPayload({ groups, cells, matrix, defaultStock, defaultThreshold }),
+    [groups, cells, matrix, defaultStock, defaultThreshold]
+  );
 
   // Mirrors the arithmetic in resolvePricing() on the server so the admin can
   // see the shelf price before saving. The server still recomputes it -- this
@@ -88,6 +123,7 @@ export default function ProductForm({
   return (
     <form action={formAction} className="grid gap-4 xl:grid-cols-12">
       {values.id ? <input type="hidden" name="productId" value={values.id} /> : null}
+      {values.id ? <input type="hidden" name="updatedAt" value={loadedAt} /> : null}
 
       <div className="min-w-0 space-y-4 xl:col-span-8">
         <Card>
@@ -185,13 +221,14 @@ export default function ProductForm({
 
               {showStockFields ? (
                 <>
-                  <Field label="Stock Quantity" required hint="Spread across colour/size options">
+                  <Field label="Stock Quantity" required hint="Spread across the combinations below">
                     <input
                       name="stock"
                       type="number"
                       min={0}
                       required
-                      defaultValue={values.stock}
+                      value={stock}
+                      onChange={(event) => setStock(event.target.value)}
                       placeholder="Enter stock quantity"
                       className={fieldStyles}
                     />
@@ -202,7 +239,8 @@ export default function ProductForm({
                       name="lowStockAlert"
                       type="number"
                       min={0}
-                      defaultValue={values.lowStockAlert}
+                      value={lowStockAlert}
+                      onChange={(event) => setLowStockAlert(event.target.value)}
                       placeholder="e.g. 10"
                       className={fieldStyles}
                     />
@@ -243,7 +281,14 @@ export default function ProductForm({
             title="Product Images"
             subtitle="The first image is used on listing cards and search results"
           />
-          <ImageUploader name="images" initialUrls={values.images} folder="products" max={8} label="Gallery" />
+          <ImageUploader
+            name="images"
+            initialUrls={values.images}
+            folder="products"
+            max={8}
+            label="Gallery"
+            onChange={setGallery}
+          />
         </Card>
 
         <Card>
@@ -262,34 +307,42 @@ export default function ProductForm({
         </Card>
 
         <Card>
-          <CardHeader title="Options" subtitle="Colours and sizes become sellable variants" />
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Colours" hint="Named colours or hex codes">
-              <ChipInput
-                name="colors"
-                initial={values.colors}
-                placeholder="Black, White…"
-                suggestions={COLOR_SUGGESTIONS}
-                swatches
-              />
-            </Field>
-            <Field label="Sizes">
-              <ChipInput
-                name="sizes"
-                initial={values.sizes}
-                placeholder="S, M, L…"
-                suggestions={SIZE_SUGGESTIONS}
-              />
-            </Field>
-          </div>
-
-          {mode === "edit" ? (
+          <CardHeader
+            title="Options"
+            subtitle="However many this product has — colour, size, storage, volume, anything"
+          />
+          <input type="hidden" name="options" value={optionsPayload} />
+          <OptionGroupBuilder
+            groups={groups}
+            onChange={setGroups}
+            maxGroups={MAX_GROUPS}
+            maxValues={MAX_VALUES_PER_GROUP}
+          />
+          {groups.length === 0 ? (
             <p className="mt-3 flex items-start gap-2 rounded-xl bg-neutral-50 px-3.5 py-2.5 text-[11px] text-neutral-500">
               <Info className="mt-px h-3.5 w-3.5 shrink-0" />
-              Editing these here does not rebuild existing variants — stock lives on them. Use the
-              Variants panel below to add or retire individual options.
+              No options yet. The product is sold as a single item — stock still lives on its one
+              combination below.
             </p>
           ) : null}
+        </Card>
+
+      </div>
+
+      <div className="min-w-0 xl:col-span-12 xl:order-last">
+        <Card>
+          <CardHeader
+            title="Variants & Stock"
+            subtitle="Every combination the options make, with what it costs and what is left"
+          />
+          <VariantMatrix
+            matrix={matrix}
+            cells={cells}
+            onChange={setCells}
+            gallery={gallery}
+            defaultStock={defaultStock}
+            maxVariants={MAX_VARIANTS}
+          />
         </Card>
       </div>
 

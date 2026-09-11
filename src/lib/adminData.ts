@@ -1732,9 +1732,39 @@ export interface EditableVariant {
   optionValue: string | null;
   option2Value: string | null;
   price: number | null;
+  oldPrice: number | null;
   stockQuantity: number;
   reservedQuantity: number;
   lowStockThreshold: number;
+  /** Retired combinations are loaded too, so the matrix can show one being
+   * brought back with the stock, SKU and price it kept while it was off. */
+  isActive: boolean;
+  /** The gallery image this combination switches to, by URL rather than id --
+   * the form posts URLs and the server resolves them against the gallery it
+   * has just written. */
+  imageUrl: string | null;
+  /** Option group id -> option value id, which is how the matrix knows which
+   * row of itself this variant is. */
+  selections: Record<string, string>;
+}
+
+export interface EditableOptionValue {
+  id: string;
+  value: string;
+  label: string;
+  colorHex: string | null;
+  imageUrl: string | null;
+  isActive: boolean;
+}
+
+export interface EditableOptionGroup {
+  id: string;
+  key: string;
+  name: string;
+  display: "swatch" | "image" | "pill" | "dropdown";
+  showLabels: boolean;
+  isActive: boolean;
+  values: EditableOptionValue[];
 }
 
 export interface EditableProduct {
@@ -1768,6 +1798,8 @@ export interface EditableProduct {
   tags: string[];
   colors: string[];
   sizes: string[];
+  /** Every option the product offers, retired ones included. */
+  optionGroups: EditableOptionGroup[];
   variants: EditableVariant[];
   soldCount: number;
   viewCount: number;
@@ -1821,10 +1853,12 @@ export async function getProductForEdit(productId: string): Promise<EditableProd
 
   if (!row) return null;
 
-  const [images, videos, attributes, variants] = await db.batch<Record<string, unknown>>([
+  const [images, videos, attributes, variants, optionRows, links] = await db.batch<
+    Record<string, unknown>
+  >([
     db
       .prepare(
-        "SELECT url FROM product_images WHERE product_id = ? ORDER BY is_primary DESC, sort_order ASC"
+        "SELECT id, url FROM product_images WHERE product_id = ? ORDER BY is_primary DESC, sort_order ASC"
       )
       .bind(productId),
     db
@@ -1837,11 +1871,33 @@ export async function getProductForEdit(productId: string): Promise<EditableProd
         "SELECT attr_name, attr_value FROM product_attributes WHERE product_id = ? ORDER BY sort_order ASC"
       )
       .bind(productId),
+    // Retired variants are included: the editor has to be able to show a
+    // combination coming back with everything it kept while it was off.
     db
       .prepare(
-        `SELECT id, sku, option1_value, option2_value, price, stock_quantity,
-                reserved_quantity, low_stock_threshold
-         FROM product_variants WHERE product_id = ? AND is_active = 1 ORDER BY rowid ASC`
+        `SELECT id, sku, option1_value, option2_value, price, old_price, stock_quantity,
+                reserved_quantity, low_stock_threshold, is_active, image_id
+         FROM product_variants WHERE product_id = ? ORDER BY rowid ASC`
+      )
+      .bind(productId),
+    db
+      .prepare(
+        `SELECT g.id AS group_id, g.key, g.name, g.display, g.show_labels, g.is_active AS group_active,
+                g.sort_order AS group_sort,
+                ov.id AS value_id, ov.value, ov.label, ov.color_hex, ov.image_url,
+                ov.is_active AS value_active, ov.sort_order AS value_sort
+         FROM product_option_groups g
+         LEFT JOIN product_option_values ov ON ov.group_id = g.id
+         WHERE g.product_id = ?
+         ORDER BY g.sort_order ASC, ov.sort_order ASC`
+      )
+      .bind(productId),
+    db
+      .prepare(
+        `SELECT pvo.variant_id, pvo.group_id, pvo.value_id
+         FROM product_variant_options pvo
+         JOIN product_option_groups g ON g.id = pvo.group_id
+         WHERE g.product_id = ?`
       )
       .bind(productId),
   ]);
@@ -1859,10 +1915,70 @@ export async function getProductForEdit(productId: string): Promise<EditableProd
     option1_value: string | null;
     option2_value: string | null;
     price: number | null;
+    old_price: number | null;
     stock_quantity: number;
     reserved_quantity: number;
     low_stock_threshold: number;
+    is_active: number;
+    image_id: string | null;
   }[];
+
+  const imageRows = images.results as unknown as { id: string; url: string }[];
+  const imageUrlById = new Map(imageRows.map((image) => [image.id, image.url]));
+
+  // One row per value, flattened back into groups. The join is a LEFT one so a
+  // group whose values were all removed still reaches the editor and can be
+  // repaired rather than vanishing from the form.
+  const groupsById = new Map<string, EditableOptionGroup>();
+  for (const row of optionRows.results as unknown as {
+    group_id: string;
+    key: string;
+    name: string;
+    display: string;
+    show_labels: number;
+    group_active: number;
+    value_id: string | null;
+    value: string | null;
+    label: string | null;
+    color_hex: string | null;
+    image_url: string | null;
+    value_active: number | null;
+  }[]) {
+    let group = groupsById.get(row.group_id);
+    if (!group) {
+      group = {
+        id: row.group_id,
+        key: row.key,
+        name: row.name,
+        display: row.display as EditableOptionGroup["display"],
+        showLabels: row.show_labels === 1,
+        isActive: row.group_active === 1,
+        values: [],
+      };
+      groupsById.set(row.group_id, group);
+    }
+    if (row.value_id) {
+      group.values.push({
+        id: row.value_id,
+        value: row.value ?? "",
+        label: row.label ?? "",
+        colorHex: row.color_hex,
+        imageUrl: row.image_url,
+        isActive: row.value_active === 1,
+      });
+    }
+  }
+
+  const selectionsByVariant = new Map<string, Record<string, string>>();
+  for (const link of links.results as unknown as {
+    variant_id: string;
+    group_id: string;
+    value_id: string;
+  }[]) {
+    const selections = selectionsByVariant.get(link.variant_id) ?? {};
+    selections[link.group_id] = link.value_id;
+    selectionsByVariant.set(link.variant_id, selections);
+  }
 
   const discounted = row.old_price > row.price && row.old_price > 0;
   const off = discounted ? row.old_price - row.price : 0;
@@ -1902,23 +2018,36 @@ export async function getProductForEdit(productId: string): Promise<EditableProd
     height: dimensions.h ?? 0,
     metaTitle: row.meta_title ?? "",
     metaDescription: row.meta_description ?? "",
-    images: (images.results as unknown as { url: string }[]).map((image) => image.url),
+    images: imageRows.map((image) => image.url),
     videos: videoRows.map((video) => video.url),
     // Posted back positionally alongside the URLs, so an empty string has to
     // hold the slot of a clip that never got a poster.
     videoPosters: videoRows.map((video) => video.poster_url ?? ""),
     tags: attributeRows.filter((a) => a.attr_name === "tag").map((a) => a.attr_value),
-    colors: [...new Set(variantRows.map((v) => v.option1_value).filter(Boolean))] as string[],
-    sizes: [...new Set(variantRows.map((v) => v.option2_value).filter(Boolean))] as string[],
+    colors: [
+      ...new Set(
+        variantRows.filter((v) => v.is_active === 1).map((v) => v.option1_value).filter(Boolean)
+      ),
+    ] as string[],
+    sizes: [
+      ...new Set(
+        variantRows.filter((v) => v.is_active === 1).map((v) => v.option2_value).filter(Boolean)
+      ),
+    ] as string[],
+    optionGroups: [...groupsById.values()],
     variants: variantRows.map((variant) => ({
       id: variant.id,
       sku: variant.sku,
       optionValue: variant.option1_value,
       option2Value: variant.option2_value,
       price: variant.price,
+      oldPrice: variant.old_price,
       stockQuantity: variant.stock_quantity,
       reservedQuantity: variant.reserved_quantity,
       lowStockThreshold: variant.low_stock_threshold,
+      isActive: variant.is_active === 1,
+      imageUrl: variant.image_id ? (imageUrlById.get(variant.image_id) ?? null) : null,
+      selections: selectionsByVariant.get(variant.id) ?? {},
     })),
     soldCount: row.sold_count,
     viewCount: row.view_count,

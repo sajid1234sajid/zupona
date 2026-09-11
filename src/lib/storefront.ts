@@ -404,10 +404,20 @@ async function queryProduct(id: string): Promise<StoreProduct | null> {
         "SELECT id, url, poster_url, alt FROM product_videos WHERE product_id = ? ORDER BY sort_order ASC"
       )
       .bind(id),
+    // The legacy colour list. Retired options are filtered here too: the old
+    // page reads this and nothing else, so without it a colour the admin has
+    // turned off would disappear from /products/<slug> and still be offered on
+    // /product/<id>.
     db
       .prepare(
-        `SELECT option1_value, swatch FROM product_variants
+        `SELECT option1_value, swatch FROM product_variants v
          WHERE product_id = ? AND is_active = 1 AND option1_value IS NOT NULL
+           AND NOT EXISTS (
+             SELECT 1 FROM product_variant_options o
+             JOIN product_option_groups g ON g.id = o.group_id
+             JOIN product_option_values ov ON ov.id = o.value_id
+             WHERE o.variant_id = v.id AND (g.is_active = 0 OR ov.is_active = 0)
+           )
          ORDER BY rowid ASC`
       )
       .bind(id),
@@ -421,23 +431,34 @@ async function queryProduct(id: string): Promise<StoreProduct | null> {
       )
       .bind(id),
     // Option groups with their values. An inner join, so a group that somehow
-    // has no values never reaches the page as an empty selector.
+    // has no values never reaches the page as an empty selector. A retired
+    // group or value is not offered at all: it is dropped here rather than
+    // rendered and disabled, because it is gone rather than sold out.
     db
       .prepare(
         `SELECT g.id AS group_id, g.key, g.name, g.display, g.show_labels,
                 ov.id AS value_id, ov.value, ov.label, ov.color_hex, ov.image_url
          FROM product_option_groups g
          JOIN product_option_values ov ON ov.group_id = g.id
-         WHERE g.product_id = ?
+         WHERE g.product_id = ? AND g.is_active = 1 AND ov.is_active = 1
          ORDER BY g.sort_order ASC, ov.sort_order ASC`
       )
       .bind(id),
     // The sellable combinations, with the price and stock the server decides.
+    // A variant is excluded when any option it carries has been retired, so a
+    // combination can never outlive the value that named it -- the admin
+    // deactivates those variants too, and this is the second lock on it.
     db
       .prepare(
         `SELECT id, price, old_price, stock_quantity, reserved_quantity, image_id
-         FROM product_variants
+         FROM product_variants v
          WHERE product_id = ? AND is_active = 1
+           AND NOT EXISTS (
+             SELECT 1 FROM product_variant_options o
+             JOIN product_option_groups g ON g.id = o.group_id
+             JOIN product_option_values ov ON ov.id = o.value_id
+             WHERE o.variant_id = v.id AND (g.is_active = 0 OR ov.is_active = 0)
+           )
          ORDER BY rowid ASC`
       )
       .bind(id),
@@ -449,7 +470,7 @@ async function queryProduct(id: string): Promise<StoreProduct | null> {
          FROM product_variant_options pvo
          JOIN product_option_groups g ON g.id = pvo.group_id
          JOIN product_option_values ov ON ov.id = pvo.value_id
-         WHERE g.product_id = ?`
+         WHERE g.product_id = ? AND g.is_active = 1 AND ov.is_active = 1`
       )
       .bind(id),
   ]);

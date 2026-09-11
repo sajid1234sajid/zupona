@@ -180,6 +180,8 @@ lines and reviews; a hard `DELETE` would cascade them away.
 | `src/lib/db.ts` | Binding accessors for D1, R2 and KV |
 | `src/lib/catalog.ts` | Products, categories, brands, variants, search, browsing signals |
 | `src/lib/inventory.ts` | Stock levels, ledger, reservations, low-stock reporting |
+| `src/lib/optionModel.ts` | What an option is: limits, slug rules, signatures, the save plan — no database, so the admin builder shares it |
+| `src/lib/productOptions.ts` | The only writer of option groups, values, variant links and variants — canonical tables and legacy mirror together |
 | `src/lib/sellers.ts` | Seller onboarding, approval, storefronts, earnings |
 | `src/lib/reviews.ts` | Reviews, rating breakdown, moderation, seller replies |
 | `src/lib/coupons.ts` | Coupon validation and redemption |

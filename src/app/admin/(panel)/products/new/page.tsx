@@ -35,6 +35,8 @@ export default async function NewProductPage() {
           lowStockAlert: 5,
           colors: [],
           sizes: [],
+          optionGroups: [],
+          variantCells: {},
           tags: [],
           images: [],
           videos: [],

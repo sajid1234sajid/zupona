@@ -147,7 +147,7 @@ export default function ProductView({
         type="button"
         onClick={() => startAdd(addToCart())}
         disabled={!canBuy || addPending || buyPending}
-        className="flex min-h-[46px] flex-1 items-center justify-center gap-2 rounded-full bg-brand px-4 text-sm font-black text-white transition disabled:cursor-not-allowed disabled:opacity-45 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+        className="flex min-h-[46px] flex-1 items-center justify-center gap-2 rounded-full border-2 border-brand-darkest bg-white px-4 text-sm font-black text-brand-darkest transition disabled:cursor-not-allowed disabled:opacity-45 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
       >
         {addPending ? (
           <LoaderCircle className="h-4 w-4 animate-spin" />
@@ -161,7 +161,7 @@ export default function ProductView({
         type="button"
         onClick={() => startBuy(buyNow())}
         disabled={!canBuy || addPending || buyPending}
-        className="flex min-h-[46px] flex-1 items-center justify-center gap-2 rounded-full border-2 border-brand bg-white px-4 text-sm font-black text-brand transition disabled:cursor-not-allowed disabled:opacity-45 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+        className="flex min-h-[46px] flex-1 items-center justify-center gap-2 rounded-full bg-brand px-4 text-sm font-black text-white transition disabled:cursor-not-allowed disabled:opacity-45 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
       >
         {buyPending ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Zap className="h-[18px] w-[18px] fill-current" />}
         Buy Now

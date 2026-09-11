@@ -71,7 +71,7 @@ export default function ProductPurchasePanel({
         <button
           onClick={handleAddToCart}
           disabled={cartPending}
-          className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-brand py-2.5 text-sm font-semibold text-brand-darkest disabled:opacity-70"
+          className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-brand-darkest bg-white py-2.5 text-sm font-semibold text-brand-darkest disabled:opacity-70"
         >
           {cartPending ? (
             <LoaderCircle className="h-4 w-4 animate-spin" />
@@ -85,7 +85,7 @@ export default function ProductPurchasePanel({
         <button
           onClick={handleBuyNow}
           disabled={buyPending}
-          className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-brand-darkest py-2.5 text-sm font-semibold text-white disabled:opacity-70"
+          className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-brand py-2.5 text-sm font-semibold text-white disabled:opacity-70"
         >
           {buyPending ? (
             <LoaderCircle className="h-4 w-4 animate-spin" />

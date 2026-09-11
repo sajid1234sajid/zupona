@@ -9,7 +9,6 @@ import { setProductStatus } from "@/lib/catalog";
 import { adminUrl } from "@/lib/adminUrl";
 import { adjustStock } from "@/lib/inventory";
 import {
-  applyStockChanges,
   OptionValidationError,
   parseOptionsPayload,
   planOptionWrite,
@@ -104,14 +103,27 @@ function readList(formData: FormData, key: string): string[] {
   ];
 }
 
-/** Errors from a guard become a message on the form rather than a crash
- * screen; anything else is a real bug and is left to surface. */
+/** Errors become a message on the form rather than a crash screen.
+ *
+ * A save is a single transaction, so whatever went wrong, nothing was written:
+ * that is worth telling the admin plainly rather than showing them a stack.
+ * `redirect()` throws a control-flow error of its own and has to pass through
+ * untouched. Anything unexpected is still logged, because a friendly message
+ * on the screen is not a reason to lose the reason from the server log. */
 function toFormError(error: unknown): ProductFormState {
   if (error instanceof AuthorizationError) return { error: error.message };
-  // Something the admin can fix -- a duplicate SKU, too many combinations --
-  // belongs on the form rather than on a crash screen.
+  // Something the admin can fix -- a duplicate SKU, too many combinations.
   if (error instanceof OptionValidationError) return { error: error.message };
-  throw error;
+
+  // What Next throws to redirect or to render notFound(); not ours to swallow.
+  const digest = (error as { digest?: string } | null)?.digest;
+  if (typeof digest === "string" && digest.startsWith("NEXT_")) throw error;
+
+  console.error("Product save failed:", error);
+  return {
+    error:
+      "That could not be saved and nothing was changed — the whole save is applied together or not at all. Check the values and try again.",
+  };
 }
 
 function refreshProductViews(productId?: string): void {
@@ -213,11 +225,9 @@ export async function createProductAction(
 ): Promise<ProductFormState> {
   let productId: string;
   let optionWrite: Awaited<ReturnType<typeof planOptionWrite>> | null = null;
-  let adminId: string;
 
   try {
     const admin = await requireAdmin();
-    adminId = admin.id;
 
     const name = String(formData.get("name") ?? "").trim();
     if (!name) return { error: "Enter a product name." };
@@ -289,6 +299,8 @@ export async function createProductAction(
       input: options,
       imageIdByUrl: gallery.imageIdByUrl,
       isNewProduct: true,
+      userId: admin.id,
+      note: "Opening stock from the product form",
     });
     statements.push(...optionWrite.statements);
 
@@ -323,21 +335,7 @@ export async function createProductAction(
     return toFormError(error);
   }
 
-  // Stage C, after the structure has committed: stock moves through the ledger
-  // so `stock_quantity` and `inventory_movements` cannot disagree.
-  const stockResult = await applyStockChanges(optionWrite.stockChanges, {
-    userId: adminId,
-    note: "Opening stock from the product form",
-  });
-
   refreshProductViews(productId);
-  if (stockResult.failed.length > 0) {
-    return {
-      error: `The product was saved, but stock could not be set for ${stockResult.failed
-        .map((change) => change.label)
-        .join(", ")}. Open it and set those figures again.`,
-    };
-  }
   redirect(await adminUrl(`/admin/products/${productId}`) + "?saved=1");
 }
 
@@ -349,12 +347,10 @@ export async function updateProductAction(
   if (!productId) return { error: "Missing product." };
 
   let optionWrite: Awaited<ReturnType<typeof planOptionWrite>> | null = null;
-  let adminId = "";
   let savedAt: string | null = null;
 
   try {
     const admin = await requireAdmin();
-    adminId = admin.id;
 
     const name = String(formData.get("name") ?? "").trim();
     if (!name) return { error: "Enter a product name." };
@@ -461,6 +457,8 @@ export async function updateProductAction(
       input: options,
       imageIdByUrl: gallery.imageIdByUrl,
       isNewProduct: false,
+      userId: admin.id,
+      note: "Set from the product options editor",
     });
     statements.push(...optionWrite.statements);
 
@@ -517,35 +515,25 @@ export async function updateProductAction(
     });
     await invalidateCatalog();
   } catch (error) {
-    return toFormError(error);
+    // The claim above moved `updated_at` before the batch ran. The batch then
+    // rolled back, but the claim did not, so the form is holding a version that
+    // no longer matches. Handing back the current one keeps a retry from being
+    // mistaken for someone else's edit.
+    const current = await (await getDB())
+      .prepare("SELECT updated_at FROM products WHERE id = ?")
+      .bind(productId)
+      .first<{ updated_at: string | null }>();
+    return { ...toFormError(error), savedAt: current?.updated_at ?? undefined };
   }
-
-  const stockResult = await applyStockChanges(optionWrite.stockChanges, {
-    userId: adminId,
-    note: "Set from the product options editor",
-  });
 
   refreshProductViews(productId);
-  await invalidateCatalog();
-
-  if (stockResult.failed.length > 0) {
-    // The structure saved; these combinations simply still hold the stock they
-    // held before. Nothing is half-written and saving again re-applies the same
-    // difference, so the fix is to say which ones rather than to undo anything.
-    return {
-      savedAt: savedAt ?? undefined,
-      error: `Saved, but stock could not be changed for ${stockResult.failed
-        .map((change) => change.label)
-        .join(", ")}. Check those figures and save again.`,
-    };
-  }
 
   return {
     savedAt: savedAt ?? undefined,
     success:
-      stockResult.applied > 0
-        ? `Product saved. Stock updated for ${stockResult.applied} combination${
-            stockResult.applied === 1 ? "" : "s"
+      optionWrite.stockMoves > 0
+        ? `Product saved. Stock updated for ${optionWrite.stockMoves} combination${
+            optionWrite.stockMoves === 1 ? "" : "s"
           }.`
         : "Product saved.",
   };

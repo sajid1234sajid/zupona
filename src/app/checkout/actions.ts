@@ -172,6 +172,17 @@ export async function placeOrderAction(
     return { error: "That checkout session has expired. Please start again." };
   }
 
+  // A line whose combination has been retired cannot be bought. It is refused
+  // by name rather than quietly left out of the order -- which is the same
+  // thing the cart page is already telling the shopper.
+  const cartLines = buyNow ? [] : await getCartItems(user.id);
+  if (cartLines.some((item) => item.unavailable)) {
+    return {
+      error:
+        "One or more items in your cart are no longer available. Remove them from the cart to continue.",
+    };
+  }
+
   const lines: OrderLine[] = buyNow
     ? [
         {
@@ -186,7 +197,7 @@ export async function placeOrderAction(
           quantity: buyNow.quantity,
         },
       ]
-    : (await getCartItems(user.id)).map((item) => ({
+    : cartLines.map((item) => ({
         productId: item.productId,
         variantId: item.variantId,
         sellerId: null, // filled in below, from the product

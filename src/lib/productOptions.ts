@@ -1,5 +1,5 @@
 import { getDB } from "./db";
-import { adjustStock } from "./inventory";
+import { stockChangeStatements } from "./inventory";
 import {
   EMPTY_STATE,
   OptionValidationError,
@@ -25,19 +25,24 @@ export * from "./optionModel";
  *
  *   1. read the product's current options and variants
  *   2. plan the whole change as data, with no I/O  (`planOptions`, pure)
- *   3. hand the caller one ordered list of statements for its own `db.batch()`
- *   4. and, only after that batch has committed, move stock through
- *      `src/lib/inventory.ts` so the ledger and `stock_quantity` stay in
- *      agreement
+ *   3. hand the caller one ordered list of statements -- structure, legacy
+ *      mirror, quantities and ledger rows alike -- for its own `db.batch()`
  *
- * Step 4 is separate because stock has a ledger and a batch cannot write one
- * without bypassing `inventory.ts`. It is also why a variant is never deleted:
- * `inventory_movements.variant_id` cascades, so a `DELETE` would erase the
- * history of what was sold. Retiring a combination sets `is_active = 0` and
- * changes nothing else -- not its stock, not its reservations, not its SKU or
- * price, and it writes no ledger row. That is a sellability change, not a stock
- * movement, and re-activating the same combination brings the row back exactly
- * as it was.
+ * There is no step 4. An earlier version moved stock after the batch had
+ * committed, on the belief that a ledger row could only be written by calling
+ * into `inventory.ts`. That was wrong: a stock change there is already a pair
+ * of statements, and `stockChangeStatements` now hands that same pair over to
+ * be run anywhere. So one save is one transaction. A product's structure, its
+ * prices, its quantities and the ledger rows explaining them all land together
+ * or none of them do, and a half-applied inventory state is not a thing that
+ * can happen.
+ *
+ * A variant is never deleted: `inventory_movements.variant_id` cascades, so a
+ * `DELETE` would erase the history of what was sold. Retiring a combination
+ * sets `is_active = 0` and changes nothing else -- not its stock, not its
+ * reservations, not its SKU or price -- and writes no ledger row. That is a
+ * sellability change, not a stock movement, and re-activating the same
+ * combination brings the row back exactly as it was.
  */
 
 async function readCurrentState(productId: string): Promise<CurrentState> {
@@ -94,18 +99,14 @@ async function readCurrentState(productId: string): Promise<CurrentState> {
 /* Turning the plan into statements                                           */
 /* -------------------------------------------------------------------------- */
 
-export interface StockChange {
-  variantId: string;
-  delta: number;
-  label: string;
-}
-
 export interface OptionWrite {
   /** Appended to the caller's batch, so the whole product save is one
-   * transaction rather than options landing separately from the product. */
+   * transaction: options, variants, the legacy mirror, the quantities and the
+   * ledger rows that explain them. */
   statements: D1PreparedStatement[];
-  /** Applied after that batch commits, through `inventory.ts`. */
-  stockChanges: StockChange[];
+  /** How many combinations the save moves stock for, for the message the admin
+   * reads. Nothing depends on it. */
+  stockMoves: number;
   plan: OptionPlan;
 }
 
@@ -144,8 +145,11 @@ export async function planOptionWrite(params: {
   input: OptionsInput;
   imageIdByUrl: Map<string, string>;
   isNewProduct: boolean;
+  /** Recorded on every ledger row the save writes. */
+  userId: string;
+  note: string;
 }): Promise<OptionWrite> {
-  const { productId, input, imageIdByUrl, isNewProduct } = params;
+  const { productId, input, imageIdByUrl, isNewProduct, userId, note } = params;
   const db = await getDB();
 
   const current = isNewProduct ? EMPTY_STATE : await readCurrentState(productId);
@@ -319,54 +323,27 @@ export async function planOptionWrite(params: {
     }
   }
 
-  const stockChanges: StockChange[] = [];
+  // Stock last, because a new combination's row has to exist before its
+  // quantity can be changed or its ledger row can reference it.
+  //
+  // The figure applied is a difference, not the absolute number the admin
+  // typed. If a sale lands between reading the current quantity and this batch
+  // running, a difference composes with it and an absolute figure would erase
+  // it. `reserved_quantity` is never touched here -- it belongs to checkout.
+  let stockMoves = 0;
   for (const variant of plan.variants) {
     if (variant.stockTarget === null) continue;
     const delta = variant.stockTarget - variant.stockCurrent;
     if (delta === 0) continue;
-    stockChanges.push({
-      variantId: variant.id,
-      delta,
-      label: variant.legacy.option1Value ?? variant.legacy.option2Value ?? variant.signature ?? "default",
-    });
+    stockMoves += 1;
+    statements.push(
+      ...stockChangeStatements(db, variant.id, delta, delta > 0 ? "restock" : "adjustment", {
+        referenceType: "manual",
+        note,
+        userId,
+      })
+    );
   }
 
-  return { statements, stockChanges, plan };
-}
-
-/** Stage C: moves stock, one variant at a time, through the ledger.
- *
- * This cannot join the batch above -- `adjustStock` writes the quantity and the
- * movement together, and that pairing is the whole point of the ledger. So the
- * structure commits first and stock follows. If part of it fails the structure
- * is still correct and the stock simply has not moved for those combinations:
- * nothing is half-written, no ledger row is orphaned, and saving the form again
- * re-applies the same difference. The caller is told exactly which ones, rather
- * than the failure being swallowed. */
-export async function applyStockChanges(
-  changes: StockChange[],
-  options: { userId: string; note?: string }
-): Promise<{ applied: number; failed: StockChange[] }> {
-  const failed: StockChange[] = [];
-  let applied = 0;
-
-  for (const change of changes) {
-    try {
-      await adjustStock(
-        change.variantId,
-        change.delta,
-        change.delta > 0 ? "restock" : "adjustment",
-        {
-          referenceType: "manual",
-          note: options.note ?? "Set from the product options editor",
-          userId: options.userId,
-        }
-      );
-      applied += 1;
-    } catch {
-      failed.push(change);
-    }
-  }
-
-  return { applied, failed };
+  return { statements, stockMoves, plan };
 }

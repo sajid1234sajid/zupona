@@ -116,30 +116,43 @@ export function groupsFromProduct(groups: EditableOptionGroup[]): BuilderGroup[]
  * the matrix keys its rows -- so a retired combination brought back shows the
  * stock, SKU and price it kept while it was off rather than a set of zeros.
  *
- * A variant is inactive for one of two reasons, and they are not the same
- * thing. Either the admin switched that combination off -- "Olive in L does not
- * exist" -- or one of the values it carries was retired, which took its
- * combinations down with it. Only the first is the row's own state. If the
- * second were loaded as the row's own state, turning the value back on would
- * bring the row back still switched off, and nothing would ever be for sale
- * again. So a variant whose options are no longer all active loads with its own
- * switch on: it is simply not offered while the value is. */
+ * A variant can be inactive for two quite different reasons, and only one of
+ * them is the row's own state:
+ *
+ *   * the admin switched that combination off -- "Olive in L does not exist";
+ *   * or the structure moved out from under it. Its value was retired, or a
+ *     second option was added and "Plum" became "Plum / One" and "Plum / Two".
+ *
+ * Only the first is a decision about the row. The second has to load with its
+ * own switch ON, because the moment the structure comes back -- the value is
+ * offered again, the added option is turned off again -- this row is the
+ * combination, and loading it as switched off would mean nothing was for sale
+ * and the save would be refused for having no sellable combination.
+ *
+ * So the row's own state is read only from variants that still fit the
+ * structure as it stands: every value they carry is still offered, and they
+ * carry exactly the options the product currently has. */
 export function cellsFromVariants(
   variants: EditableVariant[],
   groups: EditableOptionGroup[]
 ): Record<string, CellOverride> {
+  const activeGroups = groups.filter((group) => group.isActive);
+  const activeGroupIds = new Set(activeGroups.map((group) => group.id));
   const liveValueIds = new Set(
-    groups
-      .filter((group) => group.isActive)
-      .flatMap((group) => group.values.filter((value) => value.isActive).map((value) => value.id))
+    activeGroups.flatMap((group) =>
+      group.values.filter((value) => value.isActive).map((value) => value.id)
+    )
   );
 
   const cells: Record<string, CellOverride> = {};
   for (const variant of variants) {
     const key = keyFromSelections(variant.selections);
-    const optionsStillOffered = Object.values(variant.selections).every((valueId) =>
-      liveValueIds.has(valueId)
-    );
+    const groupIds = Object.keys(variant.selections);
+    const fitsStructure =
+      groupIds.length === activeGroupIds.size &&
+      groupIds.every((groupId) => activeGroupIds.has(groupId)) &&
+      Object.values(variant.selections).every((valueId) => liveValueIds.has(valueId));
+
     cells[key] = {
       sku: variant.sku ?? "",
       price: variant.price === null ? "" : String(variant.price),
@@ -147,7 +160,7 @@ export function cellsFromVariants(
       stock: String(variant.stockQuantity),
       lowStockThreshold: String(variant.lowStockThreshold),
       imageUrl: variant.imageUrl ?? "",
-      isActive: variant.isActive || !optionsStillOffered,
+      isActive: variant.isActive || !fitsStructure,
     };
   }
   return cells;

@@ -121,6 +121,10 @@ export interface CartItem {
   /** What is left of this variant after reservations, for the quantity cap.
    * Falls back to the product's total where the line has no variant. */
   available: number;
+  /** The combination this line names is no longer sold -- the option it
+   * carries was retired. The line stays in the cart and stays visible, but it
+   * cannot be bought and is not in the total. */
+  unavailable: boolean;
   /** `product.price` on this line is the *line's* price -- the variant's own
    * where it has one, the product's otherwise -- so every total downstream is
    * computed from what this line actually costs. */

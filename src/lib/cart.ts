@@ -41,21 +41,27 @@ export async function getCartItems(userId: string): Promise<CartItem[]> {
       const product = catalog.get(row.product_id);
       if (!product) return null;
 
-      // A line naming a variant that has since been deleted or deactivated is
-      // dropped the same way an archived product is: better an item quietly
-      // gone from the cart than one that cannot be bought at checkout.
-      if (row.variant_id && (row.variant_active === null || row.variant_active !== 1)) return null;
+      // A line naming a variant that has been retired is kept and marked,
+      // not dropped. Retiring an option value is now an ordinary admin action,
+      // so this is something a shopper will meet -- and an item disappearing
+      // from a cart with no explanation is worse than one shown as no longer
+      // available. It cannot be bought: it is excluded from the total and
+      // checkout refuses while it is there.
+      const unavailable =
+        row.variant_id !== null && (row.variant_active === null || row.variant_active !== 1);
 
       // The variant's own price where it has one, the product's otherwise --
       // the `effectivePrice` the schema asks callers to read rather than
       // `price`. Every total downstream is built from this.
       const price = row.variant_price ?? product.price;
       const oldPrice = row.variant_old_price ?? product.oldPrice;
-      const available = row.variant_id
-        ? Math.max(0, (row.stock_quantity ?? 0) - (row.reserved_quantity ?? 0))
-        : product.inStock
-          ? Number.MAX_SAFE_INTEGER
-          : 0;
+      const available = unavailable
+        ? 0
+        : row.variant_id
+          ? Math.max(0, (row.stock_quantity ?? 0) - (row.reserved_quantity ?? 0))
+          : product.inStock
+            ? Number.MAX_SAFE_INTEGER
+            : 0;
 
       return {
         id: row.id,
@@ -64,6 +70,7 @@ export async function getCartItems(userId: string): Promise<CartItem[]> {
         color: row.color,
         quantity: row.quantity,
         available,
+        unavailable,
         product: {
           id: product.id,
           name: product.name,
@@ -90,6 +97,10 @@ export async function getCartCount(userId: string | null): Promise<number> {
   return row?.count ?? 0;
 }
 
+/** What the shopper would pay. A line that can no longer be bought is not in
+ * it, so the total always matches what checkout would actually charge. */
 export function cartSubtotal(items: CartItem[]): number {
-  return items.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
+  return items
+    .filter((item) => !item.unavailable)
+    .reduce((sum, item) => sum + item.product.price * item.quantity, 0);
 }

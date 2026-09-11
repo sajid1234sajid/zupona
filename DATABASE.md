@@ -160,7 +160,19 @@ through `src/lib/inventory.ts`. Deleting a group or a value is not an option at
 all: `product_variant_options` cascades from both, so a sold combination would
 lose the link that says what it was. The same goes for a variant —
 `inventory_movements.variant_id` cascades, so a hard `DELETE` would erase its
-ledger history along with it.
+ledger history along with it. A cart line pointing at a retired combination is
+kept and shown as unavailable rather than dropped, and checkout refuses while
+it is there; an order line pointing at one still reads exactly as it did.
+
+**A stock change is two statements, and they travel together.**
+`stockChangeStatements()` in `src/lib/inventory.ts` returns the quantity update
+and the ledger row as a pair. `adjustStock()` runs that pair in a batch of its
+own; a product save appends the same pair to the batch that is already writing
+its options, variants and prices. So one admin save is one transaction — the
+structure, the quantities and the ledger rows explaining them all commit or
+none of them do, and there is no window in which some combinations have moved
+and others have not. Retrying a failed save simply applies the plan once,
+because the failed attempt left nothing behind.
 
 **Orders split into suborders.** A single customer order becomes one `suborders`
 row per seller, which is what fulfillment, commission and payouts key off.

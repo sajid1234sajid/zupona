@@ -50,6 +50,11 @@ export default async function CheckoutPage({ searchParams }: PageProps<"/checkou
   // than dead-ending on an empty checkout.
   const items = buyNow ? [] : await getCartItems(user.id);
   if (!buyNow && items.length === 0) redirect("/cart");
+  // A line whose combination has been retired cannot be bought, so checkout is
+  // not somewhere to start: the shopper goes back to the cart, which says which
+  // line it is and offers the button that removes it. Letting them fill in an
+  // address first and find out at "Pay Now" would be the same refusal, later.
+  if (!buyNow && items.some((item) => item.unavailable)) redirect("/cart");
 
   const addresses = await getAddresses(user.id);
   const saved = addresses.find((address) => address.isDefault) ?? addresses[0] ?? null;

@@ -81,19 +81,37 @@ export async function getLowStock(sellerId?: string, limit = 50): Promise<StockL
   return results.map(toStockLevel);
 }
 
-/** Applies a stock delta and records it in the ledger. `changeQty` is signed:
- * positive for restocks and returns, negative for sales and write-offs.
- * Stock is clamped at zero so a double-applied sale cannot go negative. */
-export async function adjustStock(
+export interface StockChangeOptions {
+  referenceType?: string;
+  referenceId?: string;
+  note?: string;
+  userId?: string;
+}
+
+/** What a stock change *is*: the new quantity, and the ledger row that explains
+ * it. Always exactly these two, always together.
+ *
+ * Returned rather than run, so a caller with a larger change to make can put
+ * them inside its own transaction. That matters for a product save, which
+ * rewrites options, variants, prices and stock at once: running the stock part
+ * afterwards would mean a failure could leave some combinations moved and
+ * others not, which is the one state the ledger is supposed to make
+ * impossible. `adjustStock` below is this same pair in a batch of its own, so
+ * both routes write a stock change identically.
+ *
+ * `changeQty` is signed: positive for restocks and returns, negative for sales
+ * and write-offs. Stock is clamped at zero so a double-applied sale cannot go
+ * negative. */
+export function stockChangeStatements(
+  db: D1Database,
   variantId: string,
   changeQty: number,
   reason: StockReason,
-  options: { referenceType?: string; referenceId?: string; note?: string; userId?: string } = {}
-): Promise<void> {
-  if (changeQty === 0) return;
-  const db = await getDB();
+  options: StockChangeOptions = {}
+): D1PreparedStatement[] {
+  if (changeQty === 0) return [];
 
-  await db.batch([
+  return [
     db
       .prepare(
         `UPDATE product_variants
@@ -117,7 +135,19 @@ export async function adjustStock(
         options.note ?? null,
         options.userId ?? null
       ),
-  ]);
+  ];
+}
+
+/** Applies a stock delta and records it in the ledger. */
+export async function adjustStock(
+  variantId: string,
+  changeQty: number,
+  reason: StockReason,
+  options: StockChangeOptions = {}
+): Promise<void> {
+  if (changeQty === 0) return;
+  const db = await getDB();
+  await db.batch(stockChangeStatements(db, variantId, changeQty, reason, options));
 }
 
 /** Sets stock to an absolute figure (a stock count), recording the difference

@@ -18,6 +18,13 @@
   --color-brand-mist: #f6fcf7;
   /* the soft leaf green the reference uses for its decoration */
   --color-brand-leaf: #a1d8a4;
+  /* The primary action button is not a flat fill in the references. Sampling a
+   * clean column down Continue, Continue to Payment and Pay Now gives
+   * #038550 -> #016743, #08935e -> #056442 and #028f5c -> #03704e; these are
+   * the means. The product page's Buy Now is flat by contrast (#037e5b all the
+   * way down), which is why only the checkout buttons carry the gradient. */
+  --color-brand-grad-top: #048d59;
+  --color-brand-grad-bottom: #036946;
   /* Body copy is a very dark green rather than black, which keeps the page
    * feeling like one palette instead of green accents on a grey page. */
   --color-ink: #123527;
@@ -27,11 +34,11 @@
    * the placeholders are a cool slate, and the card and input borders are a
    * light blue-grey. Tailwind's neutral ramp is a pure grey and reads flat and
    * a little cold beside them. */
-  --color-ink-strong: #033f2a;
-  --color-ink-slate: #627f90;
-  --color-ink-faint: #aebcc7;
-  --color-line: #dfe6e9;
-  --color-line-soft: #e6edf0;
+  --color-ink-strong: #013a32;
+  --color-ink-slate: #5e7e97;
+  --color-ink-faint: #a1b2c0;
+  --color-line: #e1e9ee;
+  --color-line-soft: #e8eff4;
   --color-accent-red: #e03131;
   --color-accent-amber: #f5b323;
 
@@ -46,8 +53,8 @@
   --color-surface: #f6fbf9;
   --color-mint: #def3ed;
   --color-gold: #fcae0e;
-  --color-ink-soft: #8183b0;
-  --color-heading: #062c1e;
+  --color-ink-soft: #7879ae;
+  --color-heading: #002319;
 }
 
 @theme inline {
@@ -58,6 +65,8 @@
   --color-brand-tint: var(--color-brand-tint);
   --color-brand-mist: var(--color-brand-mist);
   --color-brand-leaf: var(--color-brand-leaf);
+  --color-brand-grad-top: var(--color-brand-grad-top);
+  --color-brand-grad-bottom: var(--color-brand-grad-bottom);
   --color-ink: var(--color-ink);
   --color-ink-muted: var(--color-ink-muted);
   --color-ink-strong: var(--color-ink-strong);
@@ -90,6 +99,17 @@ body {
   font-family: var(--font-poppins), Arial, Helvetica, sans-serif;
   /* The design is a single mobile screen; nothing may spill sideways. */
   overflow-x: hidden;
+}
+
+/* The checkout's primary button. A class rather than a pair of gradient
+ * utilities so the three steps cannot drift apart, and so the stops stay
+ * spelled out once, next to the measurement that produced them. */
+.btn-brand {
+  background-image: linear-gradient(
+    180deg,
+    var(--color-brand-grad-top),
+    var(--color-brand-grad-bottom)
+  );
 }
 
 .no-scrollbar::-webkit-scrollbar {

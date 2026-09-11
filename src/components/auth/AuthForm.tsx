@@ -62,11 +62,11 @@ export default function AuthForm({ mode, action, initialError }: AuthFormProps) 
         })}
       </div>
 
-      <label className="flex items-center gap-3 rounded-xl border border-neutral-200 bg-white px-4 py-3.5 focus-within:border-brand">
+      <label className="flex items-center gap-3 rounded-xl border border-line bg-white px-4 py-3.5 focus-within:border-brand">
         {method === "email" ? (
-          <Mail className="h-4 w-4 shrink-0 text-neutral-400" />
+          <Mail className="h-4 w-4 shrink-0 text-ink-slate" />
         ) : (
-          <Smartphone className="h-4 w-4 shrink-0 text-neutral-400" />
+          <Smartphone className="h-4 w-4 shrink-0 text-ink-slate" />
         )}
         <input
           key={method}
@@ -76,12 +76,12 @@ export default function AuthForm({ mode, action, initialError }: AuthFormProps) 
           placeholder={method === "email" ? "Enter your email address" : "Enter your mobile number"}
           autoComplete={method === "email" ? "email" : "tel"}
           required
-          className="w-full text-sm text-neutral-800 outline-none placeholder:text-neutral-400"
+          className="w-full text-sm text-heading outline-none placeholder:text-ink-slate"
         />
       </label>
 
-      <label className="flex items-center gap-3 rounded-xl border border-neutral-200 bg-white px-4 py-3.5 focus-within:border-brand">
-        <Lock className="h-4 w-4 shrink-0 text-neutral-400" />
+      <label className="flex items-center gap-3 rounded-xl border border-line bg-white px-4 py-3.5 focus-within:border-brand">
+        <Lock className="h-4 w-4 shrink-0 text-ink-slate" />
         <input
           name="password"
           type={showPassword ? "text" : "password"}
@@ -89,20 +89,20 @@ export default function AuthForm({ mode, action, initialError }: AuthFormProps) 
           autoComplete={isSignup ? "new-password" : "current-password"}
           minLength={isSignup ? 8 : undefined}
           required
-          className="w-full text-sm text-neutral-800 outline-none placeholder:text-neutral-400"
+          className="w-full text-sm text-heading outline-none placeholder:text-ink-slate"
         />
         <button
           type="button"
           onClick={() => setShowPassword((value) => !value)}
           aria-label={showPassword ? "Hide password" : "Show password"}
-          className="shrink-0 text-neutral-400"
+          className="shrink-0 text-ink-slate"
         >
           {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
         </button>
       </label>
 
       {isSignup && (
-        <p className="flex items-center gap-1.5 text-xs text-neutral-400">
+        <p className="flex items-center gap-1.5 text-xs text-ink-slate">
           <ShieldCheck className="h-3.5 w-3.5 text-brand" />
           Password must be at least 8 characters
         </p>
@@ -130,21 +130,21 @@ export default function AuthForm({ mode, action, initialError }: AuthFormProps) 
         )}
       </button>
 
-      <div className="flex items-center gap-3 text-xs text-neutral-400">
-        <span className="h-px flex-1 bg-neutral-200" />
+      <div className="flex items-center gap-3 text-xs text-ink-slate">
+        <span className="h-px flex-1 bg-line" />
         or
-        <span className="h-px flex-1 bg-neutral-200" />
+        <span className="h-px flex-1 bg-line" />
       </div>
 
       <a
         href="/api/auth/google"
-        className="flex items-center justify-center gap-2 rounded-full border border-neutral-200 bg-white py-3.5 text-sm font-semibold text-neutral-700"
+        className="flex items-center justify-center gap-2 rounded-full border border-line bg-white py-3.5 text-sm font-semibold text-ink"
       >
         <GoogleIcon className="h-4 w-4" />
         Continue with Google
       </a>
 
-      <p className="mt-2 text-center text-sm text-neutral-500">
+      <p className="mt-2 text-center text-sm text-ink-slate">
         {isSignup ? (
           <>
             Already have an account?{" "}

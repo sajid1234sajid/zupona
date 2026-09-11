@@ -107,10 +107,10 @@ export default async function OffersPage({ searchParams }: PageProps<"/offers">)
             <div className="flex items-center justify-between px-4">
               <div className="flex items-center gap-1.5">
                 <Flame className="h-4 w-4 fill-accent-red text-accent-red" />
-                <h2 className="text-[13px] font-bold text-neutral-800">{saleName}</h2>
+                <h2 className="text-[13px] font-bold text-heading">{saleName}</h2>
               </div>
               <div className="flex items-center gap-1.5">
-                <span className="text-[9.5px] font-semibold text-neutral-400">Ends in</span>
+                <span className="text-[9.5px] font-semibold text-ink-slate">Ends in</span>
                 <FlashSaleTimer endsAt={endsAt.toISOString()} />
               </div>
             </div>
@@ -127,8 +127,8 @@ export default async function OffersPage({ searchParams }: PageProps<"/offers">)
         <section className="pt-4">
           <div className="flex items-center gap-1.5 px-4">
             <Tag className="h-4 w-4 text-brand" />
-            <h2 className="text-[13px] font-bold text-neutral-800">Collect coupons</h2>
-            <span className="ml-auto text-[9.5px] text-neutral-400">Apply at checkout</span>
+            <h2 className="text-[13px] font-bold text-heading">Collect coupons</h2>
+            <span className="ml-auto text-[9.5px] text-ink-slate">Apply at checkout</span>
           </div>
           <div className="mt-2">
             <CouponWallet coupons={coupons} />
@@ -137,7 +137,7 @@ export default async function OffersPage({ searchParams }: PageProps<"/offers">)
 
         {/* Deals */}
         <section className="px-4 pt-4">
-          <h2 className="text-[13px] font-bold text-neutral-800">All deals</h2>
+          <h2 className="text-[13px] font-bold text-heading">All deals</h2>
 
           <div className="mt-2 flex gap-1.5 overflow-x-auto pb-0.5 no-scrollbar">
             {DEAL_TABS.map((option) => {
@@ -150,7 +150,7 @@ export default async function OffersPage({ searchParams }: PageProps<"/offers">)
                   className={`shrink-0 rounded-full px-3 py-1 text-[10px] font-semibold transition-colors ${
                     isActive
                       ? "bg-brand text-white"
-                      : "border border-neutral-200 bg-white text-neutral-500"
+                      : "border border-line bg-white text-ink-slate"
                   }`}
                 >
                   {option.label}
@@ -160,7 +160,7 @@ export default async function OffersPage({ searchParams }: PageProps<"/offers">)
           </div>
 
           {deals.length === 0 ? (
-            <p className="mt-8 text-center text-xs text-neutral-400">
+            <p className="mt-8 text-center text-xs text-ink-slate">
               No deals in this selection right now.
             </p>
           ) : (

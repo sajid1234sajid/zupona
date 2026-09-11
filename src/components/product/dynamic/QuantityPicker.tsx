@@ -20,7 +20,7 @@ export default function QuantityPicker({
   const inStock = available > 0;
 
   return (
-    <div className="flex items-center justify-between gap-3 border-t border-[#dcebe5] pt-4">
+    <div className="flex items-center justify-between gap-3 border-t border-line pt-4">
       <div>
         <p className="text-sm font-bold text-heading">Quantity</p>
         <p className="mt-0.5 flex items-center gap-1.5 text-[11px] font-bold">
@@ -34,7 +34,7 @@ export default function QuantityPicker({
         </p>
       </div>
 
-      <div className="flex h-11 items-center overflow-hidden rounded-xl border border-[#d5e7df] bg-white">
+      <div className="flex h-11 items-center overflow-hidden rounded-xl border border-line bg-white">
         <button
           type="button"
           aria-label="Decrease quantity"

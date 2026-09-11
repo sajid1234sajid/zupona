@@ -118,7 +118,7 @@ export default function WishlistClient({
       <div className="mt-3 flex items-center gap-2">
         <button
           onClick={() => setSortOpen(true)}
-          className="flex items-center gap-1 rounded-full border border-neutral-200 bg-white px-2.5 py-1 text-[10px] font-semibold text-neutral-600"
+          className="flex items-center gap-1 rounded-full border border-line bg-white px-2.5 py-1 text-[10px] font-semibold text-ink-slate"
         >
           <ArrowUpDown className="h-3 w-3" />
           {activeSortLabel}
@@ -128,8 +128,8 @@ export default function WishlistClient({
           onClick={() => (selecting ? exitSelectMode() : setSelecting(true))}
           className={`ml-auto flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-semibold transition-colors ${
             selecting
-              ? "bg-neutral-800 text-white"
-              : "border border-neutral-200 bg-white text-neutral-600"
+              ? "bg-heading text-white"
+              : "border border-line bg-white text-ink-slate"
           }`}
         >
           {selecting ? <X className="h-3 w-3" /> : <CheckCheck className="h-3 w-3" />}
@@ -156,12 +156,12 @@ export default function WishlistClient({
           >
             {allSelected ? "Clear all" : "Select all"}
           </button>
-          <span className="text-[10px] text-neutral-400">{selected.size} selected</span>
+          <span className="text-[10px] text-ink-slate">{selected.size} selected</span>
           <div className="ml-auto flex items-center gap-1.5">
             <button
               onClick={() => remove([...selected])}
               disabled={selected.size === 0 || pending}
-              className="flex items-center gap-1 rounded-full border border-neutral-200 px-2.5 py-1 text-[10px] font-semibold text-neutral-600 disabled:opacity-40"
+              className="flex items-center gap-1 rounded-full border border-line px-2.5 py-1 text-[10px] font-semibold text-ink-slate disabled:opacity-40"
             >
               <Trash2 className="h-3 w-3" />
               Remove
@@ -198,7 +198,7 @@ export default function WishlistClient({
                   aria-label={isSelected ? `Deselect ${product.name}` : `Select ${product.name}`}
                   aria-pressed={isSelected}
                   className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center self-start rounded-md border ${
-                    isSelected ? "border-brand bg-brand" : "border-neutral-300 bg-white"
+                    isSelected ? "border-brand bg-brand" : "border-line bg-white"
                   }`}
                 >
                   {isSelected && <Check className="h-3.5 w-3.5 text-white" />}
@@ -207,7 +207,7 @@ export default function WishlistClient({
 
               <Link
                 href={`/product/${product.id}`}
-                className="relative h-[76px] w-[76px] shrink-0 overflow-hidden rounded-lg bg-neutral-100"
+                className="relative h-[76px] w-[76px] shrink-0 overflow-hidden rounded-lg bg-brand-mist"
               >
                 <Image
                   src={product.image}
@@ -217,7 +217,7 @@ export default function WishlistClient({
                   className="object-cover"
                 />
                 {product.discountPercent > 0 && (
-                  <span className="absolute left-1 top-1 rounded bg-accent-red px-1 text-[8px] font-bold text-white">
+                  <span className="absolute left-1 top-1 rounded bg-brand px-1 text-[8px] font-bold text-white">
                     -{product.discountPercent}%
                   </span>
                 )}
@@ -225,22 +225,22 @@ export default function WishlistClient({
 
               <div className="min-w-0 flex-1">
                 <Link href={`/product/${product.id}`} className="block">
-                  <p className="truncate text-[12px] font-semibold text-neutral-800">
+                  <p className="truncate text-[12px] font-semibold text-heading">
                     {product.name}
                   </p>
-                  <p className="text-[9px] text-neutral-400">{entry.categoryName}</p>
+                  <p className="text-[9px] text-ink-slate">{entry.categoryName}</p>
                 </Link>
 
                 <div className="mt-0.5 flex items-baseline gap-1.5">
                   <span
                     className={`text-[13px] font-bold ${
-                      entry.flashPrice !== null ? "text-accent-red" : "text-neutral-900"
+                      entry.flashPrice !== null ? "text-accent-red" : "text-heading"
                     }`}
                   >
                     {formatPrice(sellingPrice)}
                   </span>
                   {product.oldPrice > sellingPrice && (
-                    <span className="text-[9.5px] text-neutral-400 line-through">
+                    <span className="text-[9.5px] text-ink-slate line-through">
                       {formatPrice(product.oldPrice)}
                     </span>
                   )}
@@ -260,7 +260,7 @@ export default function WishlistClient({
                     </span>
                   )}
                   {entry.inCart && (
-                    <span className="rounded bg-neutral-100 px-1.5 py-0.5 text-[8.5px] font-semibold text-neutral-500">
+                    <span className="rounded bg-brand-mist px-1.5 py-0.5 text-[8.5px] font-semibold text-ink-slate">
                       Already in cart
                     </span>
                   )}
@@ -286,7 +286,7 @@ export default function WishlistClient({
                       onClick={() => remove([product.id])}
                       disabled={pending}
                       aria-label={`Remove ${product.name} from wishlist`}
-                      className="flex h-[22px] w-[26px] items-center justify-center rounded-md border border-neutral-200 text-neutral-400 disabled:opacity-60"
+                      className="flex h-[22px] w-[26px] items-center justify-center rounded-md border border-line text-ink-slate disabled:opacity-60"
                     >
                       <Trash2 className="h-3 w-3" />
                     </button>
@@ -299,7 +299,7 @@ export default function WishlistClient({
       </div>
 
       {visible.length === 0 && (
-        <p className="mt-8 text-center text-xs text-neutral-400">
+        <p className="mt-8 text-center text-xs text-ink-slate">
           Everything here has been moved or removed.
         </p>
       )}
@@ -314,16 +314,16 @@ export default function WishlistClient({
           />
           <div className="relative w-full max-w-md rounded-t-2xl bg-white pb-6 pt-3 shadow-xl">
             <div className="flex items-center justify-between px-4 pb-2">
-              <p className="text-sm font-bold text-neutral-800">Sort wishlist</p>
+              <p className="text-sm font-bold text-heading">Sort wishlist</p>
               <button aria-label="Close" onClick={() => setSortOpen(false)}>
-                <X className="h-4 w-4 text-neutral-400" />
+                <X className="h-4 w-4 text-ink-slate" />
               </button>
             </div>
             {WISHLIST_SORTS.map((option) => (
               <button
                 key={option.id}
                 onClick={() => applySort(option.id)}
-                className="flex w-full items-center justify-between px-4 py-2.5 text-left text-[13px] text-neutral-700"
+                className="flex w-full items-center justify-between px-4 py-2.5 text-left text-[13px] text-ink"
               >
                 <span className={option.id === sort ? "font-semibold text-brand" : undefined}>
                   {option.label}
@@ -341,7 +341,7 @@ export default function WishlistClient({
           role="status"
           className="pointer-events-none fixed inset-x-0 bottom-20 z-30 mx-auto flex max-w-md justify-center px-4"
         >
-          <div className="pointer-events-auto flex items-center gap-2 rounded-full bg-neutral-900/90 px-4 py-2 text-[11px] font-semibold text-white shadow-lg">
+          <div className="pointer-events-auto flex items-center gap-2 rounded-full bg-heading/90 px-4 py-2 text-[11px] font-semibold text-white shadow-lg">
             <Check className="h-3.5 w-3.5 text-brand-light" />
             {notice}
             <Link href="/cart" className="underline">

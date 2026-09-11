@@ -27,30 +27,30 @@ export default function OrderProgress({ steps, eta }: { steps: OrderStep[]; eta:
             <div className="flex w-14 shrink-0 flex-col items-center gap-1 text-center">
               <span
                 className={`flex h-6 w-6 items-center justify-center rounded-full ${
-                  step.done ? "bg-brand text-white" : "border-2 border-neutral-200 bg-white text-neutral-300"
+                  step.done ? "bg-brand text-white" : "border-2 border-line bg-white text-ink-faint"
                 }`}
               >
                 {step.done ? (
                   <Check className="h-3.5 w-3.5" strokeWidth={3} />
                 ) : (
-                  <span className="h-1.5 w-1.5 rounded-full bg-neutral-300" />
+                  <span className="h-1.5 w-1.5 rounded-full bg-ink-faint" />
                 )}
               </span>
               <span
                 className={`text-[9px] font-semibold leading-tight ${
-                  step.done ? "text-brand-darkest" : "text-neutral-400"
+                  step.done ? "text-brand-darkest" : "text-ink-slate"
                 }`}
               >
                 {step.label}
               </span>
-              <span className="text-[8px] leading-tight text-neutral-400">
+              <span className="text-[8px] leading-tight text-ink-slate">
                 {formatAt(step.at, step.status === "delivered" ? eta : "Pending")}
               </span>
             </div>
 
             {next && (
               <span
-                className={`mt-3 h-0.5 flex-1 rounded-full ${next.done ? "bg-brand" : "bg-neutral-200"}`}
+                className={`mt-3 h-0.5 flex-1 rounded-full ${next.done ? "bg-brand" : "bg-line"}`}
               />
             )}
           </div>

@@ -20,11 +20,11 @@ export default async function SecurityPage() {
 
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-md flex-col bg-[#f3f5f4] pb-10">
-      <header className="flex items-center gap-3 border-b border-neutral-100 bg-white px-4 py-3">
+      <header className="flex items-center gap-3 border-b border-line-soft bg-white px-4 py-3">
         <Link href="/account" aria-label="Back to account">
-          <ChevronLeft className="h-5 w-5 text-neutral-700" />
+          <ChevronLeft className="h-5 w-5 text-ink" />
         </Link>
-        <h1 className="text-base font-bold text-neutral-800">Profile &amp; Security</h1>
+        <h1 className="text-base font-bold text-heading">Profile &amp; Security</h1>
       </header>
       <main className="flex-1 px-4 pt-4">
         <div className="mb-3 flex items-center gap-3 rounded-2xl bg-white p-4 shadow-sm">
@@ -32,8 +32,8 @@ export default async function SecurityPage() {
             <ShieldCheck className="h-5 w-5" />
           </span>
           <div>
-            <p className="text-sm font-semibold text-neutral-800">Verified Account</p>
-            <p className="text-xs text-neutral-400">{user.email ?? user.phone}</p>
+            <p className="text-sm font-semibold text-heading">Verified Account</p>
+            <p className="text-xs text-ink-slate">{user.email ?? user.phone}</p>
           </div>
         </div>
 
@@ -42,12 +42,12 @@ export default async function SecurityPage() {
             <Calendar className="h-5 w-5" />
           </span>
           <div>
-            <p className="text-sm font-semibold text-neutral-800">Member since</p>
-            <p className="text-xs text-neutral-400">{memberSince}</p>
+            <p className="text-sm font-semibold text-heading">Member since</p>
+            <p className="text-xs text-ink-slate">{memberSince}</p>
           </div>
         </div>
 
-        <h2 className="mb-2 mt-4 text-sm font-bold text-neutral-800">
+        <h2 className="mb-2 mt-4 text-sm font-bold text-heading">
           {hasPassword ? "Change Password" : "Set a Password"}
         </h2>
         <ChangePasswordForm hasPassword={hasPassword} />

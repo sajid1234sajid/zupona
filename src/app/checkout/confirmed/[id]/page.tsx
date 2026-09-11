@@ -81,21 +81,21 @@ export default async function OrderConfirmedPage({ params }: PageProps<"/checkou
             </span>
           </span>
           <h1 className="mt-3 text-2xl font-extrabold text-brand-darkest">Order Confirmed!</h1>
-          <p className="mt-1 text-xs text-neutral-500">Your order has been placed successfully.</p>
+          <p className="mt-1 text-xs text-ink-slate">Your order has been placed successfully.</p>
           <p className="mt-1 text-[11px] font-medium text-brand">
             Thank you for shopping with Zupona 💚
           </p>
         </section>
 
         <div className="flex flex-col gap-3 px-4">
-          <section className="rounded-2xl border border-neutral-100 bg-white p-4 shadow-sm">
+          <section className="rounded-2xl border border-line-soft bg-white p-4 shadow-sm">
             <div className="mb-3 flex items-start gap-2">
               <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-tint">
                 <Package className="h-4 w-4 text-brand" />
               </span>
               <div className="min-w-0 flex-1">
-                <p className="text-[10px] text-neutral-400">Order ID</p>
-                <p className="truncate text-sm font-bold text-neutral-800">#{order.orderNumber}</p>
+                <p className="text-[10px] text-ink-slate">Order ID</p>
+                <p className="truncate text-sm font-bold text-heading">#{order.orderNumber}</p>
               </div>
               <span className="flex shrink-0 items-center gap-1 rounded-full bg-brand-tint px-2 py-1 text-[9px] font-bold text-brand-dark">
                 <BadgeCheck className="h-3 w-3" />
@@ -103,15 +103,15 @@ export default async function OrderConfirmedPage({ params }: PageProps<"/checkou
               </span>
             </div>
 
-            <div className="grid grid-cols-3 gap-2 border-y border-dashed border-neutral-200 py-3">
+            <div className="grid grid-cols-3 gap-2 border-y border-dashed border-line py-3">
               {facts.map(({ icon: Icon, label, value, note }) => (
                 <div key={label} className="min-w-0">
-                  <p className="flex items-center gap-1 text-[9px] font-semibold text-neutral-400">
+                  <p className="flex items-center gap-1 text-[9px] font-semibold text-ink-slate">
                     <Icon className="h-3 w-3 text-brand" />
                     {label}
                   </p>
-                  <p className="mt-1 text-[11px] font-bold leading-tight text-neutral-800">{value}</p>
-                  <p className="text-[9px] leading-tight text-neutral-400">{note}</p>
+                  <p className="mt-1 text-[11px] font-bold leading-tight text-heading">{value}</p>
+                  <p className="text-[9px] leading-tight text-ink-slate">{note}</p>
                 </div>
               ))}
             </div>
@@ -139,48 +139,48 @@ export default async function OrderConfirmedPage({ params }: PageProps<"/checkou
             </div>
           </section>
 
-          <section className="rounded-2xl border border-neutral-100 bg-white p-4 shadow-sm">
+          <section className="rounded-2xl border border-line-soft bg-white p-4 shadow-sm">
             <div className="mb-3 flex items-center gap-2">
               <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand">
                 <MapPin className="h-4 w-4 text-white" />
               </span>
-              <h2 className="text-sm font-bold text-neutral-800">Delivery Address</h2>
+              <h2 className="text-sm font-bold text-heading">Delivery Address</h2>
             </div>
 
-            <p className="text-sm font-bold text-neutral-800">{order.addressFullName}</p>
-            <p className="text-[11px] text-neutral-400">{formatBdPhone(order.addressPhone)}</p>
+            <p className="text-sm font-bold text-heading">{order.addressFullName}</p>
+            <p className="text-[11px] text-ink-slate">{formatBdPhone(order.addressPhone)}</p>
 
-            <div className="mt-3 grid grid-cols-3 gap-2 border-t border-dashed border-neutral-200 pt-3">
+            <div className="mt-3 grid grid-cols-3 gap-2 border-t border-dashed border-line pt-3">
               <div>
-                <p className="text-[9px] font-semibold text-neutral-400">Division</p>
-                <p className="text-[11px] font-bold text-neutral-800">{order.addressCity || "—"}</p>
+                <p className="text-[9px] font-semibold text-ink-slate">Division</p>
+                <p className="text-[11px] font-bold text-heading">{order.addressCity || "—"}</p>
               </div>
               <div>
-                <p className="text-[9px] font-semibold text-neutral-400">Thana</p>
-                <p className="text-[11px] font-bold text-neutral-800">{order.addressArea || "—"}</p>
+                <p className="text-[9px] font-semibold text-ink-slate">Thana</p>
+                <p className="text-[11px] font-bold text-heading">{order.addressArea || "—"}</p>
               </div>
               <div className="min-w-0">
-                <p className="text-[9px] font-semibold text-neutral-400">Address</p>
-                <p className="text-[11px] font-bold leading-tight text-neutral-800">{order.addressLine}</p>
+                <p className="text-[9px] font-semibold text-ink-slate">Address</p>
+                <p className="text-[11px] font-bold leading-tight text-heading">{order.addressLine}</p>
               </div>
             </div>
           </section>
 
           <Link
             href={`/account/orders/${order.id}`}
-            className="block rounded-2xl border border-neutral-100 bg-white p-4 shadow-sm"
+            className="block rounded-2xl border border-line-soft bg-white p-4 shadow-sm"
           >
             <div className="mb-3 flex items-center gap-2">
               <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-tint">
                 <Truck className="h-4 w-4 text-brand" />
               </span>
               <div className="min-w-0 flex-1">
-                <h2 className="text-sm font-bold text-neutral-800">Your order is on the way!</h2>
-                <p className="text-[10px] text-neutral-400">
+                <h2 className="text-sm font-bold text-heading">Your order is on the way!</h2>
+                <p className="text-[10px] text-ink-slate">
                   We&apos;ll notify you with every delivery update.
                 </p>
               </div>
-              <ChevronRight className="h-4 w-4 shrink-0 text-neutral-300" />
+              <ChevronRight className="h-4 w-4 shrink-0 text-ink-faint" />
             </div>
 
             <OrderProgress steps={order.steps} eta={order.deliveryEta} />
@@ -195,7 +195,7 @@ export default async function OrderConfirmedPage({ params }: PageProps<"/checkou
             <ArrowRight className="h-4 w-4" />
           </Link>
 
-          <p className="pb-2 text-center text-[10px] text-neutral-400">Thanks for choosing Zupona 💚</p>
+          <p className="pb-2 text-center text-[10px] text-ink-slate">Thanks for choosing Zupona 💚</p>
         </div>
       </div>
     </div>

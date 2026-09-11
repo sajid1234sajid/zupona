@@ -51,8 +51,8 @@ export default function CategoryToolbar({
 
   return (
     <>
-      <div className="sticky top-0 z-10 -mx-4 flex items-center gap-2 border-b border-neutral-100 bg-[#f3f5f4]/95 px-4 py-2 backdrop-blur">
-        <span className="text-[10px] text-neutral-400">
+      <div className="sticky top-0 z-10 -mx-4 flex items-center gap-2 border-b border-line-soft bg-brand-mist/95 px-4 py-2 backdrop-blur">
+        <span className="text-[10px] text-ink-slate">
           {resultCount} {resultCount === 1 ? "item" : "items"}
         </span>
 
@@ -63,7 +63,7 @@ export default function CategoryToolbar({
             className={`flex items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] font-semibold transition-colors ${
               dealsOnly
                 ? "border-accent-red bg-accent-red text-white"
-                : "border-neutral-200 bg-white text-neutral-600"
+                : "border-line bg-white text-ink-slate"
             }`}
           >
             <Percent className="h-3 w-3" />
@@ -72,7 +72,7 @@ export default function CategoryToolbar({
 
           <button
             onClick={() => setSheetOpen(true)}
-            className="flex items-center gap-1 rounded-full border border-neutral-200 bg-white px-2.5 py-1 text-[10px] font-semibold text-neutral-600"
+            className="flex items-center gap-1 rounded-full border border-line bg-white px-2.5 py-1 text-[10px] font-semibold text-ink-slate"
           >
             <ArrowUpDown className="h-3 w-3" />
             {activeSortLabel}
@@ -89,16 +89,16 @@ export default function CategoryToolbar({
           />
           <div className="relative w-full max-w-md rounded-t-2xl bg-white pb-6 pt-3 shadow-xl">
             <div className="flex items-center justify-between px-4 pb-2">
-              <p className="text-sm font-bold text-neutral-800">Sort by</p>
+              <p className="text-sm font-bold text-heading">Sort by</p>
               <button aria-label="Close" onClick={() => setSheetOpen(false)}>
-                <X className="h-4 w-4 text-neutral-400" />
+                <X className="h-4 w-4 text-ink-slate" />
               </button>
             </div>
             {CATEGORY_SORTS.map((option) => (
               <button
                 key={option.id}
                 onClick={() => applySort(option.id)}
-                className="flex w-full items-center justify-between px-4 py-2.5 text-left text-[13px] text-neutral-700"
+                className="flex w-full items-center justify-between px-4 py-2.5 text-left text-[13px] text-ink"
               >
                 <span className={option.id === sort ? "font-semibold text-brand" : undefined}>
                   {option.label}

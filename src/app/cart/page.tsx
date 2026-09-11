@@ -21,15 +21,15 @@ export default async function CartPage() {
     <div className="mx-auto flex min-h-screen w-full max-w-md flex-col bg-[#f3f5f4] pb-40">
       <ProductHeader />
       <main className="flex-1 px-4 pt-4">
-        <h1 className="text-lg font-bold text-neutral-800">My Cart</h1>
+        <h1 className="text-lg font-bold text-heading">My Cart</h1>
 
         {items.length === 0 ? (
           <div className="mt-10 flex flex-col items-center gap-3 text-center">
             <span className="flex h-16 w-16 items-center justify-center rounded-full bg-brand-tint">
               <ShoppingCart className="h-7 w-7 text-brand" />
             </span>
-            <p className="text-sm font-semibold text-neutral-700">Your cart is empty</p>
-            <p className="max-w-xs text-xs text-neutral-400">
+            <p className="text-sm font-semibold text-ink">Your cart is empty</p>
+            <p className="max-w-xs text-xs text-ink-slate">
               Browse products and add your favorites to the cart.
             </p>
             <Link href="/" className="mt-2 rounded-full bg-brand px-6 py-2.5 text-sm font-semibold text-white">
@@ -45,15 +45,15 @@ export default async function CartPage() {
             </div>
 
             <div className="mt-4 space-y-2 rounded-2xl bg-white p-4 shadow-sm">
-              <div className="flex items-center justify-between text-sm text-neutral-500">
+              <div className="flex items-center justify-between text-sm text-ink-slate">
                 <span>Subtotal</span>
-                <span className="font-semibold text-neutral-800">{formatPrice(subtotal)}</span>
+                <span className="font-semibold text-heading">{formatPrice(subtotal)}</span>
               </div>
-              <div className="flex items-center justify-between text-sm text-neutral-500">
+              <div className="flex items-center justify-between text-sm text-ink-slate">
                 <span>Delivery charge</span>
-                <span className="font-semibold text-neutral-800">{formatPrice(shippingFee)}</span>
+                <span className="font-semibold text-heading">{formatPrice(shippingFee)}</span>
               </div>
-              <div className="flex items-center justify-between border-t border-neutral-100 pt-2 text-sm font-bold text-neutral-900">
+              <div className="flex items-center justify-between border-t border-line-soft pt-2 text-sm font-bold text-heading">
                 <span>Total</span>
                 <span>{formatPrice(total)}</span>
               </div>
@@ -63,7 +63,7 @@ export default async function CartPage() {
       </main>
 
       {items.length > 0 && (
-        <div className="fixed inset-x-0 bottom-16 z-10 mx-auto max-w-md border-t border-neutral-200 bg-white px-4 py-3">
+        <div className="fixed inset-x-0 bottom-16 z-10 mx-auto max-w-md border-t border-line bg-white px-4 py-3">
           <Link
             href="/checkout"
             className="flex w-full items-center justify-center rounded-xl bg-brand-darkest py-3.5 text-sm font-semibold text-white"

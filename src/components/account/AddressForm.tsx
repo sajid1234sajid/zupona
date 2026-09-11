@@ -43,7 +43,7 @@ export default function AddressForm({
         defaultValue={address?.fullName}
         placeholder="Full name"
         required
-        className="rounded-xl border border-neutral-200 px-4 py-3 text-sm outline-none focus:border-brand"
+        className="rounded-xl border border-line px-4 py-3 text-sm outline-none focus:border-brand"
       />
       <input
         name="phone"
@@ -51,43 +51,43 @@ export default function AddressForm({
         placeholder="Phone number"
         type="tel"
         required
-        className="rounded-xl border border-neutral-200 px-4 py-3 text-sm outline-none focus:border-brand"
+        className="rounded-xl border border-line px-4 py-3 text-sm outline-none focus:border-brand"
       />
       <input
         name="line1"
         defaultValue={address?.line1}
         placeholder="House / Street address"
         required
-        className="rounded-xl border border-neutral-200 px-4 py-3 text-sm outline-none focus:border-brand"
+        className="rounded-xl border border-line px-4 py-3 text-sm outline-none focus:border-brand"
       />
       <div className="grid grid-cols-2 gap-3">
         <input
           name="area"
           defaultValue={address?.area ?? ""}
           placeholder="Area (optional)"
-          className="rounded-xl border border-neutral-200 px-4 py-3 text-sm outline-none focus:border-brand"
+          className="rounded-xl border border-line px-4 py-3 text-sm outline-none focus:border-brand"
         />
         <input
           name="city"
           defaultValue={address?.city}
           placeholder="City"
           required
-          className="rounded-xl border border-neutral-200 px-4 py-3 text-sm outline-none focus:border-brand"
+          className="rounded-xl border border-line px-4 py-3 text-sm outline-none focus:border-brand"
         />
       </div>
       <input
         name="postalCode"
         defaultValue={address?.postalCode ?? ""}
         placeholder="Postal code (optional)"
-        className="rounded-xl border border-neutral-200 px-4 py-3 text-sm outline-none focus:border-brand"
+        className="rounded-xl border border-line px-4 py-3 text-sm outline-none focus:border-brand"
       />
 
-      <label className="flex items-center gap-2 text-xs font-medium text-neutral-600">
+      <label className="flex items-center gap-2 text-xs font-medium text-ink-slate">
         <input
           type="checkbox"
           name="isDefault"
           defaultChecked={address?.isDefault ?? false}
-          className="h-4 w-4 rounded border-neutral-300 text-brand focus:ring-brand"
+          className="h-4 w-4 rounded border-line text-brand focus:ring-brand"
         />
         Set as default address
       </label>
@@ -103,7 +103,7 @@ export default function AddressForm({
         <button
           type="button"
           onClick={onDone}
-          className="flex-1 rounded-xl border border-neutral-200 py-3 text-sm font-semibold text-neutral-600"
+          className="flex-1 rounded-xl border border-line py-3 text-sm font-semibold text-ink-slate"
         >
           Cancel
         </button>

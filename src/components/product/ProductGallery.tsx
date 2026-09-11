@@ -50,7 +50,7 @@ export default function ProductGallery({ product }: { product: StoreProduct }) {
 
   return (
     <div>
-      <div className="relative overflow-hidden bg-gradient-to-br from-brand-darkest via-emerald-950 to-neutral-900 px-4 pt-4 pb-4 text-white">
+      <div className="relative overflow-hidden bg-gradient-to-br from-brand-darkest via-brand-darkest to-heading px-4 pt-4 pb-4 text-white">
         <Leaf className="absolute -right-6 top-6 h-28 w-28 rotate-12 text-white/5" />
         <Leaf className="absolute -left-8 bottom-10 h-24 w-24 -rotate-12 text-white/5" />
 
@@ -130,7 +130,7 @@ export default function ProductGallery({ product }: { product: StoreProduct }) {
                 <span className="text-sm text-white/50 line-through">
                   {formatPrice(product.oldPrice)}
                 </span>
-                <span className="rounded-md bg-accent-red px-1.5 py-0.5 text-[10px] font-bold">
+                <span className="rounded-md bg-brand px-1.5 py-0.5 text-[10px] font-bold">
                   {product.discountPercent}% OFF
                 </span>
               </>
@@ -163,7 +163,7 @@ export default function ProductGallery({ product }: { product: StoreProduct }) {
             key={item.url}
             onClick={() => setActiveIndex(index)}
             aria-label={item.kind === "video" ? "Play product video" : "Show product image"}
-            className={`relative h-12 w-12 shrink-0 overflow-hidden rounded-lg border-2 bg-neutral-100 ${
+            className={`relative h-12 w-12 shrink-0 overflow-hidden rounded-lg border-2 bg-brand-mist ${
               index === activeIndex ? "border-brand" : "border-transparent"
             }`}
           >

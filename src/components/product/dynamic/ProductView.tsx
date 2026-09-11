@@ -177,7 +177,7 @@ export default function ProductView({
             <nav aria-label="Breadcrumb" className="mb-3 hidden text-xs text-ink-soft tab:block">
               {breadcrumbs.map((crumb, index) => (
                 <span key={`${crumb}-${index}`}>
-                  {index > 0 && <span className="px-1.5 text-[#b5c6c0]">/</span>}
+                  {index > 0 && <span className="px-1.5 text-ink-faint">/</span>}
                   {crumb}
                 </span>
               ))}
@@ -230,7 +230,7 @@ export default function ProductView({
                 <Star
                   key={index}
                   className={`h-[18px] w-[18px] ${
-                    product.rating >= index + 0.5 ? "fill-gold text-gold" : "fill-[#e3e9e7] text-[#e3e9e7]"
+                    product.rating >= index + 0.5 ? "fill-gold text-gold" : "fill-line text-line"
                   }`}
                 />
               ))}
@@ -302,7 +302,7 @@ export default function ProductView({
 
       {/* Mobile only: the buy buttons ride above the tab bar. Both go away
           once there is room to put them beside the product instead. */}
-      <div className="fixed inset-x-0 bottom-[68px] z-40 flex gap-2.5 border-t border-[#deebe6] bg-surface/95 px-4 py-2.5 backdrop-blur tab:hidden">
+      <div className="fixed inset-x-0 bottom-[68px] z-40 flex gap-2.5 border-t border-line bg-surface/95 px-4 py-2.5 backdrop-blur tab:hidden">
         {actions}
       </div>
 

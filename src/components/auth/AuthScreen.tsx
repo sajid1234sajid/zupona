@@ -29,7 +29,7 @@ export default function AuthScreen({ mode, title, subtitle, action, initialError
             <Leaf className="h-7 w-7 text-brand-light" />
           </div>
           <h1 className="text-2xl font-bold text-brand-darkest">{title}</h1>
-          <p className="mt-2 max-w-xs text-sm text-neutral-500">{subtitle}</p>
+          <p className="mt-2 max-w-xs text-sm text-ink-slate">{subtitle}</p>
         </div>
 
         <AuthForm mode={mode} action={action} initialError={initialError} />

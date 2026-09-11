@@ -5,9 +5,9 @@ import type { Order } from "@/types";
 import { formatPrice } from "@/lib/format";
 
 const STATUS_TONE: Record<string, string> = {
-  placed: "bg-neutral-100 text-neutral-600",
-  confirmed: "bg-blue-50 text-blue-600",
-  shipped: "bg-amber-50 text-amber-600",
+  placed: "bg-brand-mist text-ink-slate",
+  confirmed: "bg-brand-tint text-brand-dark",
+  shipped: "bg-brand-mist text-accent-amber",
   out_for_delivery: "bg-brand-tint text-brand-dark",
   delivered: "bg-brand-tint text-brand-dark",
   cancelled: "bg-accent-red/10 text-accent-red",
@@ -124,7 +124,7 @@ export default function OrderCard({ order }: { order: Order }) {
               <span
                 aria-hidden
                 className={`absolute right-1/2 top-[8px] h-[2px] w-full rounded-full ${
-                  step.done ? "bg-brand" : "bg-neutral-200"
+                  step.done ? "bg-brand" : "bg-line"
                 }`}
               />
             )}
@@ -132,13 +132,13 @@ export default function OrderCard({ order }: { order: Order }) {
               className={`relative grid h-[18px] w-[18px] shrink-0 place-items-center rounded-full ${
                 step.done
                   ? "bg-brand text-white"
-                  : "border-2 border-neutral-200 bg-white text-neutral-300"
+                  : "border-2 border-line bg-white text-ink-faint"
               }`}
             >
               {step.done ? (
                 <Check className="h-2.5 w-2.5" strokeWidth={4} />
               ) : (
-                <span className="h-1 w-1 rounded-full bg-neutral-300" />
+                <span className="h-1 w-1 rounded-full bg-ink-faint" />
               )}
             </span>
             <span

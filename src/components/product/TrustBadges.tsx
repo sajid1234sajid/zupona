@@ -15,7 +15,7 @@ export default function TrustBadges() {
           className="flex flex-col items-center gap-1 rounded-lg bg-brand-tint py-2 text-center"
         >
           <Icon className="h-4 w-4 text-brand" />
-          <span className="text-[10px] font-medium text-neutral-600">{label}</span>
+          <span className="text-[10px] font-medium text-ink-slate">{label}</span>
         </div>
       ))}
     </div>

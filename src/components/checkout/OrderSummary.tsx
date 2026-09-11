@@ -58,7 +58,7 @@ export default function OrderSummary({
 
               <div className="shrink-0 text-right">
                 {discount > 0 && (
-                  <span className="mb-0.5 inline-block rounded-md bg-accent-red/10 px-1.5 py-0.5 text-[9px] font-bold text-accent-red">
+                  <span className="mb-0.5 inline-block rounded-md bg-brand px-1.5 py-0.5 text-[9px] font-bold text-white">
                     {discount}% OFF
                   </span>
                 )}
@@ -87,7 +87,7 @@ export default function OrderSummary({
         </div>
       </div>
 
-      <div className="mt-2 flex items-center justify-between rounded-xl bg-brand-tint px-3 py-2.5">
+      <div className="mt-2 flex items-center justify-between border-t border-line px-1 pt-2.5">
         <span className="text-sm font-bold text-brand-darkest">Total</span>
         <span className="text-base font-extrabold text-brand-darkest">{formatPrice(total)}</span>
       </div>

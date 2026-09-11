@@ -106,7 +106,7 @@ export default function OptionGroups({
                     className={`min-h-[44px] min-w-[52px] rounded-xl border px-3.5 text-sm font-bold ${common} ${
                       selected
                         ? "border-brand bg-brand text-white"
-                        : "border-[#d8e8e1] bg-white text-heading"
+                        : "border-line bg-white text-heading"
                     }`}
                   >
                     {value.label}

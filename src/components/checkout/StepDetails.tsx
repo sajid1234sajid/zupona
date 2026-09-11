@@ -192,7 +192,7 @@ export default function StepDetails() {
         type="button"
         onClick={() => (stage === "phone" ? send() : verify())}
         disabled={pending}
-        className="flex items-center justify-center gap-2 rounded-full bg-brand-dark py-4 text-[16px] font-bold text-white shadow-lg shadow-brand/25 transition-opacity disabled:opacity-50"
+        className="flex items-center justify-center gap-2 rounded-full btn-brand py-4 text-[16px] font-bold text-white shadow-lg shadow-brand/25 transition-opacity disabled:opacity-50"
       >
         {pending ? (
           <LoaderCircle className="h-5 w-5 animate-spin" />

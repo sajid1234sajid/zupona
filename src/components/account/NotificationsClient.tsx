@@ -45,8 +45,8 @@ export default function NotificationsClient({ notifications }: { notifications: 
         <span className="flex h-16 w-16 items-center justify-center rounded-full bg-brand-tint">
           <Bell className="h-7 w-7 text-brand" />
         </span>
-        <p className="text-sm font-semibold text-neutral-700">No notifications yet</p>
-        <p className="max-w-xs text-xs text-neutral-400">
+        <p className="text-sm font-semibold text-ink">No notifications yet</p>
+        <p className="max-w-xs text-xs text-ink-slate">
           Order updates and offers will show up here.
         </p>
       </div>
@@ -74,11 +74,11 @@ export default function NotificationsClient({ notifications }: { notifications: 
             </span>
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
-                <p className="truncate text-sm font-semibold text-neutral-800">{notification.title}</p>
+                <p className="truncate text-sm font-semibold text-heading">{notification.title}</p>
                 {!notification.isRead && <span className="h-2 w-2 shrink-0 rounded-full bg-brand" />}
               </div>
-              <p className="mt-0.5 text-xs text-neutral-500">{notification.body}</p>
-              <p className="mt-1 text-[11px] text-neutral-400">{timeAgo(notification.createdAt)}</p>
+              <p className="mt-0.5 text-xs text-ink-slate">{notification.body}</p>
+              <p className="mt-1 text-[11px] text-ink-slate">{timeAgo(notification.createdAt)}</p>
             </div>
           </div>
         );

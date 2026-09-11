@@ -46,9 +46,9 @@ export default function PaymentMethodsClient({ methods }: { methods: PaymentMeth
     <div className="flex flex-col gap-3">
       {methods.length === 0 && (
         <div className="flex flex-col items-center gap-2 rounded-2xl bg-white py-10 text-center shadow-sm">
-          <CreditCard className="h-6 w-6 text-neutral-300" />
-          <p className="text-sm font-semibold text-neutral-600">No payment methods yet</p>
-          <p className="max-w-[220px] text-xs text-neutral-400">
+          <CreditCard className="h-6 w-6 text-ink-faint" />
+          <p className="text-sm font-semibold text-ink-slate">No payment methods yet</p>
+          <p className="max-w-[220px] text-xs text-ink-slate">
             Save a card, mobile wallet, or choose cash on delivery.
           </p>
         </div>
@@ -63,14 +63,14 @@ export default function PaymentMethodsClient({ methods }: { methods: PaymentMeth
             </span>
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
-                <p className="truncate text-sm font-semibold text-neutral-800">{method.label}</p>
+                <p className="truncate text-sm font-semibold text-heading">{method.label}</p>
                 {method.isDefault && (
                   <span className="shrink-0 rounded-full bg-brand/10 px-2 py-0.5 text-[10px] font-semibold text-brand">
                     Default
                   </span>
                 )}
               </div>
-              {method.detail && <p className="truncate text-xs text-neutral-400">{method.detail}</p>}
+              {method.detail && <p className="truncate text-xs text-ink-slate">{method.detail}</p>}
               {!method.isDefault && (
                 <button
                   onClick={() => setDefault(method.id)}

@@ -40,7 +40,7 @@ export default function ProductPurchasePanel({
     <>
       {colors.length > 0 && (
         <div className="px-4 pt-3">
-          <p className="text-sm font-bold text-neutral-800">Color</p>
+          <p className="text-sm font-bold text-heading">Color</p>
           <div className="mt-1.5 flex gap-4">
             {colors.map((color, index) => (
               <button
@@ -58,7 +58,7 @@ export default function ProductPurchasePanel({
                     style={{ background: color.swatch }}
                   />
                 </span>
-                <span className="max-w-[64px] truncate text-[9px] text-neutral-500">
+                <span className="max-w-[64px] truncate text-[9px] text-ink-slate">
                   {color.name}
                 </span>
               </button>
@@ -67,11 +67,11 @@ export default function ProductPurchasePanel({
         </div>
       )}
 
-      <div className="fixed inset-x-0 bottom-16 z-10 mx-auto flex max-w-md gap-3 border-t border-neutral-200 bg-white px-4 py-3">
+      <div className="fixed inset-x-0 bottom-16 z-10 mx-auto flex max-w-md gap-3 border-t border-line bg-white px-4 py-3">
         <button
           onClick={handleAddToCart}
           disabled={cartPending}
-          className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-brand-darkest bg-white py-2.5 text-sm font-semibold text-brand-darkest disabled:opacity-70"
+          className="flex flex-1 items-center justify-center gap-1.5 rounded-full border border-brand-darkest bg-white py-2.5 text-sm font-semibold text-brand-darkest disabled:opacity-70"
         >
           {cartPending ? (
             <LoaderCircle className="h-4 w-4 animate-spin" />
@@ -85,7 +85,7 @@ export default function ProductPurchasePanel({
         <button
           onClick={handleBuyNow}
           disabled={buyPending}
-          className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-brand py-2.5 text-sm font-semibold text-white disabled:opacity-70"
+          className="flex flex-1 items-center justify-center gap-1.5 rounded-full bg-brand py-2.5 text-sm font-semibold text-white disabled:opacity-70"
         >
           {buyPending ? (
             <LoaderCircle className="h-4 w-4 animate-spin" />

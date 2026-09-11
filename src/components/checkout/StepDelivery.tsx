@@ -288,7 +288,7 @@ export default function StepDelivery({
                   name="deliveryMethod"
                   checked={selected}
                   onChange={() => onChange({ deliveryMethod: method.id })}
-                  className="h-4 w-4 shrink-0 accent-[#16a34a]"
+                  className="h-4 w-4 shrink-0 accent-brand"
                 />
               </label>
             );
@@ -315,7 +315,7 @@ export default function StepDelivery({
         type="button"
         onClick={onContinue}
         disabled={pending}
-        className="flex items-center justify-center gap-2 rounded-xl bg-brand-dark py-3.5 text-sm font-bold text-white shadow-lg shadow-brand/25 disabled:opacity-60"
+        className="flex items-center justify-center gap-2 rounded-full btn-brand py-3.5 text-sm font-bold text-white shadow-lg shadow-brand/25 disabled:opacity-60"
       >
         <Lock className="h-4 w-4" />
         Continue to Payment

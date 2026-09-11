@@ -12,19 +12,19 @@ export default function ChangePasswordForm({ hasPassword }: { hasPassword: boole
     <form action={formAction} className="flex flex-col gap-4 rounded-2xl bg-white p-4 shadow-sm">
       {hasPassword && (
         <label className="flex flex-col gap-1.5">
-          <span className="text-xs font-semibold text-neutral-500">Current password</span>
+          <span className="text-xs font-semibold text-ink-slate">Current password</span>
           <input
             name="currentPassword"
             type="password"
             autoComplete="current-password"
             required
-            className="rounded-xl border border-neutral-200 px-4 py-3 text-sm outline-none focus:border-brand"
+            className="rounded-xl border border-line px-4 py-3 text-sm outline-none focus:border-brand"
           />
         </label>
       )}
 
       <label className="flex flex-col gap-1.5">
-        <span className="text-xs font-semibold text-neutral-500">
+        <span className="text-xs font-semibold text-ink-slate">
           {hasPassword ? "New password" : "Set a password"}
         </span>
         <input
@@ -33,7 +33,7 @@ export default function ChangePasswordForm({ hasPassword }: { hasPassword: boole
           autoComplete="new-password"
           minLength={8}
           required
-          className="rounded-xl border border-neutral-200 px-4 py-3 text-sm outline-none focus:border-brand"
+          className="rounded-xl border border-line px-4 py-3 text-sm outline-none focus:border-brand"
         />
       </label>
 

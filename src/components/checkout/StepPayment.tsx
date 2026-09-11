@@ -22,11 +22,11 @@ const PAYMENT_ICONS: Record<PaymentMethodId, typeof Banknote> = {
 
 /** Wallet/card marks shown under the online-payment option. */
 const WALLET_MARKS = [
-  { label: "bKash", className: "bg-[#e2136e]" },
-  { label: "Nagad", className: "bg-[#ec1c24]" },
-  { label: "Rocket", className: "bg-[#8c3494]" },
-  { label: "VISA", className: "bg-[#1a1f71]" },
-  { label: "Mastercard", className: "bg-[#eb001b]" },
+  { label: "bKash", className: "text-[#e2136e]" },
+  { label: "Nagad", className: "text-[#ec1c24]" },
+  { label: "Rocket", className: "text-[#8c3494]" },
+  { label: "VISA", className: "text-[#1a1f71]" },
+  { label: "Mastercard", className: "text-[#eb001b]" },
 ];
 
 interface StepPaymentProps {
@@ -103,7 +103,7 @@ export default function StepPayment({
                   <span className="flex items-center gap-1.5">
                     <span className="truncate text-xs font-bold text-ink-strong">{option.name}</span>
                     {option.badge && (
-                      <span className="shrink-0 rounded-md bg-accent-orange/15 px-1.5 py-0.5 text-[9px] font-bold text-accent-orange-dark">
+                      <span className="shrink-0 rounded-md bg-brand-tint px-1.5 py-0.5 text-[9px] font-bold text-brand-dark">
                         {option.badge}
                       </span>
                     )}
@@ -117,7 +117,7 @@ export default function StepPayment({
                       {WALLET_MARKS.map((mark) => (
                         <span
                           key={mark.label}
-                          className={`rounded px-1.5 py-0.5 text-[8px] font-bold text-white ${mark.className}`}
+                          className={`rounded border border-line bg-white px-1.5 py-0.5 text-[8px] font-bold ${mark.className}`}
                         >
                           {mark.label}
                         </span>
@@ -138,14 +138,14 @@ export default function StepPayment({
                   name="paymentMethod"
                   checked={selected}
                   onChange={() => onPaymentMethodChange(option.id)}
-                  className="mt-1 h-4 w-4 shrink-0 accent-[#16a34a]"
+                  className="mt-1 h-4 w-4 shrink-0 accent-brand"
                 />
               </label>
             );
           })}
         </div>
 
-        <div className="mt-3 rounded-xl border border-brand/25 bg-brand-tint/40 p-3">
+        <div className="mt-3 rounded-xl border border-brand/25 bg-brand-tint/70 p-3">
           <VerificationCard
             bare
             phone={phone}
@@ -178,7 +178,7 @@ export default function StepPayment({
       <button
         type="submit"
         disabled={pending}
-        className="flex items-center justify-center gap-2 rounded-xl bg-brand-dark py-3.5 text-sm font-bold text-white shadow-lg shadow-brand/25 disabled:opacity-60"
+        className="flex items-center justify-center gap-2 rounded-full btn-brand py-3.5 text-sm font-bold text-white shadow-lg shadow-brand/25 disabled:opacity-60"
       >
         {pending ? (
           <LoaderCircle className="h-4 w-4 animate-spin" />

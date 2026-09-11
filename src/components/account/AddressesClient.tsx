@@ -45,9 +45,9 @@ export default function AddressesClient({ addresses }: { addresses: Address[] })
     <div className="flex flex-col gap-3">
       {addresses.length === 0 && (
         <div className="flex flex-col items-center gap-2 rounded-2xl bg-white py-10 text-center shadow-sm">
-          <MapPin className="h-6 w-6 text-neutral-300" />
-          <p className="text-sm font-semibold text-neutral-600">No saved addresses yet</p>
-          <p className="max-w-[220px] text-xs text-neutral-400">
+          <MapPin className="h-6 w-6 text-ink-faint" />
+          <p className="text-sm font-semibold text-ink-slate">No saved addresses yet</p>
+          <p className="max-w-[220px] text-xs text-ink-slate">
             Add a delivery address to speed up checkout.
           </p>
         </div>
@@ -67,7 +67,7 @@ export default function AddressesClient({ addresses }: { addresses: Address[] })
               )}
             </div>
             <div className="flex items-center gap-3">
-              <button aria-label="Edit address" onClick={() => setView(address.id)} className="text-neutral-400">
+              <button aria-label="Edit address" onClick={() => setView(address.id)} className="text-ink-slate">
                 <Pencil className="h-4 w-4" />
               </button>
               <button
@@ -84,9 +84,9 @@ export default function AddressesClient({ addresses }: { addresses: Address[] })
               </button>
             </div>
           </div>
-          <p className="mt-2 text-sm font-semibold text-neutral-800">{address.fullName}</p>
-          <p className="text-xs text-neutral-500">{address.phone}</p>
-          <p className="mt-1 text-xs text-neutral-500">{formatAddressLine(address)}</p>
+          <p className="mt-2 text-sm font-semibold text-heading">{address.fullName}</p>
+          <p className="text-xs text-ink-slate">{address.phone}</p>
+          <p className="mt-1 text-xs text-ink-slate">{formatAddressLine(address)}</p>
           {!address.isDefault && (
             <button
               onClick={() => setDefault(address.id)}

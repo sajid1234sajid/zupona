@@ -76,13 +76,13 @@ export default async function CategoryPage({
             aria-label="Back to categories"
             className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white shadow-sm"
           >
-            <ChevronLeft className="h-4 w-4 text-neutral-600" />
+            <ChevronLeft className="h-4 w-4 text-ink-slate" />
           </Link>
           <div className="min-w-0">
-            <h1 className="truncate text-base font-bold text-neutral-800">
+            <h1 className="truncate text-base font-bold text-heading">
               {subcategory ? subcategory.name : category.name}
             </h1>
-            <p className="truncate text-[10px] text-neutral-400">
+            <p className="truncate text-[10px] text-ink-slate">
               {subcategory ? category.name : category.subtitle}
             </p>
           </div>
@@ -95,7 +95,7 @@ export default async function CategoryPage({
               className={`shrink-0 rounded-full px-3 py-1 text-[10px] font-semibold transition-colors ${
                 subcategoryId === null
                   ? "bg-brand text-white"
-                  : "border border-neutral-200 bg-white text-neutral-500"
+                  : "border border-line bg-white text-ink-slate"
               }`}
             >
               All
@@ -107,7 +107,7 @@ export default async function CategoryPage({
                 className={`shrink-0 rounded-full px-3 py-1 text-[10px] font-semibold transition-colors ${
                   subcategoryId === sub.id
                     ? "bg-brand text-white"
-                    : "border border-neutral-200 bg-white text-neutral-500"
+                    : "border border-line bg-white text-ink-slate"
                 }`}
               >
                 {sub.name}
@@ -131,8 +131,8 @@ export default async function CategoryPage({
             <span className="flex h-16 w-16 items-center justify-center rounded-full bg-brand-tint">
               <PackageSearch className="h-7 w-7 text-brand" />
             </span>
-            <p className="text-sm font-semibold text-neutral-700">Nothing here yet</p>
-            <p className="max-w-xs text-xs text-neutral-400">
+            <p className="text-sm font-semibold text-ink">Nothing here yet</p>
+            <p className="max-w-xs text-xs text-ink-slate">
               {dealsOnly
                 ? "No discounted items in this selection right now. Try clearing the deals filter."
                 : "This section has no products at the moment. Try another type."}

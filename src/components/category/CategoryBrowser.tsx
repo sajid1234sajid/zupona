@@ -36,7 +36,7 @@ export default function CategoryBrowser({
       {/* Department rail */}
       <nav
         aria-label="Categories"
-        className="w-[88px] shrink-0 overflow-y-auto border-r border-neutral-200 bg-[#f3f5f4] no-scrollbar"
+        className="w-[88px] shrink-0 overflow-y-auto border-r border-line bg-brand-mist no-scrollbar"
       >
         {categories.map((category) => {
           const isActive = category.id === active.id;
@@ -53,7 +53,7 @@ export default function CategoryBrowser({
                 <span className="absolute left-0 top-1/2 h-7 w-[3px] -translate-y-1/2 rounded-r bg-brand" />
               )}
               <span
-                className={`relative h-9 w-9 overflow-hidden rounded-full bg-neutral-100 ring-2 ${
+                className={`relative h-9 w-9 overflow-hidden rounded-full bg-brand-mist ring-2 ${
                   isActive ? "ring-brand" : "ring-transparent"
                 }`}
               >
@@ -67,7 +67,7 @@ export default function CategoryBrowser({
               </span>
               <span
                 className={`text-[9px] leading-tight ${
-                  isActive ? "font-semibold text-brand" : "text-neutral-500"
+                  isActive ? "font-semibold text-brand" : "text-ink-slate"
                 }`}
               >
                 {category.name}
@@ -81,8 +81,8 @@ export default function CategoryBrowser({
       <div className="flex-1 overflow-y-auto bg-white px-3 pb-6 pt-3 no-scrollbar">
         <div className="flex items-center justify-between">
           <div className="min-w-0">
-            <h2 className="truncate text-[13px] font-bold text-neutral-800">{active.name}</h2>
-            <p className="text-[9.5px] text-neutral-400">
+            <h2 className="truncate text-[13px] font-bold text-heading">{active.name}</h2>
+            <p className="text-[9.5px] text-ink-slate">
               {active.productCount} {active.productCount === 1 ? "product" : "products"}
               {active.fromPrice !== null && ` · from ${formatPrice(active.fromPrice)}`}
             </p>
@@ -111,7 +111,7 @@ export default function CategoryBrowser({
 
         {active.subcategories.length > 0 && (
           <>
-            <h3 className="mt-3 text-[10px] font-semibold uppercase tracking-wide text-neutral-400">
+            <h3 className="mt-3 text-[10px] font-semibold uppercase tracking-wide text-ink-slate">
               Shop by type
             </h3>
             <div className="mt-1.5 grid grid-cols-3 gap-2">
@@ -121,7 +121,7 @@ export default function CategoryBrowser({
                   href={`/category/${active.id}?sub=${sub.id}`}
                   className="group flex flex-col items-center gap-1 text-center"
                 >
-                  <span className="relative aspect-square w-full overflow-hidden rounded-lg bg-neutral-100">
+                  <span className="relative aspect-square w-full overflow-hidden rounded-lg bg-brand-mist">
                     <Image
                       src={sub.image}
                       alt=""
@@ -135,7 +135,7 @@ export default function CategoryBrowser({
                       </span>
                     )}
                   </span>
-                  <span className="text-[9.5px] font-medium leading-tight text-neutral-700">
+                  <span className="text-[9.5px] font-medium leading-tight text-ink">
                     {sub.name}
                   </span>
                 </Link>
@@ -146,7 +146,7 @@ export default function CategoryBrowser({
 
         {active.highlights.length > 0 && (
           <>
-            <h3 className="mt-4 text-[10px] font-semibold uppercase tracking-wide text-neutral-400">
+            <h3 className="mt-4 text-[10px] font-semibold uppercase tracking-wide text-ink-slate">
               Popular in {active.name}
             </h3>
             <div className="mt-1.5 flex gap-2 overflow-x-auto pb-1 no-scrollbar">
@@ -156,7 +156,7 @@ export default function CategoryBrowser({
                   href={`/product/${product.id}`}
                   className="w-[84px] shrink-0"
                 >
-                  <span className="relative block h-[84px] w-full overflow-hidden rounded-lg bg-neutral-100">
+                  <span className="relative block h-[84px] w-full overflow-hidden rounded-lg bg-brand-mist">
                     <Image
                       src={product.image}
                       alt={product.name}
@@ -165,15 +165,15 @@ export default function CategoryBrowser({
                       className="object-cover"
                     />
                     {product.discountPercent > 0 && (
-                      <span className="absolute left-1 top-1 rounded bg-accent-red px-1 text-[8px] font-bold text-white">
+                      <span className="absolute left-1 top-1 rounded bg-brand px-1 text-[8px] font-bold text-white">
                         -{product.discountPercent}%
                       </span>
                     )}
                   </span>
-                  <span className="mt-1 block truncate text-[9.5px] font-medium text-neutral-700">
+                  <span className="mt-1 block truncate text-[9.5px] font-medium text-ink">
                     {product.name}
                   </span>
-                  <span className="block text-[10px] font-bold text-neutral-900">
+                  <span className="block text-[10px] font-bold text-heading">
                     {formatPrice(product.price)}
                   </span>
                 </Link>

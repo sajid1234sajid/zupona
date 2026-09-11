@@ -17,9 +17,9 @@ export default async function CategoriesPage() {
     // the shell, which is the whole point of the rail staying put.
     <div className="mx-auto flex h-screen w-full max-w-md flex-col overflow-hidden bg-white pb-16">
       <ProductHeader />
-      <div className="shrink-0 border-b border-neutral-100 px-4 py-2.5">
-        <h1 className="text-base font-bold text-neutral-800">All Categories</h1>
-        <p className="text-[10px] text-neutral-400">
+      <div className="shrink-0 border-b border-line-soft px-4 py-2.5">
+        <h1 className="text-base font-bold text-heading">All Categories</h1>
+        <p className="text-[10px] text-ink-slate">
           {categories.length} departments ·{" "}
           {categories.reduce((total, category) => total + category.productCount, 0)} products
         </p>

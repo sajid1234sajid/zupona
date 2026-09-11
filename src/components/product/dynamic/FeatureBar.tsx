@@ -14,14 +14,14 @@ export default function FeatureBar({
   if (features.length === 0) return null;
 
   return (
-    <ul className="mt-4 grid grid-cols-3 overflow-hidden rounded-2xl border border-[#d8ebe4] bg-mint">
+    <ul className="mt-4 grid grid-cols-3 overflow-hidden rounded-2xl border border-line bg-mint">
       {features.slice(0, 3).map((feature, index) => {
         const Icon = resolveIcon(feature.icon);
         return (
           <li
             key={`${feature.label}-${index}`}
             className={`flex min-h-[42px] items-center justify-center gap-1.5 px-2 py-1.5 text-center ${
-              index < 2 ? "border-r border-[#cfe4dc]" : ""
+              index < 2 ? "border-r border-line" : ""
             }`}
           >
             <Icon className="h-[18px] w-[18px] shrink-0 text-brand" aria-hidden />

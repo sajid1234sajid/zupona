@@ -35,9 +35,9 @@ export default async function WishlistPage({ searchParams }: PageProps<"/wishlis
       <ProductHeader />
       <main className="flex-1 px-4 pt-4">
         <div className="flex items-baseline justify-between">
-          <h1 className="text-lg font-bold text-neutral-800">My Wishlist</h1>
+          <h1 className="text-lg font-bold text-heading">My Wishlist</h1>
           {entries.length > 0 && (
-            <span className="text-[10px] text-neutral-400">
+            <span className="text-[10px] text-ink-slate">
               {entries.length} {entries.length === 1 ? "item" : "items"} ·{" "}
               {formatPrice(total)}
             </span>
@@ -49,8 +49,8 @@ export default async function WishlistPage({ searchParams }: PageProps<"/wishlis
             <span className="flex h-16 w-16 items-center justify-center rounded-full bg-brand-tint">
               <Heart className="h-7 w-7 text-brand" />
             </span>
-            <p className="text-sm font-semibold text-neutral-700">Sign in to see your wishlist</p>
-            <p className="max-w-xs text-xs text-neutral-400">
+            <p className="text-sm font-semibold text-ink">Sign in to see your wishlist</p>
+            <p className="max-w-xs text-xs text-ink-slate">
               Saved items follow your account, so they are waiting on every device — and
               Zupona flags them when the price drops or they land in a flash sale.
             </p>
@@ -69,8 +69,8 @@ export default async function WishlistPage({ searchParams }: PageProps<"/wishlis
             <span className="flex h-16 w-16 items-center justify-center rounded-full bg-brand-tint">
               <Heart className="h-7 w-7 text-brand" />
             </span>
-            <p className="text-sm font-semibold text-neutral-700">Your wishlist is empty</p>
-            <p className="max-w-xs text-xs text-neutral-400">
+            <p className="text-sm font-semibold text-ink">Your wishlist is empty</p>
+            <p className="max-w-xs text-xs text-ink-slate">
               Tap the heart on any product to save it here. We&apos;ll show you when it gets
               cheaper.
             </p>
@@ -96,7 +96,7 @@ export default async function WishlistPage({ searchParams }: PageProps<"/wishlis
               <div className="mt-3 rounded-xl bg-white p-3 shadow-sm">
                 <div className="flex items-center gap-1.5">
                   <PiggyBank className="h-4 w-4 text-brand" />
-                  <p className="text-[11px] font-bold text-neutral-800">
+                  <p className="text-[11px] font-bold text-heading">
                     Buying this list today saves {formatPrice(savings.total)}
                   </p>
                 </div>

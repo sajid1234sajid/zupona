@@ -30,7 +30,7 @@ export default function DeliveryCard({
   return (
     <section
       aria-label="Delivery and returns"
-      className="mt-4 rounded-2xl border border-[#dbeae4] bg-white p-4"
+      className="mt-4 rounded-2xl border border-line bg-white p-4"
     >
       <h2 className="flex items-center gap-2 text-sm font-bold text-brand">
         <Truck className="h-4 w-4" aria-hidden />
@@ -41,7 +41,7 @@ export default function DeliveryCard({
         {lines.map((line) => (
           <div
             key={line.label}
-            className="mt-2.5 flex items-center justify-between gap-3 border-t border-dashed border-[#dce9e4] pt-2.5 text-xs"
+            className="mt-2.5 flex items-center justify-between gap-3 border-t border-dashed border-line pt-2.5 text-xs"
           >
             <dt className="text-ink-soft">{line.label}</dt>
             <dd className="font-semibold text-heading">{line.value}</dd>
@@ -50,7 +50,7 @@ export default function DeliveryCard({
       </dl>
 
       {extras.length > 0 && (
-        <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-2 border-t border-dashed border-[#dce9e4] pt-3">
+        <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-2 border-t border-dashed border-line pt-3">
           {extras.map(({ icon: Icon, text }) => (
             <li key={text} className="flex items-center gap-1.5 text-xs font-semibold text-brand-dark">
               <Icon className="h-4 w-4 shrink-0" aria-hidden />

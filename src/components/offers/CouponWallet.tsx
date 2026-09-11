@@ -65,14 +65,14 @@ export default function CouponWallet({ coupons }: { coupons: OfferCoupon[] }) {
             </div>
 
             {/* Perforation between the value stub and the detail half. */}
-            <div className="w-px border-l border-dashed border-neutral-200" />
+            <div className="w-px border-l border-dashed border-line" />
 
             <div className="min-w-0 flex-1 px-2 py-2">
-              <p className="truncate text-[11px] font-bold text-neutral-800">{coupon.title}</p>
-              <p className="mt-0.5 line-clamp-2 text-[9px] leading-tight text-neutral-400">
+              <p className="truncate text-[11px] font-bold text-heading">{coupon.title}</p>
+              <p className="mt-0.5 line-clamp-2 text-[9px] leading-tight text-ink-slate">
                 {coupon.description}
               </p>
-              <p className="mt-0.5 text-[8.5px] text-neutral-400">
+              <p className="mt-0.5 text-[8.5px] text-ink-slate">
                 Min spend {formatPrice(coupon.minOrderAmount)} · {coupon.validity}
               </p>
 
@@ -95,7 +95,7 @@ export default function CouponWallet({ coupons }: { coupons: OfferCoupon[] }) {
                 )}
               </button>
               {failed && (
-                <p className="mt-0.5 text-center text-[8px] text-neutral-400">
+                <p className="mt-0.5 text-center text-[8px] text-ink-slate">
                   Copy blocked — type the code above at checkout.
                 </p>
               )}

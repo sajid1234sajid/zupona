@@ -52,7 +52,7 @@ export default function PaymentMethodForm({ onDone }: { onDone: () => void }) {
             inputMode="numeric"
             autoComplete="cc-number"
             required
-            className="rounded-xl border border-neutral-200 px-4 py-3 text-sm outline-none focus:border-brand"
+            className="rounded-xl border border-line px-4 py-3 text-sm outline-none focus:border-brand"
           />
           <div className="grid grid-cols-2 gap-3">
             <input
@@ -60,17 +60,17 @@ export default function PaymentMethodForm({ onDone }: { onDone: () => void }) {
               placeholder="Cardholder name"
               autoComplete="cc-name"
               required
-              className="rounded-xl border border-neutral-200 px-4 py-3 text-sm outline-none focus:border-brand"
+              className="rounded-xl border border-line px-4 py-3 text-sm outline-none focus:border-brand"
             />
             <input
               name="expiry"
               placeholder="MM/YY"
               autoComplete="cc-exp"
               required
-              className="rounded-xl border border-neutral-200 px-4 py-3 text-sm outline-none focus:border-brand"
+              className="rounded-xl border border-line px-4 py-3 text-sm outline-none focus:border-brand"
             />
           </div>
-          <p className="text-[11px] text-neutral-400">
+          <p className="text-[11px] text-ink-slate">
             Only the last 4 digits are saved. We never store your full card number.
           </p>
         </>
@@ -82,21 +82,21 @@ export default function PaymentMethodForm({ onDone }: { onDone: () => void }) {
           placeholder={`${type === "bkash" ? "bKash" : "Nagad"} account number`}
           type="tel"
           required
-          className="rounded-xl border border-neutral-200 px-4 py-3 text-sm outline-none focus:border-brand"
+          className="rounded-xl border border-line px-4 py-3 text-sm outline-none focus:border-brand"
         />
       )}
 
       {type === "cod" && (
-        <p className="rounded-xl bg-brand-tint px-4 py-3 text-xs text-neutral-600">
+        <p className="rounded-xl bg-brand-tint px-4 py-3 text-xs text-ink-slate">
           Pay in cash when your order is delivered to your door.
         </p>
       )}
 
-      <label className="flex items-center gap-2 text-xs font-medium text-neutral-600">
+      <label className="flex items-center gap-2 text-xs font-medium text-ink-slate">
         <input
           type="checkbox"
           name="isDefault"
-          className="h-4 w-4 rounded border-neutral-300 text-brand focus:ring-brand"
+          className="h-4 w-4 rounded border-line text-brand focus:ring-brand"
         />
         Set as default payment method
       </label>
@@ -112,7 +112,7 @@ export default function PaymentMethodForm({ onDone }: { onDone: () => void }) {
         <button
           type="button"
           onClick={onDone}
-          className="flex-1 rounded-xl border border-neutral-200 py-3 text-sm font-semibold text-neutral-600"
+          className="flex-1 rounded-xl border border-line py-3 text-sm font-semibold text-ink-slate"
         >
           Cancel
         </button>

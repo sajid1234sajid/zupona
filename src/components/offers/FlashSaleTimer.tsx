@@ -55,8 +55,8 @@ export default function FlashSaleTimer({
     >
       {parts.map((part, index) => (
         <span key={index} className="flex items-center gap-0.5">
-          {index > 0 && <span className="text-[10px] font-bold text-neutral-900">:</span>}
-          <span className="min-w-[19px] rounded bg-neutral-900 px-1 py-0.5 text-center text-[10px] font-bold tabular-nums text-white">
+          {index > 0 && <span className="text-[10px] font-bold text-heading">:</span>}
+          <span className="min-w-[19px] rounded bg-heading px-1 py-0.5 text-center text-[10px] font-bold tabular-nums text-white">
             {part}
           </span>
         </span>

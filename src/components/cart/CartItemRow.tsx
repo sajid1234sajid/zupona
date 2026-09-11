@@ -32,19 +32,19 @@ export default function CartItemRow({ item }: { item: CartItem }) {
   return (
     <div
       className={`flex gap-3 rounded-2xl bg-white p-3 shadow-sm ${pending ? "opacity-60" : ""} ${
-        gone ? "border border-dashed border-neutral-200" : ""
+        gone ? "border border-dashed border-line" : ""
       }`}
     >
-      <Link href={`/product/${item.productId}`} className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-neutral-100">
+      <Link href={`/product/${item.productId}`} className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-brand-mist">
         <Image src={item.product.image} alt={item.product.name} fill sizes="80px" className="object-cover" />
       </Link>
 
       <div className="flex flex-1 flex-col justify-between min-w-0">
         <div>
-          <Link href={`/product/${item.productId}`} className="line-clamp-1 text-sm font-semibold text-neutral-800">
+          <Link href={`/product/${item.productId}`} className="line-clamp-1 text-sm font-semibold text-heading">
             {item.product.name}
           </Link>
-          {item.color && <p className="mt-0.5 text-xs text-neutral-400">Color: {item.color}</p>}
+          {item.color && <p className="mt-0.5 text-xs text-ink-slate">Color: {item.color}</p>}
           {gone && (
             <p className="mt-1 text-xs font-medium text-accent-red">
               No longer available — remove it to check out
@@ -54,7 +54,7 @@ export default function CartItemRow({ item }: { item: CartItem }) {
 
         <div className="flex items-center justify-between">
           <span
-            className={`text-sm font-bold ${gone ? "text-neutral-400 line-through" : "text-neutral-900"}`}
+            className={`text-sm font-bold ${gone ? "text-ink-slate line-through" : "text-heading"}`}
           >
             {formatPrice(item.product.price)}
           </span>
@@ -64,7 +64,7 @@ export default function CartItemRow({ item }: { item: CartItem }) {
                 asking for more of it would delete the line outright. Remove
                 stays, because removing it is the way forward. */}
             <div
-              className={`flex items-center gap-2 rounded-full border border-neutral-200 px-2 py-1 ${
+              className={`flex items-center gap-2 rounded-full border border-line px-2 py-1 ${
                 gone ? "opacity-40" : ""
               }`}
             >
@@ -72,7 +72,7 @@ export default function CartItemRow({ item }: { item: CartItem }) {
                 aria-label="Decrease quantity"
                 disabled={pending || gone}
                 onClick={() => updateQuantity(item.quantity - 1)}
-                className="text-neutral-500"
+                className="text-ink-slate"
               >
                 <Minus className="h-3.5 w-3.5" />
               </button>
@@ -81,7 +81,7 @@ export default function CartItemRow({ item }: { item: CartItem }) {
                 aria-label="Increase quantity"
                 disabled={pending || gone}
                 onClick={() => updateQuantity(item.quantity + 1)}
-                className="text-neutral-500"
+                className="text-ink-slate"
               >
                 <Plus className="h-3.5 w-3.5" />
               </button>

@@ -175,8 +175,8 @@ export default function AccountProfile({
 
         {/* ---------------- Points ---------------- */}
         <Link href="/account/points" className={`mt-2.5 flex items-center gap-3 p-3.5 ${CARD}`}>
-          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-accent-amber/15">
-            <Star className="h-5 w-5 fill-accent-amber text-accent-amber" />
+          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-brand">
+            <Star className="h-5 w-5 fill-white text-white" />
           </span>
           <span className="min-w-0 flex-1">
             <span className="block text-[13.5px] font-bold text-brand-darkest">Points</span>
@@ -216,14 +216,14 @@ export default function AccountProfile({
 
           <Link href="/wishlist" className={`flex flex-col p-3.5 ${CARD}`}>
             <span className="flex items-center justify-between gap-2">
-              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-accent-red/10 text-accent-red">
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-brand-tint text-brand">
                 <Heart className="h-[18px] w-[18px]" />
               </span>
               <span
                 className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ${
                   wishlistCount > 0
-                    ? "bg-accent-red text-white"
-                    : "bg-accent-red/10 text-accent-red/70"
+                    ? "bg-brand text-white"
+                    : "bg-brand-tint text-brand-dark"
                 }`}
               >
                 {wishlistCount}

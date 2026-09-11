@@ -80,8 +80,9 @@ CREATE TABLE IF NOT EXISTS addresses (
   full_name TEXT NOT NULL,
   phone TEXT NOT NULL,
   line1 TEXT NOT NULL,
-  area TEXT,
-  city TEXT NOT NULL,
+  area TEXT,                         -- upazila / thana
+  district TEXT,                     -- district; NULL on addresses saved before 0014
+  city TEXT NOT NULL,                -- division
   postal_code TEXT,
   is_default INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -622,8 +623,9 @@ CREATE TABLE IF NOT EXISTS orders (
   address_full_name TEXT NOT NULL,
   address_phone TEXT NOT NULL,
   address_line TEXT NOT NULL,
-  address_area TEXT,
-  address_city TEXT NOT NULL DEFAULT '',
+  address_area TEXT,                 -- upazila / thana
+  address_district TEXT,             -- district; NULL on orders placed before 0014
+  address_city TEXT NOT NULL DEFAULT '', -- division
   payment_label TEXT NOT NULL,
   delivery_method TEXT NOT NULL DEFAULT 'standard', -- standard|express
   placed_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -637,6 +639,13 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_orders_idempotency
   ON orders (idempotency_key) WHERE idempotency_key IS NOT NULL;
 
 CREATE INDEX IF NOT EXISTS idx_orders_user_id ON orders (user_id);
+-- The admin list sorts by placed_at and filters on status, payment status,
+-- order number and phone. Without these each page is a full scan plus a sort.
+CREATE INDEX IF NOT EXISTS idx_orders_placed_at ON orders (placed_at DESC);
+CREATE INDEX IF NOT EXISTS idx_orders_status ON orders (status, placed_at DESC);
+CREATE INDEX IF NOT EXISTS idx_orders_payment_status ON orders (payment_status, placed_at DESC);
+CREATE INDEX IF NOT EXISTS idx_orders_number ON orders (order_number);
+CREATE INDEX IF NOT EXISTS idx_orders_phone ON orders (address_phone);
 
 CREATE TABLE IF NOT EXISTS order_items (
   id TEXT PRIMARY KEY,
@@ -689,6 +698,7 @@ CREATE TABLE IF NOT EXISTS order_status_history (
 );
 
 CREATE INDEX IF NOT EXISTS idx_order_status_history_order_id ON order_status_history (order_id);
+CREATE INDEX IF NOT EXISTS idx_order_history_order ON order_status_history (order_id, created_at);
 
 CREATE TABLE IF NOT EXISTS shipments (
   id TEXT PRIMARY KEY,
@@ -746,10 +756,21 @@ CREATE TABLE IF NOT EXISTS payment_transactions (
   provider_ref TEXT,
   amount INTEGER NOT NULL,
   currency TEXT NOT NULL DEFAULT 'BDT',
-  status TEXT NOT NULL DEFAULT 'pending', -- pending|success|failed|refunded
+  status TEXT NOT NULL DEFAULT 'pending', -- pending|initiated|authorized|paid|failed|cancelled|refunded|partially_refunded
+  method TEXT,                  -- the checkout method chosen: cod|online|bank
+  failure_reason TEXT,
+  initiated_at TEXT,
+  completed_at TEXT,
+  idempotency_key TEXT,         -- one payment per checkout attempt; NULL on anything older
   raw_response TEXT, -- JSON, gateway payload for reconciliation
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_payment_idempotency
+  ON payment_transactions (idempotency_key) WHERE idempotency_key IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_payment_order ON payment_transactions (order_id);
+CREATE INDEX IF NOT EXISTS idx_payment_provider_ref
+  ON payment_transactions (provider, provider_ref);
 
 CREATE INDEX IF NOT EXISTS idx_payment_transactions_order_id ON payment_transactions (order_id);
 
@@ -793,6 +814,9 @@ CREATE TABLE IF NOT EXISTS notifications (
 );
 
 CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications (user_id);
+-- The bell reads one user's notifications newest first; the plain user_id index
+-- leaves the sort to be done by hand every time.
+CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications (user_id, created_at DESC);
 
 CREATE TABLE IF NOT EXISTS support_tickets (
   id TEXT PRIMARY KEY,

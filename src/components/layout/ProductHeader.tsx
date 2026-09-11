@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { Search, Heart, ShoppingCart, Leaf } from "lucide-react";
+import { Search, Heart, ShoppingCart } from "lucide-react";
+import ZuponaMark from "@/components/brand/ZuponaMark";
 import { getCurrentUser } from "@/lib/session";
 import { getWishlistCount } from "@/lib/wishlist";
 import { getCartCount } from "@/lib/cart";
@@ -14,12 +15,10 @@ export default async function ProductHeader() {
   return (
     <header className="flex items-center justify-between border-b border-line-soft bg-white px-4 py-3">
       <Link href="/" className="flex items-center gap-2">
-        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-tint">
-          <Leaf className="h-4 w-4 text-brand" />
-        </span>
+        <ZuponaMark className="h-9 w-9 shrink-0" />
         <span className="flex flex-col leading-tight">
-          <span className="text-base font-bold text-brand-darkest">Zupona</span>
-          <span className="text-[10px] text-ink-slate">Trusted Online Shop</span>
+          <span className="text-[19px] font-extrabold leading-none text-brand-darkest">Zupona</span>
+          <span className="mt-0.5 text-[10.5px] font-medium text-brand">Trusted Online Shop</span>
         </span>
       </Link>
 

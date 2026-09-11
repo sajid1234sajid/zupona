@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { Star, Leaf, ArrowRight, Play } from "lucide-react";
+import { Star, Play } from "lucide-react";
 import { formatPrice } from "@/lib/format";
 import { resolveIcon } from "./featureIcons";
 import type { StoreProduct } from "@/lib/storefront";
@@ -50,110 +50,106 @@ export default function ProductGallery({ product }: { product: StoreProduct }) {
 
   return (
     <div>
-      <div className="relative overflow-hidden bg-gradient-to-br from-brand-darkest via-brand-darkest to-heading px-4 pt-4 pb-4 text-white">
-        <Leaf className="absolute -right-6 top-6 h-28 w-28 rotate-12 text-white/5" />
-        <Leaf className="absolute -left-8 bottom-10 h-24 w-24 -rotate-12 text-white/5" />
-
-        {product.bestSeller && (
-          <span className="relative z-10 inline-flex items-center gap-1 rounded-full bg-brand px-2.5 py-1 text-[10px] font-bold">
-            <Star className="h-3 w-3 fill-white" />
-            BEST SELLER
-          </span>
-        )}
-
-        <div className="relative z-10 mt-2 flex items-center justify-between gap-3">
-          <div className="relative h-28 flex-1 overflow-hidden rounded-xl bg-white/5">
-            {active.kind === "video" ? (
-              <video
-                // Keyed so switching clips swaps the element rather than
-                // leaving the previous one paused mid-playback.
-                key={active.url}
-                src={active.url}
-                poster={active.poster}
-                controls
-                playsInline
-                preload="metadata"
-                className="h-full w-full object-contain"
-              />
-            ) : (
+      {/* The photograph is the hero, not an inset beside a text column: the
+          reference gives the whole card to the product and floats the copy
+          over it. The scrim is what keeps that copy legible on a light photo,
+          and the two white cards are the reference's own treatment -- dark
+          green on white reads far better over imagery than translucent pills
+          did. */}
+      <div className="bg-white px-4 pt-3">
+        <div className="relative aspect-[5/4] w-full overflow-hidden rounded-2xl bg-heading">
+          {active.kind === "video" ? (
+            <video
+              // Keyed so switching clips swaps the element rather than
+              // leaving the previous one paused mid-playback.
+              key={active.url}
+              src={active.url}
+              poster={active.poster}
+              controls
+              playsInline
+              preload="metadata"
+              className="h-full w-full object-contain"
+            />
+          ) : (
+            <>
               <Image
                 src={active.url}
                 alt={product.name}
                 fill
-                sizes="220px"
+                sizes="(max-width: 448px) 100vw, 448px"
+                quality={90}
                 className="object-cover"
                 priority
                 unoptimized={isUploadedMedia(active.url)}
               />
-            )}
-          </div>
+              <span
+                aria-hidden
+                className="absolute inset-0 bg-gradient-to-l from-heading/85 via-heading/40 to-heading/5"
+              />
+            </>
+          )}
 
-          <div className="w-[42%] shrink-0 text-right">
+          {product.bestSeller && (
+            <span className="absolute left-3 top-3 z-10 inline-flex items-center gap-1.5 rounded-full bg-brand-dark px-3 py-1.5 text-[10.5px] font-bold text-white">
+              <Star className="h-3.5 w-3.5 fill-white" />
+              BEST SELLER
+            </span>
+          )}
+
+          <div className="absolute inset-y-3 right-3 z-10 flex w-[56%] flex-col justify-center gap-2 text-right text-white">
             {product.brand && (
-              <p className="text-[11px] font-bold uppercase tracking-widest text-brand-light">
+              <p className="text-[12px] font-extrabold uppercase leading-none tracking-[0.12em]">
                 {product.brand}
               </p>
             )}
             {product.heroHeadline && (
-              <p className="mt-1 text-xl font-extrabold leading-tight">
-                {product.heroHeadline}
-              </p>
+              <p className="text-[17px] font-extrabold leading-tight">{product.heroHeadline}</p>
             )}
             {product.heroSubtitle && (
-              <p className="mt-1 text-[11px] text-white/60">{product.heroSubtitle}</p>
+              <p className="text-[11.5px] leading-tight text-white/85">{product.heroSubtitle}</p>
             )}
-          </div>
-        </div>
 
-        {product.features && product.features.length > 0 && (
-          <div className="relative z-10 mt-3 flex flex-wrap gap-1.5">
-            {product.features.map((feature) => {
-              const FeatureIcon = resolveIcon(feature.icon);
-              return (
-                <span
-                  key={feature.label}
-                  className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2 py-1 text-[10px] font-medium"
-                >
-                  <FeatureIcon className="h-3 w-3" />
-                  {feature.label}
-                </span>
-              );
-            })}
-          </div>
-        )}
-
-        <div className="relative z-10 mt-3 flex items-end justify-between">
-          <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-extrabold">{formatPrice(product.price)}</span>
-            {product.discountPercent > 0 && (
-              <>
-                <span className="text-sm text-white/50 line-through">
-                  {formatPrice(product.oldPrice)}
-                </span>
-                <span className="rounded-md bg-brand px-1.5 py-0.5 text-[10px] font-bold">
-                  {product.discountPercent}% OFF
-                </span>
-              </>
+            {product.features && product.features.length > 0 && (
+              <div className="mt-0.5 grid grid-cols-3 rounded-xl bg-white/95 px-1.5 py-2 text-center">
+                {product.features.slice(0, 3).map((feature, index) => {
+                  const FeatureIcon = resolveIcon(feature.icon);
+                  return (
+                    <span
+                      key={feature.label}
+                      className={`flex min-w-0 flex-col items-center gap-1 px-1 ${
+                        index > 0 ? "border-l border-line" : ""
+                      }`}
+                    >
+                      <FeatureIcon className="h-4 w-4 shrink-0 text-brand-dark" strokeWidth={2.25} />
+                      <span className="text-[8.5px] font-semibold leading-tight text-brand-darkest">
+                        {feature.label}
+                      </span>
+                    </span>
+                  );
+                })}
+              </div>
             )}
+
+            <div className="flex items-center justify-end gap-1.5 rounded-xl bg-white/95 px-2.5 py-2">
+              <span className="text-[19px] font-extrabold leading-none text-brand-darkest">
+                {formatPrice(product.price)}
+              </span>
+              {product.discountPercent > 0 && (
+                <>
+                  <span className="text-[11px] text-ink-faint line-through">
+                    {formatPrice(product.oldPrice)}
+                  </span>
+                  <span className="rounded-full bg-brand px-1.5 py-0.5 text-[9.5px] font-bold text-white">
+                    {product.discountPercent}% OFF
+                  </span>
+                </>
+              )}
+            </div>
           </div>
 
-          <button
-            aria-label="Next image"
-            className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-brand-darkest"
-          >
-            <ArrowRight className="h-4 w-4" />
-          </button>
-        </div>
-
-        <div className="relative z-10 mt-3 flex justify-center gap-1.5">
-          {gallery.map((item, index) => (
-            <span
-              key={`dot-${item.url}`}
-              className={`h-1.5 rounded-full transition-all ${
-                index === activeIndex ? "w-4 bg-white" : "w-1.5 bg-white/30"
-              }`}
-            />
-          ))}
+          <span className="absolute bottom-3 right-3 z-10 rounded-full bg-heading/70 px-2.5 py-1 text-[10px] font-semibold text-white">
+            {Math.min(activeIndex, gallery.length - 1) + 1}/{gallery.length}
+          </span>
         </div>
       </div>
 

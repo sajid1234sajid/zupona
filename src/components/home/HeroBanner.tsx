@@ -22,7 +22,7 @@ export default function HeroBanner() {
             photo's left edge into the green so it reads as composited. */}
         <span className="pointer-events-none absolute bottom-0 right-0 block h-[106px] w-[176px] [mask-image:linear-gradient(to_right,transparent_0%,#000_30%)]">
           <Image
-            src="https://images.unsplash.com/photo-1594223274512-ad4803739b7c?auto=format&fit=crop&w=480&q=75"
+            src="https://images.unsplash.com/photo-1594223274512-ad4803739b7c?auto=format&fit=crop&w=1200&q=85"
             alt="Green leather handbag from the new season collection"
             fill
             sizes="176px"

@@ -6,21 +6,29 @@
  * checkout all colour themselves from these tokens, so the shop stays on-brand
  * without any component naming a hex value of its own. */
 :root {
-  /* The identity is teal + dark green, not a generic emerald. The ramp leans
-   * a few steps bluer than a plain green at every stop, which is the character
-   * the references carry: R1's flat Buy Now samples #037e5b and the checkout
-   * mid tone #027b4f, so `brand` sits between them; the darkest stop is the
-   * #014f32 measured on R1's outline button. */
-  --color-brand-darkest: #014f36;
-  --color-brand-dark: #02644a;
+  /* One hue for the whole brand: 162-168 degrees, a teal-leaning green.
+   *
+   * The references are not a bright-green shop. Their greens all sit on the
+   * teal side -- R1's Buy Now samples #037e5b at hue 163 -- and the stops that
+   * had drifted greener (the bright accent especially, at 156) were what made
+   * the build read generic. Every stop below is on that one hue, so the ramp
+   * is recognisably Zupona rather than a set of unrelated greens. Nothing here
+   * goes past 168: beyond that a green starts reading as cyan.
+   *
+   *   darkest -- deep forest-teal: headings, outline buttons, strong emphasis
+   *   dark    -- the pressed and deep-fill tone
+   *   brand   -- the medium teal-green of R1's Buy Now, measured
+   *   light   -- the fresh accent: step dots, success discs, active states */
+  --color-brand-darkest: #014637;
+  --color-brand-dark: #02604a;
   /* Sampled from the five reference screens rather than chosen: the mid green
    * reads #017e59 / #02804d / #06784f / #028055 / #067740 across them, and
    * this is their mean. The ramp was a shade bluer than every one of them,
    * which is what made the rendered screens look teal beside the design. */
-  --color-brand: #047d56;
-  --color-brand-light: #04965b;
-  --color-brand-tint: #e8f6ec;
-  --color-brand-mist: #f6fcf7;
+  --color-brand: #037e5b;
+  --color-brand-light: #059a71;
+  --color-brand-tint: #e3f5ef;
+  --color-brand-mist: #f4fbf9;
   /* the soft leaf green the reference uses for its decoration */
   --color-brand-leaf: #a1d8a4;
   /* The primary action button is not a flat fill in the references. Sampling a
@@ -28,8 +36,8 @@
    * #038550 -> #016743, #08935e -> #056442 and #028f5c -> #03704e; these are
    * the means. The product page's Buy Now is flat by contrast (#037e5b all the
    * way down), which is why only the checkout buttons carry the gradient. */
-  --color-brand-grad-top: #048d59;
-  --color-brand-grad-bottom: #036946;
+  --color-brand-grad-top: #048a63;
+  --color-brand-grad-bottom: #01634a;
   /* Body copy is a very dark green rather than black, which keeps the page
    * feeling like one palette instead of green accents on a grey page. */
   --color-ink: #123527;
@@ -39,7 +47,7 @@
    * the placeholders are a cool slate, and the card and input borders are a
    * light blue-grey. Tailwind's neutral ramp is a pure grey and reads flat and
    * a little cold beside them. */
-  --color-ink-strong: #013a32;
+  --color-ink-strong: #01352c;
   /* #5e7e97 is the mean of the references' muted copy, but it lands at 4.28:1
    * on white -- under AA for body text. This is the darkest of the samples
    * (R2 #5b7a8b, R3 #597c96, R4 #6384aa) pulled far enough to reach 4.84:1,
@@ -59,11 +67,11 @@
    *   gold      -- rating stars
    *   ink-soft  -- the lavender-grey used for meta text (sold count, tab bar)
    *   heading   -- the near-black green of the product title and price */
-  --color-surface: #f6fbf9;
-  --color-mint: #def3ed;
+  --color-surface: #f4fbf9;
+  --color-mint: #dcf2ec;
   --color-gold: #fcae0e;
   --color-ink-soft: #7879ae;
-  --color-heading: #002319;
+  --color-heading: #00231c;
 }
 
 @theme inline {

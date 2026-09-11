@@ -16,7 +16,7 @@ import {
   User,
   Zap,
 } from "lucide-react";
-import { divisionNames, areasForDivision } from "@/data/locations";
+import { divisionNames, districtsForDivision, upazilasForDistrict } from "@/data/locations";
 import { formatBdPhone, normalizeBdPhone, type DeliveryMethod } from "@/lib/checkout";
 import type { DeliveryDetails } from "@/lib/checkout";
 import { formatPrice } from "@/lib/format";
@@ -56,7 +56,8 @@ export default function StepDelivery({
   // Open the contact editor when either required field is still missing,
   // so nothing needed to continue is hidden behind the collapsed row.
   const [editingContact, setEditingContact] = useState(!details.fullName || !details.phone);
-  const areas = areasForDivision(details.division);
+  const districts = districtsForDivision(details.division);
+  const areas = upazilasForDistrict(details.division, details.district);
   const fee = deliveryMethods.find((method) => method.id === details.deliveryMethod)?.fee ?? 0;
   const normalized = normalizeBdPhone(details.phone);
   const displayPhone = normalized ? formatBdPhone(normalized) : details.phone;
@@ -139,76 +140,38 @@ export default function StepDelivery({
             label above the chosen value, and a chevron. The native <select> is
             kept and laid over the card at zero opacity, so the phone's own
             picker still opens and the control stays focusable and labelled --
-            only its painting is replaced. */}
-        <div className="mt-2 grid grid-cols-2 gap-2">
-          <label className="relative block rounded-xl border border-line bg-white px-2.5 py-2 focus-within:border-brand">
-            <span className="flex items-center gap-2">
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-brand-tint">
-                <MapPin className="h-3.5 w-3.5 text-brand" />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block text-[9.5px] font-semibold text-ink-slate">
-                  Division / City
-                </span>
-                <span
-                  className={`block truncate text-[13px] font-semibold ${
-                    details.division ? "text-ink-strong" : "text-ink-faint"
-                  }`}
-                >
-                  {details.division || "Select"}
-                </span>
-              </span>
-              <ChevronDown className="h-4 w-4 shrink-0 text-ink-slate" />
-            </span>
-            <select
-              value={details.division}
-              onChange={(event) => onChange({ division: event.target.value, area: "" })}
-              aria-label="Division / City"
-              className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-            >
-              <option value="">Select</option>
-              {divisionNames.map((name) => (
-                <option key={name} value={name}>
-                  {name}
-                </option>
-              ))}
-            </select>
-          </label>
+            only its painting is replaced.
 
-          <label className="relative block rounded-xl border border-line bg-white px-2.5 py-2 focus-within:border-brand">
-            <span className="flex items-center gap-2">
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-brand-tint">
-                <MapPin className="h-3.5 w-3.5 text-brand" />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block text-[9.5px] font-semibold text-ink-slate">
-                  Area / Thana
-                </span>
-                <span
-                  className={`block truncate text-[13px] font-semibold ${
-                    details.area ? "text-ink-strong" : "text-ink-faint"
-                  }`}
-                >
-                  {details.area || (areas.length === 0 ? "Pick a division" : "Select")}
-                </span>
-              </span>
-              <ChevronDown className="h-4 w-4 shrink-0 text-ink-slate" />
-            </span>
-            <select
-              value={details.area}
-              onChange={(event) => onChange({ area: event.target.value })}
-              disabled={areas.length === 0}
-              aria-label="Area / Thana"
-              className="absolute inset-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
-            >
-              <option value="">{areas.length === 0 ? "Pick a division" : "Select"}</option>
-              {areas.map((name) => (
-                <option key={name} value={name}>
-                  {name}
-                </option>
-              ))}
-            </select>
-          </label>
+            Three of them, not two: a Bangladeshi address is division ->
+            district -> upazila, and collapsing the middle level is what left
+            most of the country with no address it could pick. Division and
+            district share a row as before; the thana list is long, so it takes
+            a row of its own. */}
+        <div className="mt-2 grid grid-cols-2 gap-2">
+          <GeoField
+            label="Division"
+            value={details.division}
+            options={divisionNames}
+            placeholder="Select"
+            onChange={(value) => onChange({ division: value, district: "", area: "" })}
+          />
+          <GeoField
+            label="District"
+            value={details.district}
+            options={districts}
+            placeholder={districts.length === 0 ? "Pick a division" : "Select"}
+            onChange={(value) => onChange({ district: value, area: "" })}
+          />
+        </div>
+
+        <div className="mt-2">
+          <GeoField
+            label="Area / Thana"
+            value={details.area}
+            options={areas}
+            placeholder={areas.length === 0 ? "Pick a district" : "Select"}
+            onChange={(value) => onChange({ area: value })}
+          />
         </div>
 
         {/* Address is typed, not picked, so it gets the same card without a
@@ -331,5 +294,60 @@ export default function StepDelivery({
         ))}
       </div>
     </div>
+  );
+}
+
+/** One address picker: the reference's card, with a real <select> laid over it
+ * at zero opacity so the phone's native list still opens and the control keeps
+ * its label, focus ring and keyboard behaviour. Disabled until the level above
+ * it has been chosen, because the options depend on it. */
+function GeoField({
+  label,
+  value,
+  options,
+  placeholder,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  options: string[];
+  placeholder: string;
+  onChange: (value: string) => void;
+}) {
+  const empty = options.length === 0;
+
+  return (
+    <label className="relative block rounded-xl border border-line bg-white px-2.5 py-2 focus-within:border-brand">
+      <span className="flex items-center gap-2">
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-brand-tint">
+          <MapPin className="h-3.5 w-3.5 text-brand" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-[10px] font-semibold text-ink-slate">{label}</span>
+          <span
+            className={`block truncate text-[12px] font-semibold ${
+              value ? "text-ink-strong" : "text-ink-faint"
+            }`}
+          >
+            {value || placeholder}
+          </span>
+        </span>
+        <ChevronDown className="h-4 w-4 shrink-0 text-ink-slate" />
+      </span>
+      <select
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        disabled={empty}
+        aria-label={label}
+        className="absolute inset-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
+      >
+        <option value="">{placeholder}</option>
+        {options.map((name) => (
+          <option key={name} value={name}>
+            {name}
+          </option>
+        ))}
+      </select>
+    </label>
   );
 }

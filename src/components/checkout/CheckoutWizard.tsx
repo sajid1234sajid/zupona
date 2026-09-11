@@ -103,8 +103,8 @@ export default function CheckoutWizard({
       setStepError("Enter a valid Bangladeshi mobile number, e.g. 01712345678.");
       return;
     }
-    if (!isServedLocation(details.division, details.area)) {
-      setStepError("Pick a division and area we deliver to.");
+    if (!isServedLocation(details.division, details.district, details.area)) {
+      setStepError("Pick a division, district and area we deliver to.");
       return;
     }
     if (details.addressDetails.trim().length < 6) {

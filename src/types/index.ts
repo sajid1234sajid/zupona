@@ -80,7 +80,11 @@ export interface Address {
   fullName: string;
   phone: string;
   line1: string;
+  /** Upazila or thana. */
   area: string | null;
+  /** District. Null on addresses saved before the district level existed. */
+  district: string | null;
+  /** Division. Named `city` for the column it came from. */
   city: string;
   postalCode: string | null;
   isDefault: boolean;
@@ -175,6 +179,8 @@ export interface Order {
   addressPhone: string;
   addressLine: string;
   addressArea: string | null;
+  /** District. Null on orders placed before the district level existed. */
+  addressDistrict: string | null;
   addressCity: string;
   paymentLabel: string;
   deliveryMethod: DeliveryMethodId;

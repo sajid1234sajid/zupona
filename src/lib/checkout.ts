@@ -88,6 +88,10 @@ export interface DeliveryDetails {
   fullName: string;
   phone: string;
   division: string;
+  /** The district. Bangladesh addresses go division -> district -> upazila, and
+   * leaving this level out is what made most of the country unreachable. */
+  district: string;
+  /** The upazila or thana inside the district. */
   area: string;
   addressDetails: string;
   deliveryMethod: DeliveryMethodId;

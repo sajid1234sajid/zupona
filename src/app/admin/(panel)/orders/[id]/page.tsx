@@ -340,6 +340,7 @@ export default async function OrderDetailPage(props: PageProps<"/admin/orders/[i
                   {formatAddressLine({
                     line1: order.addressLine,
                     area: order.addressArea,
+                    district: order.addressDistrict,
                     city: order.addressCity,
                   })}
                 </span>
@@ -348,6 +349,24 @@ export default async function OrderDetailPage(props: PageProps<"/admin/orders/[i
                 </span>
               </span>
             </p>
+
+            {/* The same address broken out, so the administrative path is
+                readable at a glance -- which division, which district, which
+                thana -- rather than having to be parsed out of one line.
+                Orders placed before the district column existed say so instead
+                of showing a blank. */}
+            <dl className="mt-3 grid grid-cols-3 gap-px overflow-hidden rounded-lg border border-neutral-200 bg-neutral-200 text-[12px]">
+              {[
+                { label: "Division", value: order.addressCity },
+                { label: "District", value: order.addressDistrict ?? "Not recorded" },
+                { label: "Thana / Upazila", value: order.addressArea ?? "Not recorded" },
+              ].map((row) => (
+                <div key={row.label} className="bg-white px-2.5 py-2">
+                  <dt className="text-[10.5px] text-neutral-500">{row.label}</dt>
+                  <dd className="mt-0.5 font-medium text-neutral-800">{row.value || "—"}</dd>
+                </div>
+              ))}
+            </dl>
           </Card>
 
           <Card>

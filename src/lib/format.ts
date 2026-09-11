@@ -4,13 +4,21 @@ export function formatPrice(amount: number): string {
   return `${CURRENCY} ${amount.toLocaleString("en-US")}`;
 }
 
+/** One line, narrowest place first: street, thana, district, division, code.
+ *
+ * The district sits between thana and division because that is the order a
+ * Bangladeshi address is written and read in -- "Laksam, Cumilla, Chattogram"
+ * tells a rider where to go; "Laksam, Chattogram" does not. */
 export function formatAddressLine(address: {
   line1: string;
   area?: string | null;
+  district?: string | null;
   city: string;
   postalCode?: string | null;
 }): string {
-  return [address.line1, address.area, address.city, address.postalCode].filter(Boolean).join(", ");
+  return [address.line1, address.area, address.district, address.city, address.postalCode]
+    .filter(Boolean)
+    .join(", ");
 }
 
 /* -------------------------------------------------------------------------- */

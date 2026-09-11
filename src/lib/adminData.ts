@@ -463,6 +463,8 @@ export interface AdminOrderDetail {
   addressPhone: string;
   addressLine: string;
   addressArea: string | null;
+  /** District. Null on orders placed before the district level existed. */
+  addressDistrict: string | null;
   addressCity: string;
   items: {
     id: string;
@@ -558,6 +560,7 @@ export async function getOrderDetail(idOrNumber: string): Promise<AdminOrderDeta
     addressPhone: String(row.address_phone),
     addressLine: String(row.address_line),
     addressArea: (row.address_area as string | null) ?? null,
+    addressDistrict: (row.address_district as string | null) ?? null,
     addressCity: String(row.address_city),
     items: (items.results as unknown as {
       id: string;

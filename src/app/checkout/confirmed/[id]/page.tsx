@@ -65,10 +65,13 @@ export default async function OrderConfirmedPage({ params }: PageProps<"/checkou
     },
   ];
 
+  // Division, district and thana are the administrative path; the street
+  // address is the longest string of the four and now gets its own line under
+  // the phone rather than being squeezed into a third of the row.
   const places = [
     { icon: Building2, label: "Division", value: order.addressCity || "—" },
+    { icon: MapPin, label: "District", value: order.addressDistrict || "—" },
     { icon: MapPin, label: "Thana", value: order.addressArea || "—" },
-    { icon: House, label: "Address", value: order.addressLine },
   ];
 
   return (
@@ -251,8 +254,12 @@ export default async function OrderConfirmedPage({ params }: PageProps<"/checkou
               <Phone className="h-3.5 w-3.5 text-brand" strokeWidth={2.25} />
               {formatBdPhone(order.addressPhone)}
             </p>
+            <p className="mt-1.5 flex items-start gap-1.5 text-[12px] leading-snug text-ink-slate">
+              <House className="mt-px h-3.5 w-3.5 shrink-0 text-brand" strokeWidth={2.25} />
+              {order.addressLine}
+            </p>
 
-            <div className="mt-3.5 grid grid-cols-[0.8fr_0.95fr_1.25fr] border-t border-line-soft pt-3.5">
+            <div className="mt-3.5 grid grid-cols-3 border-t border-line-soft pt-3.5">
               {places.map(({ icon: Icon, label, value }, index) => (
                 <div
                   key={label}

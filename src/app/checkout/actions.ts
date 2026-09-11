@@ -107,6 +107,7 @@ export interface CheckoutDetails {
   fullName: string;
   phone: string;
   division: string;
+  district: string;
   area: string;
   addressDetails: string;
   deliveryMethod: string;
@@ -148,8 +149,8 @@ export async function placeOrderAction(
 
   if (!fullName) return { error: "Enter the name we should deliver to." };
   if (!phone) return { error: "Enter a valid Bangladeshi mobile number." };
-  if (!isServedLocation(details.division, details.area)) {
-    return { error: "Pick a division and area we deliver to." };
+  if (!isServedLocation(details.division, details.district, details.area)) {
+    return { error: "Pick a division, district and area we deliver to." };
   }
   if (addressDetails.length < 6) return { error: "Enter your full address so the rider can find you." };
 
@@ -279,9 +280,10 @@ export async function placeOrderAction(
       .prepare(
         `INSERT INTO orders
           (id, order_number, user_id, status, subtotal, shipping_fee, total, points_earned,
-           address_label, address_full_name, address_phone, address_line, address_area, address_city,
+           address_label, address_full_name, address_phone, address_line, address_area,
+           address_district, address_city,
            payment_label, delivery_method, idempotency_key, stock_state)
-         VALUES (?, ?, ?, 'placed', ?, ?, ?, ?, 'Home', ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+         VALUES (?, ?, ?, 'placed', ?, ?, ?, ?, 'Home', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .bind(
         orderId,
@@ -295,6 +297,7 @@ export async function placeOrderAction(
         phone,
         addressDetails,
         details.area,
+        details.district,
         details.division,
         payment.name,
         delivery.id,
@@ -361,17 +364,26 @@ export async function placeOrderAction(
   if (savedDefault) {
     await db
       .prepare(
-        "UPDATE addresses SET full_name = ?, phone = ?, line1 = ?, area = ?, city = ? WHERE id = ?"
+        "UPDATE addresses SET full_name = ?, phone = ?, line1 = ?, area = ?, district = ?, city = ? WHERE id = ?"
       )
-      .bind(fullName, phone, addressDetails, details.area, details.division, savedDefault.id)
+      .bind(fullName, phone, addressDetails, details.area, details.district, details.division, savedDefault.id)
       .run();
   } else {
     await db
       .prepare(
-        `INSERT INTO addresses (id, user_id, label, full_name, phone, line1, area, city, is_default)
-         VALUES (?, ?, 'Home', ?, ?, ?, ?, ?, 1)`
+        `INSERT INTO addresses (id, user_id, label, full_name, phone, line1, area, district, city, is_default)
+         VALUES (?, ?, 'Home', ?, ?, ?, ?, ?, ?, 1)`
       )
-      .bind(crypto.randomUUID(), user.id, fullName, phone, addressDetails, details.area, details.division)
+      .bind(
+        crypto.randomUUID(),
+        user.id,
+        fullName,
+        phone,
+        addressDetails,
+        details.area,
+        details.district,
+        details.division
+      )
       .run();
   }
 

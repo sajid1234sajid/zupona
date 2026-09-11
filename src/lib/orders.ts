@@ -65,6 +65,7 @@ interface OrderRow {
   address_phone: string;
   address_line: string;
   address_area: string | null;
+  address_district: string | null;
   address_city: string;
   payment_label: string;
   delivery_method: DeliveryMethodId;
@@ -111,6 +112,7 @@ function toOrder(row: OrderRow, itemRows: OrderItemRow[]): Order {
     addressPhone: row.address_phone,
     addressLine: row.address_line,
     addressArea: row.address_area,
+    addressDistrict: row.address_district,
     addressCity: row.address_city,
     paymentLabel: row.payment_label,
     deliveryMethod: delivery.id,
@@ -129,7 +131,7 @@ export async function getOrders(userId: string): Promise<Order[]> {
     .prepare(
       `SELECT id, order_number, status, subtotal, shipping_fee, total, points_earned,
               address_label, address_full_name, address_phone, address_line, address_area,
-              address_city, payment_label, delivery_method, placed_at
+              address_district, address_city, payment_label, delivery_method, placed_at
        FROM orders WHERE user_id = ? ORDER BY placed_at DESC`
     )
     .bind(userId)
@@ -158,7 +160,7 @@ export async function getOrder(userId: string, orderId: string): Promise<Order |
     .prepare(
       `SELECT id, order_number, status, subtotal, shipping_fee, total, points_earned,
               address_label, address_full_name, address_phone, address_line, address_area,
-              address_city, payment_label, delivery_method, placed_at
+              address_district, address_city, payment_label, delivery_method, placed_at
        FROM orders WHERE id = ? AND user_id = ?`
     )
     .bind(orderId, userId)

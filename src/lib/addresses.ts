@@ -8,6 +8,7 @@ interface AddressRow {
   phone: string;
   line1: string;
   area: string | null;
+  district: string | null;
   city: string;
   postal_code: string | null;
   is_default: number;
@@ -21,6 +22,7 @@ function toAddress(row: AddressRow): Address {
     phone: row.phone,
     line1: row.line1,
     area: row.area,
+    district: row.district,
     city: row.city,
     postalCode: row.postal_code,
     isDefault: row.is_default === 1,
@@ -31,7 +33,7 @@ export async function getAddresses(userId: string): Promise<Address[]> {
   const db = await getDB();
   const { results } = await db
     .prepare(
-      "SELECT id, label, full_name, phone, line1, area, city, postal_code, is_default FROM addresses WHERE user_id = ? ORDER BY is_default DESC, created_at DESC"
+      "SELECT id, label, full_name, phone, line1, area, district, city, postal_code, is_default FROM addresses WHERE user_id = ? ORDER BY is_default DESC, created_at DESC"
     )
     .bind(userId)
     .all<AddressRow>();

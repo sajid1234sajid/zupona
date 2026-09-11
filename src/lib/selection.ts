@@ -70,8 +70,19 @@ export async function resolveSelection(input: {
   // Built in the order the options are shown, so the same variant always reads
   // the same way -- and, because a cart row is unique per variant, the label is
   // for the shopper rather than a key.
+  //
+  // `optionValues` holds each group's slug, because that is what the page
+  // matches a selection on. The slug is not what anyone should read: a value
+  // created in the option builder is "black-gold" with a label of "Black &
+  // Gold", and it is the label that belongs on a cart line, an order line and
+  // a confirmation. They are the same string only for products that predate
+  // the builder, which is why this went unnoticed.
   const label = (product.optionGroups ?? [])
-    .map((group) => variant.optionValues[group.key])
+    .map((group) => {
+      const slug = variant.optionValues[group.key];
+      if (!slug) return null;
+      return group.values.find((value) => value.value === slug)?.label ?? slug;
+    })
     .filter(Boolean)
     .join(" / ");
 

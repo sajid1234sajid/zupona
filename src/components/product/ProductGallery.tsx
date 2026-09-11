@@ -57,7 +57,7 @@ export default function ProductGallery({ product }: { product: StoreProduct }) {
           green on white reads far better over imagery than translucent pills
           did. */}
       <div className="bg-white px-4 pt-3">
-        <div className="relative aspect-[5/4] w-full overflow-hidden rounded-2xl bg-heading">
+        <div className="relative aspect-[6/5] w-full overflow-hidden rounded-2xl bg-heading">
           {active.kind === "video" ? (
             <video
               // Keyed so switching clips swaps the element rather than
@@ -159,7 +159,7 @@ export default function ProductGallery({ product }: { product: StoreProduct }) {
             key={item.url}
             onClick={() => setActiveIndex(index)}
             aria-label={item.kind === "video" ? "Play product video" : "Show product image"}
-            className={`relative h-12 w-12 shrink-0 overflow-hidden rounded-lg border-2 bg-brand-mist ${
+            className={`relative h-[60px] w-[60px] shrink-0 overflow-hidden rounded-xl border-2 bg-brand-mist ${
               index === activeIndex ? "border-brand" : "border-transparent"
             }`}
           >
@@ -167,13 +167,13 @@ export default function ProductGallery({ product }: { product: StoreProduct }) {
               src={item.kind === "video" ? item.poster : item.url}
               alt={product.name}
               fill
-              sizes="48px"
+              sizes="60px"
               className="object-cover"
               unoptimized={isUploadedMedia(item.kind === "video" ? item.poster : item.url)}
             />
             {item.kind === "video" && (
               <span className="absolute inset-0 flex items-center justify-center bg-black/30">
-                <Play className="h-4 w-4 fill-white text-white" />
+                <Play className="h-5 w-5 fill-white text-white" />
               </span>
             )}
           </button>

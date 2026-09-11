@@ -49,10 +49,12 @@ export default function ProductInfo({
           {Array.from({ length: 5 }).map((_, index) => (
             <Star
               key={index}
-              className={`h-3.5 w-3.5 ${
-                index < Math.round(product.rating)
+              className={`h-[17px] w-[17px] ${
+                product.rating >= index + 1
                   ? "fill-gold text-gold"
-                  : "fill-line text-line"
+                  : product.rating >= index + 0.5
+                    ? "fill-gold/60 text-gold"
+                    : "fill-line text-line"
               }`}
             />
           ))}

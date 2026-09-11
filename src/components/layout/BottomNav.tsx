@@ -16,7 +16,10 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { label: "Home", icon: Home, href: "/" },
+  // A product page is reached from browsing, and the reference keeps Home lit
+  // while you are on one -- otherwise the bar shows no current tab at all,
+  // which reads as broken rather than as neutral.
+  { label: "Home", icon: Home, href: "/", alsoMatches: ["/product/", "/products/", "/search"] },
   // A category listing is reached from the browser, so both light up the tab.
   { label: "Categories", icon: LayoutGrid, href: "/categories", alsoMatches: ["/category"] },
   { label: "Offers", icon: Tag, href: "/offers", badge: true },
@@ -39,11 +42,9 @@ export default function BottomNav() {
       className="fixed inset-x-0 bottom-0 z-40 mx-auto flex max-w-md items-stretch border-t border-brand-tint bg-white pb-[env(safe-area-inset-bottom)] shadow-[0_-2px_12px_rgba(0,60,40,0.07)]"
     >
       {navItems.map(({ label, icon: Icon, href, alsoMatches, badge }) => {
+        const matchesExtra = alsoMatches?.some((prefix) => pathname.startsWith(prefix)) ?? false;
         const isActive =
-          href === "/"
-            ? pathname === "/"
-            : pathname.startsWith(href) ||
-              (alsoMatches?.some((prefix) => pathname.startsWith(prefix)) ?? false);
+          href === "/" ? pathname === "/" || matchesExtra : pathname.startsWith(href) || matchesExtra;
 
         return (
           <Link
@@ -54,19 +55,19 @@ export default function BottomNav() {
           >
             <span className="relative">
               <Icon
-                className={`h-[17px] w-[17px] ${isActive ? "text-brand" : "text-ink-muted"}`}
+                className={`h-[21px] w-[21px] ${isActive ? "text-brand" : "text-ink-soft"}`}
                 strokeWidth={isActive ? 2.5 : 2}
               />
               {badge && (
                 <span
                   aria-hidden
-                  className="absolute -right-1 -top-0.5 h-[7px] w-[7px] rounded-full border border-white bg-brand-light"
+                  className="absolute -right-1.5 -top-1 h-[9px] w-[9px] rounded-full border-2 border-white bg-brand-light"
                 />
               )}
             </span>
             <span
-              className={`text-[7.5px] leading-none ${
-                isActive ? "font-bold text-brand" : "font-medium text-ink-muted"
+              className={`text-[11px] leading-none ${
+                isActive ? "font-bold text-brand" : "font-medium text-ink-soft"
               }`}
             >
               {label}

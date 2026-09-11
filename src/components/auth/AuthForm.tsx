@@ -52,7 +52,7 @@ export default function AuthForm({ mode, action, initialError }: AuthFormProps) 
               type="button"
               onClick={() => setMethod(value)}
               className={`flex items-center justify-center gap-1.5 rounded-full py-2.5 text-xs font-semibold transition-colors ${
-                active ? "bg-white text-brand-dark shadow-card" : "text-brand-dark/50"
+                active ? "bg-white text-brand-dark shadow-card" : "text-ink-slate"
               }`}
             >
               <Icon className="h-3.5 w-3.5" />

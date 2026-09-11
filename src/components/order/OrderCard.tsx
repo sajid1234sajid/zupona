@@ -142,8 +142,8 @@ export default function OrderCard({ order }: { order: Order }) {
               )}
             </span>
             <span
-              className={`text-[7.5px] font-semibold leading-[1.2] break-words hyphens-auto ${
-                step.done ? "text-brand-dark" : "text-ink-muted/70"
+              className={`text-[10px] font-semibold leading-[1.2] break-words hyphens-auto ${
+                step.done ? "text-brand-dark" : "text-ink-slate"
               }`}
             >
               {step.label}

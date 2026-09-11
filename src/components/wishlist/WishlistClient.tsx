@@ -217,7 +217,7 @@ export default function WishlistClient({
                   className="object-cover"
                 />
                 {product.discountPercent > 0 && (
-                  <span className="absolute left-1 top-1 rounded bg-brand px-1 text-[8px] font-bold text-white">
+                  <span className="absolute left-1 top-1 rounded bg-brand px-1 text-[10px] font-bold text-white">
                     -{product.discountPercent}%
                   </span>
                 )}
@@ -248,19 +248,19 @@ export default function WishlistClient({
 
                 <div className="mt-1 flex flex-wrap items-center gap-1">
                   {entry.priceDrop > 0 && (
-                    <span className="flex items-center gap-0.5 rounded bg-brand-tint px-1.5 py-0.5 text-[8.5px] font-bold text-brand-dark">
+                    <span className="flex items-center gap-0.5 rounded bg-brand-tint px-1.5 py-0.5 text-[10px] font-bold text-brand-dark">
                       <TrendingDown className="h-2.5 w-2.5" />
                       Dropped {formatPrice(entry.priceDrop)} since you saved it
                     </span>
                   )}
                   {entry.flashPrice !== null && (
-                    <span className="flex items-center gap-0.5 rounded bg-accent-red/10 px-1.5 py-0.5 text-[8.5px] font-bold text-accent-red">
+                    <span className="flex items-center gap-0.5 rounded bg-accent-red/10 px-1.5 py-0.5 text-[10px] font-bold text-accent-red">
                       <Flame className="h-2.5 w-2.5" />
                       In flash sale
                     </span>
                   )}
                   {entry.inCart && (
-                    <span className="rounded bg-brand-mist px-1.5 py-0.5 text-[8.5px] font-semibold text-ink-slate">
+                    <span className="rounded bg-brand-mist px-1.5 py-0.5 text-[10px] font-semibold text-ink-slate">
                       Already in cart
                     </span>
                   )}
@@ -348,7 +348,7 @@ export default function WishlistClient({
               View cart
             </Link>
             <button onClick={() => setNotice(null)} aria-label="Dismiss">
-              <X className="h-3.5 w-3.5 text-white/60" />
+              <X className="h-3.5 w-3.5 text-brand-tint" />
             </button>
           </div>
         </div>

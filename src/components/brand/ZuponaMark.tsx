@@ -29,7 +29,7 @@ export default function ZuponaMark({ className = "" }: { className?: string }) {
         d="M23 38 C16.5 38 12 33.2 12 26.5 C20 25.4 25.4 29.7 23 38 Z"
         fill="var(--color-brand-light)"
       />
-      <path d="M25 38 C25 28.5 30.2 22.6 38.5 21.5 C39 31.6 33.5 37.6 25 38 Z" fill="#7ed957" />
+      <path d="M25 38 C25 28.5 30.2 22.6 38.5 21.5 C39 31.6 33.5 37.6 25 38 Z" fill="var(--color-brand-leaf-bright)" />
       <path
         d="M24 39.5 C24.6 33 27.8 27.5 33 24"
         stroke="var(--color-brand-dark)"

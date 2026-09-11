@@ -25,7 +25,7 @@ export default function SearchBar() {
         onChange={(event) => setQuery(event.target.value)}
         placeholder="Search for products, brands and more..."
         aria-label="Search for products, brands and more"
-        className="min-w-0 flex-1 bg-transparent text-[11px] text-ink placeholder:text-ink-muted/80 outline-none [&::-webkit-search-cancel-button]:hidden"
+        className="min-w-0 flex-1 bg-transparent text-[11px] text-ink placeholder:text-ink-faint outline-none [&::-webkit-search-cancel-button]:hidden"
       />
       <button
         type="submit"

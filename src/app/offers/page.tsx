@@ -69,12 +69,12 @@ export default async function OffersPage({ searchParams }: PageProps<"/offers">)
           <div className="rounded-2xl bg-gradient-to-br from-brand-darkest via-brand-dark to-brand p-4 text-white shadow-card">
             <div className="flex items-center gap-1.5">
               <PiggyBank className="h-4 w-4 text-brand-light" />
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-white/70">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-brand-tint">
                 Savings live right now
               </p>
             </div>
             <p className="mt-1 text-2xl font-extrabold leading-none">{formatPrice(savings)}</p>
-            <p className="mt-1 text-[11px] text-white/70">
+            <p className="mt-1 text-[11px] text-brand-tint">
               across {deals.length} discounted products · up to {topDiscount}% off
             </p>
 

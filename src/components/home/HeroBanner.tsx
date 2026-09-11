@@ -12,7 +12,7 @@ import BotanicalBackdrop from "./BotanicalBackdrop";
 export default function HeroBanner() {
   return (
     <section className="px-3.5 pt-2.5">
-      <div className="relative h-[118px] overflow-hidden rounded-[18px] bg-[linear-gradient(105deg,#e6f4ec_0%,#f5fbf7_46%,#dcefe4_100%)]">
+      <div className="relative h-[118px] overflow-hidden rounded-[18px] bg-[linear-gradient(105deg,#e3f2ee_0%,#f4fbf9_46%,#d8ece6_100%)]">
         <BotanicalBackdrop className="absolute inset-0 h-full w-full" tone="#0a936a" opacity={0.26} />
 
         {/* `fill` rather than width/height: given explicit dimensions this
@@ -37,11 +37,11 @@ export default function HeroBanner() {
 
         <div className="absolute right-2.5 top-2.5 grid h-[44px] w-[44px] place-items-center rounded-full bg-white text-center shadow-[0_2px_8px_rgba(0,60,40,0.16)]">
           <span className="leading-none">
-            <span className="block text-[6.5px] font-bold tracking-[0.08em] text-ink-muted">
+            <span className="block text-[10px] font-bold tracking-[0.08em] text-ink-muted">
               UP TO
             </span>
             <span className="block text-[14px] font-extrabold leading-none text-brand">50%</span>
-            <span className="block text-[6.5px] font-bold tracking-[0.08em] text-ink-muted">
+            <span className="block text-[10px] font-bold tracking-[0.08em] text-ink-muted">
               OFF
             </span>
           </span>
@@ -54,7 +54,7 @@ export default function HeroBanner() {
           <h1 className="mt-1 font-serif text-[20px] font-bold leading-[1.08] text-brand-darkest">
             Style Lives Here
           </h1>
-          <p className="mt-1 text-[8.5px] leading-[1.35] text-ink-muted">
+          <p className="mt-1 text-[10px] leading-[1.35] text-ink-muted">
             Premium picks for
             <br />a better you.
           </p>

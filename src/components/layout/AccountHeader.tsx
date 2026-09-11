@@ -13,7 +13,7 @@ import { Search, Bell, Leaf } from "lucide-react";
  * instead of pretending to be a second search box that goes nowhere. */
 export default function AccountHeader({ unreadCount }: { unreadCount: number }) {
   return (
-    <header className="sticky top-0 z-30 border-b border-brand-tint/70 bg-white/95 backdrop-blur-sm">
+    <header className="sticky top-0 z-30 border-b border-brand-tint bg-white">
       <div className="flex items-center gap-2 px-3.5 py-2.5 sm:gap-3 sm:px-4">
         <Link
           href="/"
@@ -49,7 +49,7 @@ export default function AccountHeader({ unreadCount }: { unreadCount: number }) 
         >
           <Bell className="h-[21px] w-[21px]" strokeWidth={2.1} />
           {unreadCount > 0 && (
-            <span className="absolute right-2 top-2 grid h-[15px] min-w-[15px] place-items-center rounded-full bg-accent-red px-1 text-[8px] font-bold text-white ring-2 ring-white">
+            <span className="absolute right-2 top-2 grid h-[17px] min-w-[17px] place-items-center rounded-full bg-accent-red px-1 text-[10px] leading-none font-bold text-white ring-2 ring-white">
               {unreadCount > 9 ? "9+" : unreadCount}
             </span>
           )}

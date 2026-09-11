@@ -36,7 +36,7 @@ export default function ShareButton({ title }: { title: string }) {
         type="button"
         onClick={share}
         aria-label={`Share ${title}`}
-        className="grid h-10 w-10 place-items-center rounded-full bg-white/90 text-heading shadow-md backdrop-blur transition hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+        className="grid h-10 w-10 place-items-center rounded-full bg-white text-heading shadow-md transition hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
       >
         <Share2 className="h-[18px] w-[18px]" />
       </button>

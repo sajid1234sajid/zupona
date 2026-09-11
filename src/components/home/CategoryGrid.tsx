@@ -32,10 +32,10 @@ export default async function CategoryGrid() {
           </span>
 
           <span className="min-w-0 flex-1">
-            <span className="block truncate text-[9.5px] font-bold leading-tight text-ink">
+            <span className="block text-[11px] font-bold leading-tight text-heading [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden">
               {category.name}
             </span>
-            <span className="block truncate text-[7px] leading-tight text-ink-muted">
+            <span className="mt-0.5 block text-[10px] leading-tight text-ink-slate [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden">
               {category.subtitle}
             </span>
           </span>

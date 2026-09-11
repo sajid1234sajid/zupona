@@ -59,7 +59,7 @@ export default function CouponWallet({ coupons }: { coupons: OfferCoupon[] }) {
               <span className="mt-0.5 text-[13px] font-extrabold leading-none text-brand-dark">
                 {couponValue(coupon)}
               </span>
-              <span className="text-[7.5px] font-semibold uppercase tracking-wide text-brand-dark/60">
+              <span className="text-[10px] font-semibold uppercase tracking-wide text-ink-slate">
                 {coupon.discountType === "free_shipping" ? "delivery" : "off"}
               </span>
             </div>
@@ -72,7 +72,7 @@ export default function CouponWallet({ coupons }: { coupons: OfferCoupon[] }) {
               <p className="mt-0.5 line-clamp-2 text-[9px] leading-tight text-ink-slate">
                 {coupon.description}
               </p>
-              <p className="mt-0.5 text-[8.5px] text-ink-slate">
+              <p className="mt-0.5 text-[10px] text-ink-slate">
                 Min spend {formatPrice(coupon.minOrderAmount)} · {coupon.validity}
               </p>
 
@@ -95,7 +95,7 @@ export default function CouponWallet({ coupons }: { coupons: OfferCoupon[] }) {
                 )}
               </button>
               {failed && (
-                <p className="mt-0.5 text-center text-[8px] text-ink-slate">
+                <p className="mt-0.5 text-center text-[10px] text-ink-slate">
                   Copy blocked — type the code above at checkout.
                 </p>
               )}

@@ -31,6 +31,10 @@
   --color-brand-mist: #f4fbf9;
   /* the soft leaf green the reference uses for its decoration */
   --color-brand-leaf: #a1d8a4;
+  /* The mark's own leaf. The reference's logo greens measure hue 153-155,
+   * fresher than the interface ramp on purpose -- but the build had it at
+   * #7ed957, hue 102, which is a lime and reads as a different brand. */
+  --color-brand-leaf-bright: #06a05f;
   /* The primary action button is not a flat fill in the references. Sampling a
    * clean column down Continue, Continue to Payment and Pay Now gives
    * #038550 -> #016743, #08935e -> #056442 and #028f5c -> #03704e; these are
@@ -82,6 +86,7 @@
   --color-brand-tint: var(--color-brand-tint);
   --color-brand-mist: var(--color-brand-mist);
   --color-brand-leaf: var(--color-brand-leaf);
+  --color-brand-leaf-bright: var(--color-brand-leaf-bright);
   --color-brand-grad-top: var(--color-brand-grad-top);
   --color-brand-grad-bottom: var(--color-brand-grad-bottom);
   --color-ink: var(--color-ink);
@@ -114,6 +119,12 @@ body {
   background: #ffffff;
   color: var(--color-ink);
   font-family: var(--font-poppins), Arial, Helvetica, sans-serif;
+  /* Grayscale antialiasing rather than the platform default: it keeps a
+   * geometric sans crisp on high-density screens instead of thickening the
+   * strokes, which is what reads as soft at small sizes. */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
   /* The design is a single mobile screen; nothing may spill sideways. */
   overflow-x: hidden;
 }

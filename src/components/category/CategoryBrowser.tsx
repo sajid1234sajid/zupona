@@ -130,7 +130,7 @@ export default function CategoryBrowser({
                       className="object-cover"
                     />
                     {sub.productCount > 0 && (
-                      <span className="absolute bottom-0.5 right-0.5 rounded bg-black/55 px-1 text-[8px] font-semibold text-white">
+                      <span className="absolute bottom-0.5 right-0.5 rounded bg-black/55 px-1 text-[10px] font-semibold text-white">
                         {sub.productCount}
                       </span>
                     )}
@@ -165,7 +165,7 @@ export default function CategoryBrowser({
                       className="object-cover"
                     />
                     {product.discountPercent > 0 && (
-                      <span className="absolute left-1 top-1 rounded bg-brand px-1 text-[8px] font-bold text-white">
+                      <span className="absolute left-1 top-1 rounded bg-brand px-1 text-[10px] font-bold text-white">
                         -{product.discountPercent}%
                       </span>
                     )}

@@ -66,7 +66,7 @@ export default async function CategoryPage({
   const subcategories = category.subcategories ?? [];
 
   return (
-    <div className="mx-auto flex min-h-screen w-full max-w-md flex-col bg-[#f3f5f4] pb-20">
+    <div className="mx-auto flex min-h-screen w-full max-w-md flex-col bg-brand-mist pb-20">
       <ProductHeader />
 
       <main className="flex-1 px-4 pt-3">

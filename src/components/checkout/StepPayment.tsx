@@ -120,12 +120,12 @@ export default function StepPayment({
                       {WALLET_MARKS.map((mark) => (
                         <span
                           key={mark.label}
-                          className={`rounded-md border border-line bg-white px-1 py-1 text-[8.5px] font-bold leading-none ${mark.className}`}
+                          className={`rounded-md border border-line bg-white px-1 py-1 text-[10px] font-bold leading-none ${mark.className}`}
                         >
                           {mark.label}
                         </span>
                       ))}
-                      <span className="rounded-md border border-line bg-white px-1 py-1 text-[8.5px] font-bold leading-none text-ink-faint">
+                      <span className="rounded-md border border-line bg-white px-1 py-1 text-[10px] font-bold leading-none text-ink-faint">
                         &#8943;
                       </span>
                     </span>

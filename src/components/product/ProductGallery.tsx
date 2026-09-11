@@ -106,7 +106,7 @@ export default function ProductGallery({ product }: { product: StoreProduct }) {
               <p className="text-[17px] font-extrabold leading-tight">{product.heroHeadline}</p>
             )}
             {product.heroSubtitle && (
-              <p className="text-[11.5px] leading-tight text-white/85">{product.heroSubtitle}</p>
+              <p className="text-[11.5px] leading-tight text-brand-tint">{product.heroSubtitle}</p>
             )}
 
             {product.features && product.features.length > 0 && (
@@ -121,7 +121,7 @@ export default function ProductGallery({ product }: { product: StoreProduct }) {
                       }`}
                     >
                       <FeatureIcon className="h-4 w-4 shrink-0 text-brand-dark" strokeWidth={2.25} />
-                      <span className="text-[8.5px] font-semibold leading-tight text-brand-darkest">
+                      <span className="text-[10px] font-semibold leading-tight text-brand-darkest">
                         {feature.label}
                       </span>
                     </span>

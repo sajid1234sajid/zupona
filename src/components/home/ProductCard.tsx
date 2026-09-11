@@ -80,7 +80,7 @@ export default function ProductCard({
         </Link>
 
         {product.discountPercent > 0 && (
-          <span className="pointer-events-none absolute left-1 top-1 rounded-md bg-white/95 px-1 py-[1px] text-[7.5px] font-extrabold text-brand shadow-card">
+          <span className="pointer-events-none absolute left-1 top-1 rounded-md bg-white/95 px-1 py-[1px] text-[10px] font-extrabold text-brand shadow-card">
             -{product.discountPercent}%
           </span>
         )}
@@ -103,10 +103,10 @@ export default function ProductCard({
       </div>
 
       <Link href={`/product/${product.id}`} className="mt-1 block">
-        <h3 className="truncate text-[9.5px] font-bold leading-tight text-ink">{product.name}</h3>
+        <h3 className="truncate text-[12px] font-bold leading-tight text-heading">{product.name}</h3>
         <span className="mt-[3px] flex items-center gap-0.5">
-          <Star className="h-[9px] w-[9px] fill-accent-amber text-accent-amber" />
-          <span className="text-[7.5px] font-medium text-ink-muted">
+          <Star className="h-[12px] w-[12px] fill-gold text-gold" />
+          <span className="text-[11px] font-medium text-ink-slate">
             {product.rating} ({product.reviews})
           </span>
         </span>
@@ -114,11 +114,11 @@ export default function ProductCard({
 
       <div className="mt-1 flex items-center justify-between gap-1">
         <span className="min-w-0">
-          <span className="block truncate text-[11px] font-extrabold leading-none text-brand-darkest">
+          <span className="block truncate text-[14px] font-extrabold leading-none text-brand-darkest">
             {formatPrice(product.price)}
           </span>
           {product.oldPrice > product.price && (
-            <span className="mt-[2px] block truncate text-[7.5px] leading-none text-ink-muted line-through">
+            <span className="mt-[3px] block truncate text-[11px] leading-none text-ink-slate line-through">
               {formatPrice(product.oldPrice)}
             </span>
           )}
@@ -128,7 +128,7 @@ export default function ProductCard({
           type="button"
           onClick={handleAddToCart}
           disabled={cartPending}
-          className="inline-flex shrink-0 items-center justify-center gap-1 rounded-full bg-brand px-2 py-[4px] text-[7.5px] font-bold text-white disabled:opacity-70"
+          className="inline-flex shrink-0 items-center justify-center gap-1 rounded-full bg-brand px-2.5 py-[6px] text-[11px] font-bold text-white disabled:opacity-70"
         >
           {cartPending ? (
             <LoaderCircle className="h-2.5 w-2.5 animate-spin" />

@@ -51,7 +51,7 @@ export default function CategoryToolbar({
 
   return (
     <>
-      <div className="sticky top-0 z-10 -mx-4 flex items-center gap-2 border-b border-line-soft bg-brand-mist/95 px-4 py-2 backdrop-blur">
+      <div className="sticky top-0 z-10 -mx-4 flex items-center gap-2 border-b border-line-soft bg-brand-mist px-4 py-2">
         <span className="text-[10px] text-ink-slate">
           {resultCount} {resultCount === 1 ? "item" : "items"}
         </span>

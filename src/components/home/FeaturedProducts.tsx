@@ -79,7 +79,7 @@ export default function FeaturedProducts({
                 // Only the selected chip is a filled pill. Leaving the rest
                 // as plain labels is what lets all five sit on one line beside
                 // the heading at phone width.
-                className={`shrink-0 rounded-full py-[3px] text-[8px] font-semibold transition-colors ${
+                className={`shrink-0 rounded-full py-[3px] text-[10px] font-semibold transition-colors ${
                   isActive ? "bg-brand px-2 text-white" : "px-1 text-ink-muted"
                 }`}
               >
@@ -91,7 +91,7 @@ export default function FeaturedProducts({
 
         <Link
           href="/offers"
-          className="flex shrink-0 items-center gap-0.5 text-[8px] font-semibold text-brand"
+          className="flex shrink-0 items-center gap-0.5 text-[10px] font-semibold text-brand"
         >
           View All
           <ChevronRight className="h-2.5 w-2.5" strokeWidth={3} />

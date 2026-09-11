@@ -129,7 +129,7 @@ export default function AccountProfile({
                 {user.name}
               </p>
               {contact && (
-                <p className="mt-0.5 truncate text-[11.5px] text-white/70">{contact}</p>
+                <p className="mt-0.5 truncate text-[11.5px] text-brand-tint">{contact}</p>
               )}
               <span className="mt-1.5 inline-flex max-w-full items-center gap-1 rounded-full bg-white/20 px-2 py-[3px] text-[9.5px] font-semibold text-white">
                 <BadgeCheck className="h-3 w-3 shrink-0 text-brand-light" />
@@ -164,7 +164,7 @@ export default function AccountProfile({
             <span className="block text-[13.5px] font-bold">Need Help?</span>
             {/* Wraps rather than truncates: on a 320px screen the sentence is
                 the only thing telling you what the button does. */}
-            <span className="mt-0.5 block text-[10.5px] leading-tight text-white/75">
+            <span className="mt-0.5 block text-[10.5px] leading-tight text-brand-tint">
               Our support team is here for you
             </span>
           </span>
@@ -187,7 +187,7 @@ export default function AccountProfile({
           <span className="shrink-0 rounded-full bg-brand-tint px-2.5 py-1 text-[11px] font-bold text-brand-dark">
             {user.points} pts
           </span>
-          <ChevronRight className="h-4 w-4 shrink-0 text-ink-muted/60" />
+          <ChevronRight className="h-4 w-4 shrink-0 text-ink-slate" />
         </Link>
 
         {/* ---------------- Order / wishlist counts ---------------- */}
@@ -305,7 +305,7 @@ export default function AccountProfile({
                     {unreadNotificationCount > 9 ? "9+" : unreadNotificationCount}
                   </span>
                 )}
-                <ChevronRight className="h-4 w-4 shrink-0 text-ink-muted/50" />
+                <ChevronRight className="h-4 w-4 shrink-0 text-ink-faint" />
               </Link>
             ))}
           </div>

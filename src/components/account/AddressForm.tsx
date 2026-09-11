@@ -31,7 +31,7 @@ export default function AddressForm({
               defaultChecked={(address?.label ?? "Home") === label}
               className="peer sr-only"
             />
-            <span className="flex cursor-pointer items-center justify-center rounded-full py-2 text-xs font-semibold text-brand-dark/50 peer-checked:bg-white peer-checked:text-brand-dark peer-checked:shadow-card">
+            <span className="flex cursor-pointer items-center justify-center rounded-full py-2 text-xs font-semibold text-ink-slate peer-checked:bg-white peer-checked:text-brand-dark peer-checked:shadow-card">
               {label}
             </span>
           </label>

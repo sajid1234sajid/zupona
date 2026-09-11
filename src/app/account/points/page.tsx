@@ -18,13 +18,13 @@ export default async function PointsPage() {
       </header>
       <main className="flex-1 px-4 pt-4">
         <div className="rounded-2xl bg-brand-darkest p-5 text-white">
-          <p className="text-xs text-white/70">Your balance</p>
+          <p className="text-xs text-brand-tint">Your balance</p>
           <div className="mt-1 flex items-center gap-2">
             <Star className="h-6 w-6 fill-gold text-gold" />
             <span className="text-3xl font-bold">{user.points}</span>
-            <span className="text-sm text-white/70">pts</span>
+            <span className="text-sm text-brand-tint">pts</span>
           </div>
-          <p className="mt-2 text-xs text-white/60">Earn 1 point for every ৳50 you spend.</p>
+          <p className="mt-2 text-xs text-brand-tint">Earn 1 point for every ৳50 you spend.</p>
         </div>
 
         <h2 className="mb-2 mt-5 text-sm font-bold text-heading">History</h2>

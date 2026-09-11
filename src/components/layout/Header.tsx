@@ -25,7 +25,7 @@ export default async function Header() {
           </span>
           <span className="min-w-0 leading-none">
             <span className="block text-[17px] font-extrabold tracking-tight">Zupona</span>
-            <span className="mt-0.5 block text-[8px] font-medium text-white/70">
+            <span className="mt-0.5 block text-[10px] font-medium text-brand-tint">
               Trusted Online Shop
             </span>
           </span>
@@ -44,7 +44,7 @@ export default async function Header() {
           <Link href="/wishlist" aria-label="Wishlist" className="relative block">
             <Heart className="h-[18px] w-[18px]" strokeWidth={2.1} />
             {wishlistCount > 0 && (
-              <span className="absolute -right-1.5 -top-1.5 grid h-3.5 min-w-3.5 place-items-center rounded-full bg-accent-red px-1 text-[8px] font-bold text-white">
+              <span className="absolute -right-1.5 -top-1.5 grid h-[17px] min-w-[17px] place-items-center rounded-full bg-accent-red px-1 text-[10px] leading-none font-bold text-white">
                 {wishlistCount}
               </span>
             )}
@@ -52,9 +52,11 @@ export default async function Header() {
 
           <Link href="/cart" aria-label={`Cart, ${cartCount} items`} className="relative block">
             <ShoppingCart className="h-[18px] w-[18px]" strokeWidth={2.1} />
-            <span className="absolute -right-1.5 -top-1.5 grid h-3.5 min-w-3.5 place-items-center rounded-full bg-accent-amber px-1 text-[8px] font-bold text-brand-darkest">
-              {cartCount}
-            </span>
+            {cartCount > 0 && (
+              <span className="absolute -right-1.5 -top-1.5 grid h-[17px] min-w-[17px] place-items-center rounded-full bg-accent-amber px-1 text-[10px] font-bold leading-none text-brand-darkest">
+                {cartCount}
+              </span>
+            )}
           </Link>
         </div>
       </div>

@@ -33,7 +33,7 @@ export default function FlashSaleCard({ item }: { item: FlashSaleItem }) {
           </span>
         ) : (
           saving > 0 && (
-            <span className="absolute left-1 top-1 rounded bg-accent-red px-1 py-0.5 text-[8.5px] font-bold text-white">
+            <span className="absolute left-1 top-1 rounded bg-accent-red px-1 py-0.5 text-[10px] font-bold text-white">
               Save {formatPrice(saving)}
             </span>
           )
@@ -60,7 +60,7 @@ export default function FlashSaleCard({ item }: { item: FlashSaleItem }) {
         />
       </div>
       <p
-        className={`mt-0.5 text-[8.5px] font-semibold ${
+        className={`mt-0.5 text-[10px] font-semibold ${
           nearlyGone ? "text-accent-red" : "text-ink-slate"
         }`}
       >

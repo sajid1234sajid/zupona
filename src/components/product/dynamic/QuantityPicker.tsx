@@ -45,7 +45,7 @@ export default function QuantityPicker({
           <Minus className="h-4 w-4" />
         </button>
 
-        <span aria-live="polite" className="min-w-10 text-center text-sm font-black text-heading">
+        <span aria-live="polite" className="min-w-10 text-center text-sm font-extrabold text-heading">
           {quantity}
         </span>
 

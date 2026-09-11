@@ -114,11 +114,11 @@ export default function ProductCard({
 
       <div className="mt-1 flex items-center justify-between gap-1">
         <span className="min-w-0">
-          <span className="block truncate text-[14px] font-extrabold leading-none text-brand-darkest">
+          <span className="block truncate text-[14px] font-extrabold leading-[1.25] text-brand-darkest">
             {formatPrice(product.price)}
           </span>
           {product.oldPrice > product.price && (
-            <span className="mt-[3px] block truncate text-[11px] leading-none text-ink-slate line-through">
+            <span className="mt-[2px] block truncate text-[11px] leading-[1.3] text-ink-slate line-through">
               {formatPrice(product.oldPrice)}
             </span>
           )}

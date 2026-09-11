@@ -126,7 +126,7 @@ export default async function OrderConfirmedPage({ params }: PageProps<"/checkou
                   #{order.orderNumber}
                 </p>
               </div>
-              <span className="flex shrink-0 items-center gap-1 rounded-full bg-brand-light px-2.5 py-1.5 text-[11px] font-bold text-white">
+              <span className="flex shrink-0 items-center gap-1 rounded-full bg-brand px-2.5 py-1.5 text-[11px] font-bold text-white">
                 <Check className="h-3.5 w-3.5" strokeWidth={3} />
                 Confirmed
               </span>

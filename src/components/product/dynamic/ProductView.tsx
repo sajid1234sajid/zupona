@@ -147,7 +147,7 @@ export default function ProductView({
         type="button"
         onClick={() => startAdd(addToCart())}
         disabled={!canBuy || addPending || buyPending}
-        className="flex min-h-[46px] flex-1 items-center justify-center gap-2 rounded-full border-2 border-brand-darkest bg-white px-4 text-sm font-black text-brand-darkest transition disabled:cursor-not-allowed disabled:opacity-45 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+        className="flex min-h-[46px] flex-1 items-center justify-center gap-2 rounded-full border-2 border-brand-darkest bg-white px-4 text-sm font-extrabold text-brand-darkest transition disabled:cursor-not-allowed disabled:opacity-45 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
       >
         {addPending ? (
           <LoaderCircle className="h-4 w-4 animate-spin" />
@@ -161,7 +161,7 @@ export default function ProductView({
         type="button"
         onClick={() => startBuy(buyNow())}
         disabled={!canBuy || addPending || buyPending}
-        className="flex min-h-[46px] flex-1 items-center justify-center gap-2 rounded-full bg-brand px-4 text-sm font-black text-white transition disabled:cursor-not-allowed disabled:opacity-45 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+        className="flex min-h-[46px] flex-1 items-center justify-center gap-2 rounded-full bg-brand px-4 text-sm font-extrabold text-white transition disabled:cursor-not-allowed disabled:opacity-45 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
       >
         {buyPending ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Zap className="h-[18px] w-[18px] fill-current" />}
         Buy Now
@@ -246,14 +246,14 @@ export default function ProductView({
           </div>
 
           <div className="mt-3.5 flex flex-wrap items-center gap-2.5">
-            <span className="text-[30px] font-black leading-none tracking-tight text-heading">
+            <span className="text-[30px] font-extrabold leading-none tracking-tight text-heading">
               {formatPrice(price)}
             </span>
             {compareAtPrice > price && (
               <span className="text-sm text-[#8c8e90] line-through">{formatPrice(compareAtPrice)}</span>
             )}
             {discountPercent > 0 && (
-              <span className="rounded-full bg-brand px-2.5 py-1.5 text-[11px] font-black text-white">
+              <span className="rounded-full bg-brand px-2.5 py-1.5 text-[11px] font-extrabold text-white">
                 {discountPercent}% OFF
               </span>
             )}

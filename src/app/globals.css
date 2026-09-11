@@ -45,7 +45,12 @@
   /* Body copy is a very dark green rather than black, which keeps the page
    * feeling like one palette instead of green accents on a grey page. */
   --color-ink: #123527;
-  --color-ink-muted: #6b8078;
+  /* Contrast measured, not assumed. #6b8078 sits at 4.21:1 on white and
+   * #7879ae at 4.08 -- both under AA for body text, and that is what reads as
+   * washed out rather than as quiet. These are the smallest steps that clear
+   * 4.5, keeping each one's character. The placeholder tone stays deliberately
+   * below it at 3.05 so a hint never looks like a filled value. */
+  --color-ink-muted: #5f746e;
   /* Sampled from the checkout references rather than reached for out of a
    * palette: the headings there are a near-black green, the secondary copy and
    * the placeholders are a cool slate, and the card and input borders are a
@@ -57,7 +62,7 @@
    * (R2 #5b7a8b, R3 #597c96, R4 #6384aa) pulled far enough to reach 4.84:1,
    * which also stops the secondary copy reading as washed out. */
   --color-ink-slate: #56758f;
-  --color-ink-faint: #a1b2c0;
+  --color-ink-faint: #8496a6;
   --color-line: #e1e9ee;
   --color-line-soft: #e8eff4;
   --color-accent-red: #e03131;
@@ -74,7 +79,7 @@
   --color-surface: #f4fbf9;
   --color-mint: #dcf2ec;
   --color-gold: #fcae0e;
-  --color-ink-soft: #7879ae;
+  --color-ink-soft: #6e70a6;
   --color-heading: #00231c;
 }
 
@@ -119,12 +124,12 @@ body {
   background: #ffffff;
   color: var(--color-ink);
   font-family: var(--font-poppins), Arial, Helvetica, sans-serif;
-  /* Grayscale antialiasing rather than the platform default: it keeps a
-   * geometric sans crisp on high-density screens instead of thickening the
-   * strokes, which is what reads as soft at small sizes. */
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  text-rendering: optimizeLegibility;
+  /* The platform's own subpixel rendering, deliberately: grayscale smoothing
+   * thins these weights and is what makes small copy read washed out rather
+   * than sharp. `optimizeLegibility` is left off for the same reason -- it
+   * changes shaping without making an edge any cleaner. */
+  -webkit-font-smoothing: auto;
+  -moz-osx-font-smoothing: auto;
   /* The design is a single mobile screen; nothing may spill sideways. */
   overflow-x: hidden;
 }

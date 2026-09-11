@@ -40,7 +40,7 @@ export default function OrderProgress({ steps, eta }: { steps: OrderStep[]; eta:
                   step.done
                     ? "bg-brand text-white"
                     : current
-                      ? "bg-brand-light text-white"
+                      ? "bg-brand text-white"
                       : "bg-line text-ink-slate"
                 }`}
               >

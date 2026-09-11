@@ -162,7 +162,13 @@ lose the link that says what it was. The same goes for a variant —
 `inventory_movements.variant_id` cascades, so a hard `DELETE` would erase its
 ledger history along with it. A cart line pointing at a retired combination is
 kept and shown as unavailable rather than dropped, and checkout refuses while
-it is there; an order line pointing at one still reads exactly as it did.
+it is there; an order line pointing at one still reads exactly as it did. The
+same holds when the whole product is archived: the line stays, marked, and
+`getReferencedProductsByIds` is what lets it still be drawn — a cart line is a
+reference the shopper already made, not a listing, so it resolves whatever the
+product's status. The one line still dropped is one whose product row has gone
+entirely, because `cart_items.product_id` carries no foreign key and there is
+no name, picture or price left to draw it with.
 
 **A stock change is two statements, and they travel together.**
 `stockChangeStatements()` in `src/lib/inventory.ts` returns the quantity update

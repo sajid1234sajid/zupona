@@ -817,6 +817,35 @@ export async function getStoreProductsByIds(
   return new Map(results.map((row) => [row.id, toCard(row)]));
 }
 
+/** Products a shopper already holds a reference to, whatever their status.
+ *
+ * `getStoreProductsByIds` above deliberately returns only active products, and
+ * every listing depends on that. But a cart line is not a listing: it is a
+ * reference the shopper made when the product *was* on sale, and archiving the
+ * product is not a reason for their line to disappear without a word. This
+ * looks one up so the line can still be drawn -- and then be marked as no
+ * longer available.
+ *
+ * Only ever call this for ids that are already referenced somewhere. It has no
+ * status filter, so using it to build a listing would put archived products
+ * back on the storefront. */
+export async function getReferencedProductsByIds(
+  ids: string[]
+): Promise<Map<string, StoreProductCard>> {
+  const unique = [...new Set(ids)].filter(Boolean);
+  if (unique.length === 0) return new Map();
+
+  const db = await getDB();
+  const placeholders = unique.map(() => "?").join(",");
+
+  const { results } = await db
+    .prepare(`${CARD_SELECT} WHERE p.id IN (${placeholders})`)
+    .bind(...unique)
+    .all<CardRow>();
+
+  return new Map(results.map((row) => [row.id, toCard(row)]));
+}
+
 /** Single-product lookup for the cart and wishlist server actions. */
 export async function getStoreProductCard(id: string): Promise<StoreProductCard | null> {
   const map = await getStoreProductsByIds([id]);

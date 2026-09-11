@@ -1,5 +1,5 @@
 import { getDB } from "@/lib/db";
-import { getStoreProductsByIds } from "@/lib/storefront";
+import { getReferencedProductsByIds, getStoreProductsByIds } from "@/lib/storefront";
 import type { CartItem } from "@/types";
 
 interface CartRow {
@@ -31,24 +31,35 @@ export async function getCartItems(userId: string): Promise<CartItem[]> {
     .bind(userId)
     .all<CartRow>();
 
-  // One lookup for the whole cart rather than one per line. A product that has
-  // since been archived is simply missing from the map, which drops it from
-  // the cart instead of rendering an empty row.
-  const catalog = await getStoreProductsByIds(results.map((row) => row.product_id));
+  // One lookup for the whole cart rather than one per line, and it returns only
+  // active products. Anything a line names that is not in it has been archived
+  // or unpublished since, so it is looked up a second time without the status
+  // filter -- not to sell it, but so the line can still be drawn and then be
+  // marked as no longer available. The second query only runs when something is
+  // actually missing.
+  const productIds = results.map((row) => row.product_id);
+  const catalog = await getStoreProductsByIds(productIds);
+  const missing = productIds.filter((id) => !catalog.has(id));
+  const unlisted = missing.length > 0 ? await getReferencedProductsByIds(missing) : new Map();
 
   return results
     .map((row) => {
-      const product = catalog.get(row.product_id);
+      const product = catalog.get(row.product_id) ?? unlisted.get(row.product_id);
+      // The product row itself is gone. `cart_items.product_id` carries no
+      // foreign key, so an orphan line is possible -- and there is no name,
+      // picture or price left to draw it with, so this one really is dropped.
       if (!product) return null;
 
-      // A line naming a variant that has been retired is kept and marked,
-      // not dropped. Retiring an option value is now an ordinary admin action,
-      // so this is something a shopper will meet -- and an item disappearing
-      // from a cart with no explanation is worse than one shown as no longer
-      // available. It cannot be bought: it is excluded from the total and
-      // checkout refuses while it is there.
-      const unavailable =
+      // Two ways a line can stop being buyable, and neither may make it vanish.
+      // The variant it names was retired, or the product itself was archived.
+      // An item disappearing from a cart with no explanation is worse than one
+      // shown as no longer available -- so the line is kept and marked. It
+      // cannot be bought: it is left out of the total, its stepper is disabled,
+      // and checkout refuses while it is there.
+      const variantRetired =
         row.variant_id !== null && (row.variant_active === null || row.variant_active !== 1);
+      const productArchived = !catalog.has(row.product_id);
+      const unavailable = variantRetired || productArchived;
 
       // The variant's own price where it has one, the product's otherwise --
       // the `effectivePrice` the schema asks callers to read rather than

@@ -129,6 +129,39 @@ Always change stock through `src/lib/inventory.ts` so the two agree.
 hold stock without deducting it. `reserveStock` does the check and the hold in
 one conditional `UPDATE`, so two shoppers cannot both claim the last item.
 
+**Options are stored twice, on purpose.** `product_option_groups` /
+`product_option_values` / `product_variant_options` are the canonical form and
+what `/products/<slug>` reads. `product_variants.option1_*` / `option2_*` /
+`swatch` are the older two-slot form and what `/product/<id>` and the admin
+edit form still read. Anything that writes options must write both, or one of
+the two pages silently loses its selectors — which is exactly what happened
+while only one writer existed. The legacy mirror is deliberately narrow: only a
+`color` group reaches `option1_*` and only a `size` group reaches `option2_*`,
+because the legacy page draws `option1_value` as a colour swatch and has no way
+to render a Storage or Volume option. The mirror carries the value's `label`,
+not its `value` slug, since that slot is read straight onto the page.
+
+**One combination, one sellable variant.** `product_variant_options` has a
+primary key of `(variant_id, group_id)`, which stops a variant holding two
+values for the same group. It cannot stop two variants holding the same set of
+values, because that is a property of a group of rows. So each variant also
+carries `option_signature` — its `<group key>=<value id>` pairs sorted by key
+and joined with `|`, empty when it has no options — and
+`idx_variant_combination` makes that unique per product among active variants.
+Value ids rather than labels, so renaming a colour does not mint a new
+combination.
+
+**Retiring an option is a sellability change, not a stock movement.** Setting
+`is_active = 0` on a group or a value deactivates the variants that carry it.
+Their `stock_quantity`, `reserved_quantity`, SKU and price are left exactly as
+they are and **nothing is written to `inventory_movements`** — re-activating the
+value brings the same variant back with the same numbers. Stock only ever moves
+through `src/lib/inventory.ts`. Deleting a group or a value is not an option at
+all: `product_variant_options` cascades from both, so a sold combination would
+lose the link that says what it was. The same goes for a variant —
+`inventory_movements.variant_id` cascades, so a hard `DELETE` would erase its
+ledger history along with it.
+
 **Orders split into suborders.** A single customer order becomes one `suborders`
 row per seller, which is what fulfillment, commission and payouts key off.
 

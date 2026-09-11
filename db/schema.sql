@@ -264,10 +264,25 @@ CREATE TABLE IF NOT EXISTS product_variants (
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   -- Picking a colour swaps the main image. A still, never a video: nobody
   -- expects the gallery to jump to a clip when they choose a colour.
-  image_id TEXT REFERENCES product_images(id) ON DELETE SET NULL
+  image_id TEXT REFERENCES product_images(id) ON DELETE SET NULL,
+  -- The variant's combination flattened to one string: `<group key>=<value id>`
+  -- pairs sorted by key and joined with `|`, empty for a variant with no
+  -- options. product_variant_options can stop one variant holding two values
+  -- for a group, but not two variants holding the same set -- that is a
+  -- property of a group of rows. Flattening it makes it something a unique
+  -- index can see. Value ids, not labels, so renaming "Black" to "Jet Black"
+  -- does not mint a new combination.
+  option_signature TEXT NOT NULL DEFAULT ''
 );
 
 CREATE INDEX IF NOT EXISTS idx_product_variants_product_id ON product_variants (product_id);
+
+-- One combination, one sellable variant. Partial on is_active: a retired
+-- variant keeps its signature so re-activating it lands on the same row, and
+-- must be allowed to sit beside the live one that replaced it.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_variant_combination
+  ON product_variants (product_id, option_signature)
+  WHERE is_active = 1;
 
 -- Dynamic options: however many a product actually has, named by whoever
 -- uploads it. A watch has Colour, a shoe has Size, a phone has Storage and
@@ -282,6 +297,10 @@ CREATE TABLE IF NOT EXISTS product_option_groups (
   display TEXT NOT NULL DEFAULT 'pill', -- swatch | image | pill | dropdown
   show_labels INTEGER NOT NULL DEFAULT 1, -- print the value name under a swatch
   sort_order INTEGER NOT NULL DEFAULT 0,
+  -- Retired rather than deleted. product_variant_options cascades from a
+  -- group, so deleting one would strip the links that say what its sold
+  -- variants were. Retiring stops it being offered and keeps the history.
+  is_active INTEGER NOT NULL DEFAULT 1,
   UNIQUE (product_id, key)
 );
 
@@ -295,6 +314,12 @@ CREATE TABLE IF NOT EXISTS product_option_values (
   color_hex TEXT, -- hex or CSS gradient, same as product_variants.swatch
   image_url TEXT,
   sort_order INTEGER NOT NULL DEFAULT 0,
+  -- Same reasoning as the group: a colour that is gone for good should stop
+  -- being offered, not stop existing. Deactivating a value deactivates the
+  -- variants carrying it; it is a sellability change, never a stock movement,
+  -- so their stock, reservations, SKU and price are left exactly as they are
+  -- and nothing is written to inventory_movements.
+  is_active INTEGER NOT NULL DEFAULT 1,
   UNIQUE (group_id, value)
 );
 

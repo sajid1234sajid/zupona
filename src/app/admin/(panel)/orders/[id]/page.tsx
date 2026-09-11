@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, MapPin, Phone, Truck, User } from "lucide-react";
+import { ArrowLeft, MapPin, MessageCircle, Phone, Truck, User } from "lucide-react";
 import { getOrderDetail } from "@/lib/adminData";
 import { formatAddressLine, formatDateTime, formatPrice } from "@/lib/format";
 import {
@@ -47,6 +47,21 @@ export default async function OrderDetailPage(props: PageProps<"/admin/orders/[i
   const reachedIndex = TIMELINE.indexOf(order.status);
   const cancelled = order.status === "cancelled";
 
+  // Cash on Delivery is how most of these are paid, and the number that has to
+  // travel with the rider is the one thing the screen never said out loud.
+  const codDue =
+    !cancelled && order.paymentStatus !== "paid" && /cash on delivery/i.test(order.paymentLabel)
+      ? order.total
+      : 0;
+
+  // The cost snapshot is taken at purchase precisely so margin survives later
+  // price changes. Zero means the products had no cost recorded, in which case
+  // a margin would be a fiction, so none is shown.
+  const costTotal = order.items.reduce((sum, item) => sum + item.costPrice * item.quantity, 0);
+  const margin = costTotal > 0 ? order.subtotal - order.discountTotal - costTotal : null;
+
+  const returning = order.customerOrderCount > 1;
+
   return (
     <>
       <PageHeader
@@ -60,6 +75,18 @@ export default async function OrderDetailPage(props: PageProps<"/admin/orders/[i
           </Link>
         }
       />
+
+      {codDue > 0 ? (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+          <p className="text-sm text-amber-900">
+            <span className="font-bold">Collect {formatPrice(codDue)} on delivery</span> — cash on
+            delivery, not yet marked paid.
+          </p>
+          <span className="text-[12px] text-amber-800">
+            Mark the payment paid once the rider hands the cash over.
+          </span>
+        </div>
+      ) : null}
 
       <div className="grid gap-5 xl:grid-cols-12">
         <div className="min-w-0 space-y-4 xl:col-span-8">
@@ -222,6 +249,7 @@ export default async function OrderDetailPage(props: PageProps<"/admin/orders/[i
                   <tr className="border-b border-neutral-100">
                     <Th className="pl-4 lg:pl-3">Product</Th>
                     <Th>Variant</Th>
+                    <Th>SKU</Th>
                     <Th className="text-right">Price</Th>
                     <Th className="text-right">Qty</Th>
                     <Th className="pr-4 text-right lg:pr-3">Subtotal</Th>
@@ -242,6 +270,7 @@ export default async function OrderDetailPage(props: PageProps<"/admin/orders/[i
                         </div>
                       </Td>
                       <Td className="text-neutral-500">{item.color || "—"}</Td>
+                      <Td className="font-mono text-[12px] text-neutral-500">{item.sku || "—"}</Td>
                       <Td className="whitespace-nowrap text-right">{formatPrice(item.price)}</Td>
                       <Td className="text-right">{item.quantity}</Td>
                       <Td className="whitespace-nowrap pr-4 text-right font-semibold lg:pr-3">
@@ -274,6 +303,17 @@ export default async function OrderDetailPage(props: PageProps<"/admin/orders/[i
                 <dt className="font-bold text-neutral-900">Total</dt>
                 <dd className="font-bold text-neutral-900">{formatPrice(order.total)}</dd>
               </div>
+              {margin !== null ? (
+                <div className="flex justify-between border-t border-neutral-100 pt-2 text-[13px]">
+                  <dt className="text-neutral-500">
+                    Margin on goods{" "}
+                    <span className="text-neutral-400">(cost {formatPrice(costTotal)})</span>
+                  </dt>
+                  <dd className={margin >= 0 ? "font-semibold text-brand-dark" : "font-semibold text-accent-red"}>
+                    {formatPrice(margin)}
+                  </dd>
+                </div>
+              ) : null}
             </dl>
           </Card>
 
@@ -325,8 +365,51 @@ export default async function OrderDetailPage(props: PageProps<"/admin/orders/[i
               ) : null}
               <p className="flex items-center gap-2 text-neutral-700">
                 <Phone className="h-4 w-4 shrink-0 text-neutral-400" />
-                {order.addressPhone}
+                <a href={`tel:${order.addressPhone}`} className="font-medium hover:text-brand">
+                  {order.addressPhone}
+                </a>
               </p>
+
+              {/* Cash-on-delivery orders get confirmed by phone before anyone
+                  dispatches them, so the number is dialable and reachable on
+                  WhatsApp straight from here rather than copied by hand. */}
+              <div className="flex flex-wrap gap-2 pt-1">
+                <a href={`tel:${order.addressPhone}`} className={buttonStyles.secondary}>
+                  <Phone className="h-4 w-4" />
+                  Call
+                </a>
+                <a
+                  href={`https://wa.me/${order.addressPhone.replace(/[^0-9]/g, "").replace(/^0/, "880")}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={buttonStyles.secondary}
+                >
+                  <MessageCircle className="h-4 w-4" />
+                  WhatsApp
+                </a>
+              </div>
+
+              {/* First-timer or regular: worth knowing before the call, and
+                  before a large cash-on-delivery order goes out. */}
+              <dl className="mt-1 grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-neutral-200 bg-neutral-200 text-[12px]">
+                <div className="bg-white px-2.5 py-2">
+                  <dt className="text-[10.5px] text-neutral-500">Orders placed</dt>
+                  <dd className="mt-0.5 font-medium text-neutral-800">
+                    {order.customerOrderCount}
+                    <span className={`ml-1.5 rounded px-1.5 py-px text-[10px] font-semibold ${
+                      returning ? "bg-brand-tint text-brand-dark" : "bg-amber-100 text-amber-800"
+                    }`}>
+                      {returning ? "Returning" : "First order"}
+                    </span>
+                  </dd>
+                </div>
+                <div className="bg-white px-2.5 py-2">
+                  <dt className="text-[10.5px] text-neutral-500">Spent with us</dt>
+                  <dd className="mt-0.5 font-medium text-neutral-800">
+                    {formatPrice(order.customerLifetimeValue)}
+                  </dd>
+                </div>
+              </dl>
             </div>
           </Card>
 
@@ -359,7 +442,7 @@ export default async function OrderDetailPage(props: PageProps<"/admin/orders/[i
               {[
                 { label: "Division", value: order.addressCity },
                 { label: "District", value: order.addressDistrict ?? "Not recorded" },
-                { label: "Thana / Upazila", value: order.addressArea ?? "Not recorded" },
+                { label: "Thana", value: order.addressArea ?? "Not recorded" },
               ].map((row) => (
                 <div key={row.label} className="bg-white px-2.5 py-2">
                   <dt className="text-[10.5px] text-neutral-500">{row.label}</dt>

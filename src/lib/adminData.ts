@@ -472,9 +472,18 @@ export interface AdminOrderDetail {
     name: string;
     image: string;
     color: string | null;
+    /** The variant's SKU -- what gets picked off a shelf. */
+    sku: string | null;
     price: number;
+    /** Snapshot of what the item cost us, taken at purchase. */
+    costPrice: number;
     quantity: number;
   }[];
+  /** What else this customer has bought from us, so a first-time buyer can be
+   * told from a regular before anyone rings them. */
+  customerOrderCount: number;
+  customerLifetimeValue: number;
+  customerFirstOrderAt: string | null;
   history: { status: string; note: string | null; at: string; by: string | null }[];
   /** One entry per seller in the order -- and one for an order that is
    * entirely the platform's. This is where courier and tracking live. */
@@ -508,11 +517,17 @@ export async function getOrderDetail(idOrNumber: string): Promise<AdminOrderDeta
 
   if (!row) return null;
 
-  const [items, history, fulfilment] = await db.batch<Record<string, unknown>>([
+  const [items, history, fulfilment, customer] = await db.batch<Record<string, unknown>>([
+    // The SKU is what someone actually picks off a shelf, and the cost price
+    // was snapshotted at purchase precisely so margin could be read back
+    // later; neither was being surfaced.
     db
       .prepare(
-        `SELECT id, product_id, name, image, color, price, quantity
-         FROM order_items WHERE order_id = ?`
+        `SELECT oi.id, oi.product_id, oi.name, oi.image, oi.color, oi.price, oi.quantity,
+                oi.cost_price, v.sku
+         FROM order_items oi
+         LEFT JOIN product_variants v ON v.id = oi.variant_id
+         WHERE oi.order_id = ?`
       )
       .bind(row.id),
     db
@@ -536,6 +551,18 @@ export async function getOrderDetail(idOrNumber: string): Promise<AdminOrderDeta
          WHERE s.order_id = ? ORDER BY s.rowid ASC`
       )
       .bind(row.id),
+    // How many orders this customer has placed, and what they have spent, so
+    // the person working the order can tell a first-time buyer from a regular
+    // before they ring them. Cancelled orders are excluded from the money but
+    // still counted, because a cancellation is part of the history.
+    db
+      .prepare(
+        `SELECT COUNT(*) AS order_count,
+                COALESCE(SUM(CASE WHEN status != 'cancelled' THEN total ELSE 0 END), 0) AS lifetime_value,
+                MIN(placed_at) AS first_order_at
+         FROM orders WHERE user_id = ?`
+      )
+      .bind(row.user_id),
   ]);
 
   return {
@@ -570,15 +597,29 @@ export async function getOrderDetail(idOrNumber: string): Promise<AdminOrderDeta
       color: string | null;
       price: number;
       quantity: number;
+      cost_price: number;
+      sku: string | null;
     }[]).map((item) => ({
       id: item.id,
       productId: item.product_id,
       name: item.name,
       image: item.image,
       color: item.color,
+      sku: item.sku,
       price: item.price,
+      costPrice: item.cost_price,
       quantity: item.quantity,
     })),
+    customerOrderCount: Number(
+      (customer.results?.[0] as Record<string, unknown> | undefined)?.order_count ?? 0
+    ),
+    customerLifetimeValue: Number(
+      (customer.results?.[0] as Record<string, unknown> | undefined)?.lifetime_value ?? 0
+    ),
+    customerFirstOrderAt:
+      ((customer.results?.[0] as Record<string, unknown> | undefined)?.first_order_at as
+        | string
+        | null) ?? null,
     history: (history.results as unknown as {
       status: string;
       note: string | null;

@@ -19,26 +19,26 @@ function LeafSprig({ className, flip = false }: { className: string; flip?: bool
       {/* stem */}
       <path
         d="M8 96 C34 88 58 70 78 44"
-        stroke="var(--color-brand-light)"
+        stroke="var(--color-brand-leaf)"
         strokeWidth="2.5"
         strokeLinecap="round"
-        opacity="0.55"
+        opacity="0.9"
       />
       {/* three leaves along it, largest at the tip */}
       <path
         d="M78 44 C78 26 90 12 108 10 C110 28 98 42 78 44 Z"
-        fill="var(--color-brand-light)"
-        opacity="0.45"
+        fill="var(--color-brand-leaf)"
+        opacity="0.95"
       />
       <path
         d="M52 66 C48 50 56 34 72 28 C77 44 69 60 52 66 Z"
-        fill="var(--color-brand)"
-        opacity="0.3"
+        fill="var(--color-brand-leaf)"
+        opacity="0.7"
       />
       <path
         d="M24 86 C16 72 20 55 34 46 C42 60 38 77 24 86 Z"
-        fill="var(--color-brand-light)"
-        opacity="0.35"
+        fill="var(--color-brand-leaf)"
+        opacity="0.85"
       />
     </svg>
   );
@@ -47,10 +47,9 @@ function LeafSprig({ className, flip = false }: { className: string; flip?: bool
 export default function LeafBackdrop() {
   return (
     <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
-      {/* the diffuse wash, as before */}
-      <span className="absolute -top-20 -right-20 h-56 w-56 rounded-full bg-brand-light/15 blur-3xl" />
-      <span className="absolute top-1/3 -left-24 h-56 w-56 rounded-full bg-brand/10 blur-3xl" />
-
+      {/* No blurred blobs: the reference has none. Sampling it at the left edge
+          and the centre gives the same colour at every depth, so anything
+          radial here shows up as a tint the design does not have. */}
       {/* the pale wave the references carry along the bottom edge */}
       <svg
         viewBox="0 0 390 120"
@@ -70,8 +69,11 @@ export default function LeafBackdrop() {
         />
       </svg>
 
-      <LeafSprig className="absolute -left-4 bottom-0 h-28 w-32" />
-      <LeafSprig className="absolute -right-4 bottom-2 h-32 w-36" flip />
+      {/* Kept clear of the very edges: in the reference the leftmost column of
+          the screen is still background at the bottom, with the sprig starting
+          a little way in. */}
+      <LeafSprig className="absolute left-1 bottom-0 h-24 w-28" />
+      <LeafSprig className="absolute right-1 bottom-1 h-28 w-32" flip />
     </div>
   );
 }

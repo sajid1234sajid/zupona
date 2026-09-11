@@ -75,16 +75,16 @@ export default function VerificationCard({
           )}
         </span>
         <div className="min-w-0">
-          <h2 className="text-sm font-bold text-neutral-800">
+          <h2 className="text-sm font-bold text-ink-strong">
             {verified ? "Mobile number verified" : "Enter verification code"}
           </h2>
-          <p className="text-[10px] leading-tight text-neutral-400">
+          <p className="text-[10px] leading-tight text-ink-slate">
             {verified ? (
               <>{formatBdPhone(phone)} is confirmed for this order.</>
             ) : (
               <>
                 We&apos;ve sent a {CODE_LENGTH}-digit code to your phone number{" "}
-                <span className="font-semibold text-neutral-500">{formatBdPhone(phone)}</span>
+                <span className="font-semibold text-ink-slate">{formatBdPhone(phone)}</span>
               </>
             )}
           </p>
@@ -123,7 +123,7 @@ export default function VerificationCard({
                 ? "border-brand/40 bg-brand-tint text-brand-dark"
                 : digit.trim()
                   ? "border-brand bg-white text-brand-darkest"
-                  : "border-neutral-200 bg-white text-neutral-800 focus:border-brand"
+                  : "border-line bg-white text-ink-strong focus:border-brand"
             }`}
           />
         ))}
@@ -131,7 +131,7 @@ export default function VerificationCard({
 
       {!verified && (
         <div className="mt-2.5 flex items-center justify-between">
-          <p className="text-[10px] text-neutral-400">
+          <p className="text-[10px] text-ink-slate">
             {left > 0 ? (
               <>Resend code in {formatCountdown(left)}</>
             ) : (
@@ -142,7 +142,7 @@ export default function VerificationCard({
             type="button"
             onClick={onResend}
             disabled={left > 0 || resending}
-            className="text-[11px] font-semibold text-brand disabled:text-neutral-300"
+            className="text-[11px] font-semibold text-brand disabled:text-ink-faint"
           >
             {resending ? "Sending…" : "Resend code"}
           </button>
@@ -160,5 +160,5 @@ export default function VerificationCard({
 
   if (bare) return body;
 
-  return <section className="rounded-2xl border border-neutral-100 bg-white p-4 shadow-sm">{body}</section>;
+  return <section className="rounded-2xl border border-line-soft bg-white p-4 shadow-sm">{body}</section>;
 }

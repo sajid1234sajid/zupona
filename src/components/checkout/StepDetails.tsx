@@ -37,6 +37,14 @@ export default function StepDetails() {
   const stage = demoCode !== null || sentAt > 0 ? "code" : "phone";
 
   function send(isResend = false) {
+    // Checked here rather than by grasping the button out. The reference draws
+    // Continue at full strength with the field still showing its placeholder,
+    // and a greyed-out button is a worse answer anyway: it says no without
+    // saying why. The server validates the number regardless.
+    if (phone.trim().length < 6) {
+      setError("Enter your mobile number to continue.");
+      return;
+    }
     setError(undefined);
     startTransition(async () => {
       const result = await sendCodeAction(phone);
@@ -51,6 +59,10 @@ export default function StepDetails() {
   }
 
   function verify() {
+    if (code.length < CODE_LENGTH) {
+      setError(`Enter all ${CODE_LENGTH} digits of the code.`);
+      return;
+    }
     setError(undefined);
     startTransition(async () => {
       const result = await verifyAndSignInAction(phone, code);
@@ -67,9 +79,11 @@ export default function StepDetails() {
           <h1 className="text-[30px] font-extrabold leading-[1.08] tracking-tight text-brand-darkest">
             Let&apos;s get
             <br />
-            <span className="text-brand-light">started</span>
+            {/* Measured off the reference: the second word is a mid green
+                (#037145), not the bright one the stepper's active circle uses. */}
+            <span className="text-brand-dark">started</span>
           </h1>
-          <p className="mt-1.5 text-[12.5px] text-neutral-500">
+          <p className="mt-1.5 text-[12.5px] text-ink-slate">
             Just one minute to place your order.
           </p>
           {/* the hand-drawn underline the reference puts below the subtitle */}
@@ -92,7 +106,7 @@ export default function StepDetails() {
         <PhoneShieldArt className="-mr-1 -mt-1 h-28 w-28 shrink-0" />
       </section>
 
-      <section className="rounded-2xl border border-neutral-100 bg-white p-4 shadow-sm">
+      <section className="rounded-2xl border border-line-soft bg-white p-4 shadow-sm">
         {stage === "phone" ? (
           <>
             <div className="mb-3 flex items-center gap-2.5">
@@ -103,7 +117,7 @@ export default function StepDetails() {
                 <h2 className="text-[16px] font-bold leading-tight text-brand-darkest">
                   Mobile number
                 </h2>
-                <p className="text-[11.5px] text-neutral-400">
+                <p className="text-[11.5px] text-ink-slate">
                   Enter your mobile number to continue.
                 </p>
               </div>
@@ -114,8 +128,8 @@ export default function StepDetails() {
                 Bangladesh is the only country the shop delivers to, so the
                 prefix is a label rather than a picker -- a chevron here would
                 promise a choice that does not exist. */}
-            <div className="flex items-stretch rounded-xl border border-neutral-200 bg-white focus-within:border-brand">
-              <span className="flex shrink-0 items-center gap-2 border-r border-neutral-200 px-3 py-3 text-[15px] font-bold text-brand-darkest">
+            <div className="flex items-stretch rounded-xl border border-line bg-white focus-within:border-brand">
+              <span className="flex shrink-0 items-center gap-2 border-r border-line px-3 py-3 text-[15px] font-bold text-brand-darkest">
                 <BangladeshFlag className="h-4 w-[26px] rounded-[3px]" />
                 +880
               </span>
@@ -130,11 +144,11 @@ export default function StepDetails() {
                 autoComplete="tel"
                 aria-label="Mobile number"
                 placeholder="01XXXXXXXXX"
-                className="w-full min-w-0 rounded-r-xl bg-transparent px-3 py-3 text-[15px] text-neutral-800 outline-none placeholder:text-neutral-300"
+                className="w-full min-w-0 rounded-r-xl bg-transparent px-3 py-3 text-[15px] text-ink-strong outline-none placeholder:text-ink-faint"
               />
             </div>
 
-            <p className="mt-2.5 flex items-center gap-1.5 text-[11.5px] text-neutral-400">
+            <p className="mt-2.5 flex items-center gap-1.5 text-[11.5px] text-ink-slate">
               <CircleCheck className="h-4 w-4 shrink-0 text-brand" />
               We&apos;ll use this number for order updates.
             </p>
@@ -159,7 +173,7 @@ export default function StepDetails() {
                 setCode("");
                 setError(undefined);
               }}
-              className="mt-3 text-[11px] font-semibold text-neutral-400 underline"
+              className="mt-3 text-[11px] font-semibold text-ink-slate underline"
             >
               Use a different number
             </button>
@@ -177,7 +191,7 @@ export default function StepDetails() {
       <button
         type="button"
         onClick={() => (stage === "phone" ? send() : verify())}
-        disabled={pending || (stage === "phone" ? phone.trim().length < 6 : code.length < CODE_LENGTH)}
+        disabled={pending}
         className="flex items-center justify-center gap-2 rounded-full bg-brand-dark py-4 text-[16px] font-bold text-white shadow-lg shadow-brand/25 transition-opacity disabled:opacity-50"
       >
         {pending ? (
@@ -190,10 +204,10 @@ export default function StepDetails() {
         )}
       </button>
 
-      <div className="flex items-center justify-center gap-3 text-[11.5px] font-medium text-neutral-400">
+      <div className="flex items-center justify-center gap-3 text-[11.5px] font-medium text-ink-slate">
         {TRUST_BADGES.map(({ icon: Icon, label }, index) => (
           <span key={label} className="flex items-center gap-1.5">
-            {index > 0 && <span className="mr-2.5 h-3.5 w-px bg-neutral-200" />}
+            {index > 0 && <span className="mr-2.5 h-3.5 w-px bg-line" />}
             <Icon className="h-3.5 w-3.5 text-brand-darkest" />
             {label}
           </span>

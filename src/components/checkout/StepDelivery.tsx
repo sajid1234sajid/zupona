@@ -63,14 +63,14 @@ export default function StepDelivery({
 
   return (
     <div className="flex flex-col gap-3 px-4 pb-4">
-      <section className="rounded-2xl border border-neutral-100 bg-white p-4 shadow-sm">
+      <section className="rounded-2xl border border-line-soft bg-white p-4 shadow-sm">
         <div className="mb-3 flex items-start gap-2">
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand">
             <MapPin className="h-4 w-4 text-white" />
           </span>
           <div className="min-w-0 flex-1">
-            <h2 className="text-sm font-bold text-neutral-800">Delivery address</h2>
-            <p className="text-[10px] text-neutral-400">Where should we deliver your order?</p>
+            <h2 className="text-sm font-bold text-ink-strong">Delivery address</h2>
+            <p className="text-[10px] text-ink-slate">Where should we deliver your order?</p>
           </div>
           {phoneVerified && (
             <span className="flex shrink-0 items-center gap-1 rounded-full bg-brand-tint px-2 py-1 text-[9px] font-bold text-brand-dark">
@@ -83,16 +83,16 @@ export default function StepDelivery({
         <button
           type="button"
           onClick={() => setEditingContact((value) => !value)}
-          className="flex w-full items-center gap-2.5 rounded-xl border border-neutral-200 bg-white px-3 py-2.5 text-left"
+          className="flex w-full items-center gap-2.5 rounded-xl border border-line bg-white px-3 py-2.5 text-left"
         >
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-tint">
             <User className="h-4 w-4 text-brand" />
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block truncate text-sm font-semibold text-neutral-800">
+            <span className="block truncate text-sm font-semibold text-ink-strong">
               {details.fullName || "Add your name"}
             </span>
-            <span className="block truncate text-[11px] text-neutral-400">
+            <span className="block truncate text-[11px] text-ink-slate">
               {displayPhone || "Add your mobile number"}
             </span>
           </span>
@@ -102,26 +102,26 @@ export default function StepDelivery({
             </span>
           )}
           {editingContact ? (
-            <ChevronUp className="h-4 w-4 shrink-0 text-neutral-400" />
+            <ChevronUp className="h-4 w-4 shrink-0 text-ink-slate" />
           ) : (
-            <ChevronDown className="h-4 w-4 shrink-0 text-neutral-400" />
+            <ChevronDown className="h-4 w-4 shrink-0 text-ink-slate" />
           )}
         </button>
 
         {editingContact && (
           <div className="mt-2 grid gap-2">
             <label className="block">
-              <span className="mb-1 block text-[10px] font-semibold text-neutral-500">Full name</span>
+              <span className="mb-1 block text-[10px] font-semibold text-ink-slate">Full name</span>
               <input
                 value={details.fullName}
                 onChange={(event) => onChange({ fullName: event.target.value })}
                 placeholder="Your full name"
                 autoComplete="name"
-                className="w-full rounded-xl border border-neutral-200 px-3 py-2.5 text-sm text-neutral-800 outline-none placeholder:text-neutral-300 focus:border-brand"
+                className="w-full rounded-xl border border-line px-3 py-2.5 text-sm text-ink-strong outline-none placeholder:text-ink-faint focus:border-brand"
               />
             </label>
             <label className="block">
-              <span className="mb-1 block text-[10px] font-semibold text-neutral-500">Mobile number</span>
+              <span className="mb-1 block text-[10px] font-semibold text-ink-slate">Mobile number</span>
               <input
                 value={details.phone}
                 onChange={(event) => onChange({ phone: event.target.value })}
@@ -129,7 +129,7 @@ export default function StepDelivery({
                 inputMode="numeric"
                 autoComplete="tel"
                 placeholder="01XXXXXXXXX"
-                className="w-full rounded-xl border border-neutral-200 px-3 py-2.5 text-sm text-neutral-800 outline-none placeholder:text-neutral-300 focus:border-brand"
+                className="w-full rounded-xl border border-line px-3 py-2.5 text-sm text-ink-strong outline-none placeholder:text-ink-faint focus:border-brand"
               />
             </label>
           </div>
@@ -141,24 +141,24 @@ export default function StepDelivery({
             picker still opens and the control stays focusable and labelled --
             only its painting is replaced. */}
         <div className="mt-2 grid grid-cols-2 gap-2">
-          <label className="relative block rounded-xl border border-neutral-200 bg-white px-2.5 py-2 focus-within:border-brand">
+          <label className="relative block rounded-xl border border-line bg-white px-2.5 py-2 focus-within:border-brand">
             <span className="flex items-center gap-2">
               <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-brand-tint">
                 <MapPin className="h-3.5 w-3.5 text-brand" />
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block text-[9.5px] font-semibold text-neutral-400">
+                <span className="block text-[9.5px] font-semibold text-ink-slate">
                   Division / City
                 </span>
                 <span
                   className={`block truncate text-[13px] font-semibold ${
-                    details.division ? "text-neutral-800" : "text-neutral-300"
+                    details.division ? "text-ink-strong" : "text-ink-faint"
                   }`}
                 >
                   {details.division || "Select"}
                 </span>
               </span>
-              <ChevronDown className="h-4 w-4 shrink-0 text-neutral-400" />
+              <ChevronDown className="h-4 w-4 shrink-0 text-ink-slate" />
             </span>
             <select
               value={details.division}
@@ -175,24 +175,24 @@ export default function StepDelivery({
             </select>
           </label>
 
-          <label className="relative block rounded-xl border border-neutral-200 bg-white px-2.5 py-2 focus-within:border-brand">
+          <label className="relative block rounded-xl border border-line bg-white px-2.5 py-2 focus-within:border-brand">
             <span className="flex items-center gap-2">
               <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-brand-tint">
                 <MapPin className="h-3.5 w-3.5 text-brand" />
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block text-[9.5px] font-semibold text-neutral-400">
+                <span className="block text-[9.5px] font-semibold text-ink-slate">
                   Area / Thana
                 </span>
                 <span
                   className={`block truncate text-[13px] font-semibold ${
-                    details.area ? "text-neutral-800" : "text-neutral-300"
+                    details.area ? "text-ink-strong" : "text-ink-faint"
                   }`}
                 >
                   {details.area || (areas.length === 0 ? "Pick a division" : "Select")}
                 </span>
               </span>
-              <ChevronDown className="h-4 w-4 shrink-0 text-neutral-400" />
+              <ChevronDown className="h-4 w-4 shrink-0 text-ink-slate" />
             </span>
             <select
               value={details.area}
@@ -213,12 +213,12 @@ export default function StepDelivery({
 
         {/* Address is typed, not picked, so it gets the same card without a
             chevron: a chevron here would promise a picker that does not exist. */}
-        <label className="mt-2 flex items-center gap-2 rounded-xl border border-neutral-200 bg-white px-2.5 py-2 focus-within:border-brand">
+        <label className="mt-2 flex items-center gap-2 rounded-xl border border-line bg-white px-2.5 py-2 focus-within:border-brand">
           <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-brand-tint">
             <House className="h-3.5 w-3.5 text-brand" />
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block text-[9.5px] font-semibold text-neutral-400">
+            <span className="block text-[9.5px] font-semibold text-ink-slate">
               Address details
             </span>
             <input
@@ -226,7 +226,7 @@ export default function StepDelivery({
               onChange={(event) => onChange({ addressDetails: event.target.value })}
               placeholder="House 12, Road 5"
               autoComplete="street-address"
-              className="w-full border-0 p-0 text-[13px] font-semibold text-neutral-800 outline-none placeholder:font-normal placeholder:text-neutral-300"
+              className="w-full border-0 p-0 text-[13px] font-semibold text-ink-strong outline-none placeholder:font-normal placeholder:text-ink-faint"
             />
           </span>
         </label>
@@ -241,14 +241,14 @@ export default function StepDelivery({
         </p>
       </section>
 
-      <section className="rounded-2xl border border-neutral-100 bg-white p-4 shadow-sm">
+      <section className="rounded-2xl border border-line-soft bg-white p-4 shadow-sm">
         <div className="mb-3 flex items-center gap-2">
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-tint">
             <Truck className="h-4 w-4 text-brand" />
           </span>
           <div>
-            <h2 className="text-sm font-bold text-neutral-800">Delivery method</h2>
-            <p className="text-[10px] text-neutral-400">
+            <h2 className="text-sm font-bold text-ink-strong">Delivery method</h2>
+            <p className="text-[10px] text-ink-slate">
               Choose how you would like to receive your order
             </p>
           </div>
@@ -261,24 +261,24 @@ export default function StepDelivery({
               <label
                 key={method.id}
                 className={`flex cursor-pointer items-center gap-2.5 rounded-xl border p-3 transition-colors ${
-                  selected ? "border-brand bg-brand-tint/50" : "border-neutral-200 bg-white"
+                  selected ? "border-brand bg-brand-tint/50" : "border-line bg-white"
                 }`}
               >
                 <span
                   className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
-                    selected ? "bg-brand text-white" : "bg-neutral-100 text-neutral-400"
+                    selected ? "bg-brand text-white" : "bg-brand-mist text-ink-slate"
                   }`}
                 >
                   <Truck className="h-4 w-4" />
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center gap-1.5">
-                    <span className="truncate text-xs font-bold text-neutral-800">{method.name}</span>
+                    <span className="truncate text-xs font-bold text-ink-strong">{method.name}</span>
                     <span className="shrink-0 rounded-md bg-brand-tint px-1.5 py-0.5 text-[9px] font-semibold text-brand-dark">
                       {method.eta}
                     </span>
                   </span>
-                  <span className="block truncate text-[10px] text-neutral-400">{method.tagline}</span>
+                  <span className="block truncate text-[10px] text-ink-slate">{method.tagline}</span>
                 </span>
                 <span className="shrink-0 text-sm font-bold text-brand-darkest">
                   {formatPrice(method.fee)}
@@ -322,7 +322,7 @@ export default function StepDelivery({
         <ArrowRight className="h-4 w-4" />
       </button>
 
-      <div className="flex items-center justify-center gap-4 text-[10px] font-medium text-neutral-400">
+      <div className="flex items-center justify-center gap-4 text-[10px] font-medium text-ink-slate">
         {FOOTER_BADGES.map(({ icon: Icon, label }) => (
           <span key={label} className="flex items-center gap-1">
             <Icon className="h-3 w-3 text-brand" />

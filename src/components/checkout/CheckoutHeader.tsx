@@ -36,7 +36,7 @@ export default function CheckoutHeader({ onBack, secureNote }: CheckoutHeaderPro
         <Lock className="h-4 w-4 text-brand-darkest" />
         <div className="leading-tight">
           <p className="text-[12px] font-bold text-brand-darkest">Secure Checkout</p>
-          {secureNote && <p className="text-[9px] text-neutral-400">{secureNote}</p>}
+          {secureNote && <p className="text-[9px] text-ink-slate">{secureNote}</p>}
         </div>
       </div>
     </header>

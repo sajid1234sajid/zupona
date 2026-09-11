@@ -26,27 +26,27 @@ export default function CheckoutStepper({ current }: { current: 1 | 2 | 3 }) {
                       ? "bg-brand text-white"
                       : active
                         ? "bg-brand text-white ring-4 ring-brand/15"
-                        : "bg-neutral-200 text-neutral-500"
+                        : "bg-line text-ink-slate"
                   }`}
                 >
                   {done ? <Check className="h-4 w-4" strokeWidth={3} /> : step.number}
                 </span>
                 <span
                   className={`text-[11px] font-semibold leading-none ${
-                    done || active ? "text-brand-darkest" : "text-neutral-400"
+                    done || active ? "text-brand-darkest" : "text-ink-slate"
                   }`}
                 >
                   {step.label}
                 </span>
                 {current !== 1 && (
-                  <span className="text-[9px] leading-none text-neutral-400">{caption}</span>
+                  <span className="text-[9px] leading-none text-ink-slate">{caption}</span>
                 )}
               </div>
 
               {index < STEPS.length - 1 && (
                 <span
                   className={`mt-3.5 h-0.5 flex-1 rounded-full ${
-                    step.number < current ? "bg-brand" : "bg-neutral-200"
+                    step.number < current ? "bg-brand" : "bg-line"
                   }`}
                 />
               )}
@@ -56,7 +56,7 @@ export default function CheckoutStepper({ current }: { current: 1 | 2 | 3 }) {
       </div>
 
       {current === 1 && (
-        <span className="mt-0.5 shrink-0 rounded-full border border-neutral-200 bg-white px-2.5 py-1 text-[10px] font-semibold text-neutral-500">
+        <span className="mt-0.5 shrink-0 rounded-full border border-line bg-white px-2.5 py-1 text-[10px] font-semibold text-ink-slate">
           1 of 3
         </span>
       )}

@@ -6,18 +6,32 @@
  * checkout all colour themselves from these tokens, so the shop stays on-brand
  * without any component naming a hex value of its own. */
 :root {
-  --color-brand-darkest: #00553d;
-  --color-brand-dark: #006b4d;
-  /* Measured from the reference screenshot (#027E5A). The previous #00845f
-   * was a shade brighter; everything else in the ramp is left alone. */
-  --color-brand: #027e5a;
-  --color-brand-light: #0a936a;
-  --color-brand-tint: #e9f5ef;
-  --color-brand-mist: #f2f7f4;
+  --color-brand-darkest: #015730;
+  --color-brand-dark: #026840;
+  /* Sampled from the five reference screens rather than chosen: the mid green
+   * reads #017e59 / #02804d / #06784f / #028055 / #067740 across them, and
+   * this is their mean. The ramp was a shade bluer than every one of them,
+   * which is what made the rendered screens look teal beside the design. */
+  --color-brand: #047f51;
+  --color-brand-light: #04965b;
+  --color-brand-tint: #e8f6ec;
+  --color-brand-mist: #f6fcf7;
+  /* the soft leaf green the reference uses for its decoration */
+  --color-brand-leaf: #a1d8a4;
   /* Body copy is a very dark green rather than black, which keeps the page
    * feeling like one palette instead of green accents on a grey page. */
   --color-ink: #123527;
   --color-ink-muted: #6b8078;
+  /* Sampled from the checkout references rather than reached for out of a
+   * palette: the headings there are a near-black green, the secondary copy and
+   * the placeholders are a cool slate, and the card and input borders are a
+   * light blue-grey. Tailwind's neutral ramp is a pure grey and reads flat and
+   * a little cold beside them. */
+  --color-ink-strong: #033f2a;
+  --color-ink-slate: #627f90;
+  --color-ink-faint: #aebcc7;
+  --color-line: #dfe6e9;
+  --color-line-soft: #e6edf0;
   --color-accent-red: #e03131;
   --color-accent-amber: #f5b323;
 
@@ -43,8 +57,14 @@
   --color-brand-light: var(--color-brand-light);
   --color-brand-tint: var(--color-brand-tint);
   --color-brand-mist: var(--color-brand-mist);
+  --color-brand-leaf: var(--color-brand-leaf);
   --color-ink: var(--color-ink);
   --color-ink-muted: var(--color-ink-muted);
+  --color-ink-strong: var(--color-ink-strong);
+  --color-ink-slate: var(--color-ink-slate);
+  --color-ink-faint: var(--color-ink-faint);
+  --color-line: var(--color-line);
+  --color-line-soft: var(--color-line-soft);
   --color-accent-red: var(--color-accent-red);
   --color-accent-amber: var(--color-accent-amber);
   /* Kept as aliases so the admin panel's existing orange utilities resolve. */

@@ -40,13 +40,13 @@ export default function OrderSummary({
 
           return (
             <div key={line.id} className="flex gap-3">
-              <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-neutral-100">
+              <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-brand-mist">
                 <Image src={line.image} alt={line.name} fill sizes="56px" className="object-cover" />
               </div>
 
               <div className="min-w-0 flex-1">
-                <p className="truncate text-xs font-bold text-neutral-800">{line.name}</p>
-                <p className="mt-0.5 text-[11px] text-neutral-400">
+                <p className="truncate text-xs font-bold text-ink-strong">{line.name}</p>
+                <p className="mt-0.5 text-[11px] text-ink-slate">
                   {[line.color, `Qty ${line.quantity}`].filter(Boolean).join(" · ")}
                 </p>
                 {saved > 0 && (
@@ -63,7 +63,7 @@ export default function OrderSummary({
                   </span>
                 )}
                 {line.oldPrice > line.price && (
-                  <p className="text-[10px] text-neutral-400 line-through">
+                  <p className="text-[10px] text-ink-slate line-through">
                     {formatPrice(line.oldPrice * line.quantity)}
                   </p>
                 )}
@@ -76,14 +76,14 @@ export default function OrderSummary({
         })}
       </div>
 
-      <div className="mt-3 space-y-1.5 border-t border-dashed border-neutral-200 pt-3">
-        <div className="flex items-center justify-between text-[11px] text-neutral-500">
+      <div className="mt-3 space-y-1.5 border-t border-dashed border-line pt-3">
+        <div className="flex items-center justify-between text-[11px] text-ink-slate">
           <span>Item price (after discount)</span>
-          <span className="font-semibold text-neutral-700">{formatPrice(subtotal)}</span>
+          <span className="font-semibold text-ink-strong">{formatPrice(subtotal)}</span>
         </div>
-        <div className="flex items-center justify-between text-[11px] text-neutral-500">
+        <div className="flex items-center justify-between text-[11px] text-ink-slate">
           <span>Delivery charge</span>
-          <span className="font-semibold text-neutral-700">{formatPrice(deliveryFee)}</span>
+          <span className="font-semibold text-ink-strong">{formatPrice(deliveryFee)}</span>
         </div>
       </div>
 
@@ -97,14 +97,14 @@ export default function OrderSummary({
   if (bare) return body;
 
   return (
-    <section className="rounded-2xl border border-neutral-100 bg-white p-4 shadow-sm">
+    <section className="rounded-2xl border border-line-soft bg-white p-4 shadow-sm">
       <div className="mb-3 flex items-center gap-2">
         <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-tint">
           <ReceiptText className="h-4 w-4 text-brand" />
         </span>
         <div>
-          <h2 className="text-sm font-bold text-neutral-800">Order summary</h2>
-          <p className="text-[10px] text-neutral-400">{subtitle}</p>
+          <h2 className="text-sm font-bold text-ink-strong">Order summary</h2>
+          <p className="text-[10px] text-ink-slate">{subtitle}</p>
         </div>
       </div>
       {body}

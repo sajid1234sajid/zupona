@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Menu, MapPin, ChevronDown, Heart, ShoppingCart, Leaf } from "lucide-react";
+import { Menu, MapPin, ChevronDown, Heart, Leaf } from "lucide-react";
 import SearchBar from "./SearchBar";
 import MenuDrawer from "./MenuDrawer";
 
@@ -14,9 +14,10 @@ import MenuDrawer from "./MenuDrawer";
  * has moved the brand row folds away and only the search row is left: a
  * compact bar of logo plus search box.
  *
- * The counts arrive as props because the header above this is a server
- * component -- the badges are correct on first paint instead of popping in
- * after hydration, and this file stays about scroll behaviour.
+ * The wishlist count arrives as a prop because the header above this is a
+ * server component -- the badge is correct on first paint instead of popping
+ * in after hydration, and this file stays about scroll behaviour. The cart
+ * lives in the tab bar now, so no count for it is read here.
  *
  * `COLLAPSED_HEIGHT` is the height of that folded bar, and the home page's
  * filter row sticks directly underneath it. If the padding here changes, that
@@ -28,13 +29,7 @@ export const COLLAPSED_HEIGHT = 54;
 const FOLD_AT = 48;
 const UNFOLD_AT = 24;
 
-export default function StickyHeader({
-  wishlistCount,
-  cartCount,
-}: {
-  wishlistCount: number;
-  cartCount: number;
-}) {
+export default function StickyHeader({ wishlistCount }: { wishlistCount: number }) {
   const [collapsed, setCollapsed] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   // The drawer is only put into the page once the shopper has actually asked
@@ -111,17 +106,6 @@ export default function StickyHeader({
                     {wishlistCount}
                   </span>
                 )}
-              </Link>
-
-              <Link
-                href="/cart"
-                aria-label={`Cart, ${cartCount} items`}
-                className="relative block"
-              >
-                <ShoppingCart className="h-[18px] w-[18px]" strokeWidth={2.1} />
-                <span className="absolute -right-1.5 -top-1.5 grid h-3.5 min-w-3.5 place-items-center rounded-full bg-accent-amber px-1 text-[8px] font-bold text-brand-darkest">
-                  {cartCount}
-                </span>
               </Link>
             </div>
           </div>

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, LayoutGrid, Tag, Heart, User } from "lucide-react";
+import { Home, LayoutGrid, ShoppingCart, Tag, User } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 interface NavItem {
@@ -13,14 +13,19 @@ interface NavItem {
   alsoMatches?: string[];
   /** Draws the unread dot; Offers always has something running. */
   badge?: boolean;
+  /** The raised centre button. Exactly one tab may claim it. */
+  raised?: boolean;
 }
 
 const navItems: NavItem[] = [
   { label: "Home", icon: Home, href: "/" },
   // A category listing is reached from the browser, so both light up the tab.
   { label: "Categories", icon: LayoutGrid, href: "/categories", alsoMatches: ["/category"] },
+  // The middle slot, raised: the cart is the tab a shopper hunts for, and it
+  // is the one that finishes a sale. The wishlist gave up its tab for it and
+  // now lives in the header instead.
+  { label: "Cart", icon: ShoppingCart, href: "/cart", raised: true },
   { label: "Offers", icon: Tag, href: "/offers", badge: true },
-  { label: "Wishlist", icon: Heart, href: "/wishlist" },
   { label: "Account", icon: User, href: "/account" },
 ];
 
@@ -38,7 +43,7 @@ export default function BottomNav() {
       aria-label="Primary"
       className="fixed inset-x-0 bottom-0 z-40 mx-auto flex max-w-md items-stretch border-t border-brand-tint bg-white pb-[env(safe-area-inset-bottom)] shadow-[0_-2px_12px_rgba(0,60,40,0.07)]"
     >
-      {navItems.map(({ label, icon: Icon, href, alsoMatches, badge }) => {
+      {navItems.map(({ label, icon: Icon, href, alsoMatches, badge, raised }) => {
         const isActive =
           href === "/"
             ? pathname === "/"
@@ -52,11 +57,27 @@ export default function BottomNav() {
             aria-current={isActive ? "page" : undefined}
             className="flex flex-1 flex-col items-center justify-center gap-1 py-2.5"
           >
-            <span className="relative">
-              <Icon
-                className={`h-[17px] w-[17px] ${isActive ? "text-brand" : "text-ink-muted"}`}
-                strokeWidth={isActive ? 2.5 : 2}
-              />
+            {/* Both shapes sit in the same 17px box, so the raised button
+                changes nothing about the bar's height or where the labels
+                line up -- it only floats out of it. Every page's bottom
+                padding was measured against this bar and still clears it. */}
+            <span className="relative h-[17px] w-[17px]">
+              {raised ? (
+                <span
+                  className={`absolute left-1/2 top-1/2 grid h-12 w-12 -translate-x-1/2 -translate-y-[90%] place-items-center rounded-full text-white ring-4 ring-white transition-colors duration-150 motion-reduce:transition-none ${
+                    isActive
+                      ? "bg-brand-darkest shadow-[0_8px_18px_-6px_rgba(0,85,61,0.85)]"
+                      : "bg-brand shadow-[0_8px_18px_-6px_rgba(0,132,95,0.75)]"
+                  }`}
+                >
+                  <Icon className="h-[22px] w-[22px]" strokeWidth={2.25} />
+                </span>
+              ) : (
+                <Icon
+                  className={`h-[17px] w-[17px] ${isActive ? "text-brand" : "text-ink-muted"}`}
+                  strokeWidth={isActive ? 2.5 : 2}
+                />
+              )}
               {badge && (
                 <span
                   aria-hidden
@@ -66,7 +87,7 @@ export default function BottomNav() {
             </span>
             <span
               className={`text-[7.5px] leading-none ${
-                isActive ? "font-bold text-brand" : "font-medium text-ink-muted"
+                isActive || raised ? "font-bold text-brand" : "font-medium text-ink-muted"
               }`}
             >
               {label}

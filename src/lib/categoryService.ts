@@ -141,6 +141,23 @@ const TREE_QUERY = `
     ) counts ON counts.category_id = c.id
    ORDER BY c.sort_order ASC, c.name ASC`;
 
+/** Thrown when the database predates migration 0009.
+ *
+ * A distinct type so the failure is greppable in the logs and cannot be
+ * mistaken for an ordinary query fault. */
+export class MigrationRequiredError extends Error {
+  constructor(cause: unknown) {
+    super(
+      "The category system requires migration 0009 (db/migrations/0009_category_system.sql), " +
+        "which has not been applied to this database. Apply it with " +
+        "`npx wrangler d1 execute zupona-v3-db --remote --file=./db/migrations/0009_category_system.sql` " +
+        "(and --local for development). See DATABASE.md."
+    );
+    this.name = "MigrationRequiredError";
+    this.cause = cause;
+  }
+}
+
 /** Reads every category and its direct product count.
  *
  * There is deliberately no fallback for a database that has not had migration
@@ -148,14 +165,30 @@ const TREE_QUERY = `
  * would still render, which meant a deploy that had skipped the migration
  * looked healthy while the placement flags silently took default values and
  * every cross-listing was invisible. A missing migration is a broken deploy and
- * should read as one: this throws, the page 500s, and the cause is in the logs.
+ * should read as one.
+ *
+ * The `catch` here is not that fallback returning: it recovers no data and
+ * serves no request. It replaces D1's "no such column: c.name_en" with a
+ * sentence naming the migration and the command that applies it, then rethrows
+ * so the page still fails. Anything that is not a missing-schema error is
+ * rethrown untouched, so a genuine database fault is never relabelled.
  *
  * The gate belongs in the pipeline -- 0009 must be applied to the remote D1
  * before the Worker that needs it ships. See DATABASE.md. */
 async function queryCategoryRows(): Promise<CategoryRow[]> {
   const db = await getDB();
-  const { results } = await db.prepare(TREE_QUERY).all<CategoryRow>();
-  return results;
+
+  try {
+    const { results } = await db.prepare(TREE_QUERY).all<CategoryRow>();
+    return results;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    // SQLite's wording for a column or table the schema does not have.
+    if (/no such (column|table)/i.test(message)) {
+      throw new MigrationRequiredError(error);
+    }
+    throw error;
+  }
 }
 
 /** Cached for ten minutes, cleared by every mutation here. */

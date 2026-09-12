@@ -14,7 +14,7 @@ import {
   type CategoryNode,
 } from "@/lib/categoryService";
 import { isCategorySort, type CategorySort } from "@/lib/categorySorts";
-import { listStoreProducts } from "@/lib/storefront";
+import { countStoreProducts, listStoreProducts } from "@/lib/storefront";
 import { toSummary } from "@/lib/categories";
 import { getCurrentUser } from "@/lib/session";
 import { getWishlistProductIds } from "@/lib/wishlist";
@@ -36,6 +36,10 @@ import { getWishlistProductIds } from "@/lib/wishlist";
  */
 
 const SITE_URL = "https://zupona.com";
+
+/** Products per page. Divides cleanly by the 2-, 3- and 5-column grids this
+ * page uses, so the last row is never a lone orphan on any breakpoint. */
+const PAGE_SIZE = 30;
 
 function first(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
@@ -108,12 +112,25 @@ export default async function CategoryPage({
   const sort: CategorySort = isCategorySort(requestedSort) ? requestedSort : "popular";
   const dealsOnly = first(query.deals) === "1";
 
+  // The listing and its total are built from one description of the query, so
+  // the count above the grid can never disagree with the grid under it.
+  const scope = {
+    categoryIds: collectDescendantIds(node),
+    // Short stand-in for the id list when the result is cached; the list can
+    // run past KV's key limit on a large department.
+    scopeId: node.id,
+    sort,
+    minDiscount: dealsOnly ? 1 : undefined,
+  };
+
+  const total = await countStoreProducts(scope);
+  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  // A page number past the end lands on the last page rather than on an empty
+  // grid: a stale link should still show products.
+  const page = Math.min(Math.max(1, Number(first(query.page) ?? 1) || 1), pageCount);
+
   const [matches, user] = await Promise.all([
-    listStoreProducts({
-      categoryIds: collectDescendantIds(node),
-      sort,
-      minDiscount: dealsOnly ? 1 : undefined,
-    }),
+    listStoreProducts({ ...scope, limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE }),
     getCurrentUser(),
   ]);
   const wishlistIds = await getWishlistProductIds(user?.id ?? null);
@@ -161,7 +178,7 @@ export default async function CategoryPage({
             basePath={node.href}
             sort={sort}
             dealsOnly={dealsOnly}
-            resultCount={matches.length}
+            resultCount={total}
           />
         </div>
 
@@ -194,11 +211,95 @@ export default async function CategoryPage({
             ))}
           </div>
         )}
+
+        {pageCount > 1 && (
+          <Pager basePath={node.href} page={page} pageCount={pageCount} sort={sort} dealsOnly={dealsOnly} />
+        )}
       </main>
 
       <BottomNav />
       <BreadcrumbJsonLd trail={trail} />
     </div>
+  );
+}
+
+/** Page links for a category listing.
+ *
+ * Plain links, not buttons: a page of a category is an address, so it survives
+ * a refresh, a back-navigation and being shared, the same reasoning the sort
+ * and deals controls already follow. The sort and filter in force are carried
+ * through; `page=1` is left off so the first page has one canonical URL.
+ *
+ * Long lists collapse to first / neighbours / last rather than printing every
+ * number, which on a phone would wrap into several rows of tap targets. */
+function Pager({
+  basePath,
+  page,
+  pageCount,
+  sort,
+  dealsOnly,
+}: {
+  basePath: string;
+  page: number;
+  pageCount: number;
+  sort: CategorySort;
+  dealsOnly: boolean;
+}) {
+  const hrefFor = (target: number) => {
+    const params = new URLSearchParams();
+    if (sort !== "popular") params.set("sort", sort);
+    if (dealsOnly) params.set("deals", "1");
+    if (target > 1) params.set("page", String(target));
+    const query = params.toString();
+    return query ? `${basePath}?${query}` : basePath;
+  };
+
+  const numbers: number[] = [];
+  for (let n = 1; n <= pageCount; n += 1) {
+    if (n === 1 || n === pageCount || Math.abs(n - page) <= 1) numbers.push(n);
+  }
+
+  const step =
+    "flex h-9 min-w-9 items-center justify-center rounded-lg px-2 text-xs font-semibold transition-colors";
+
+  return (
+    <nav aria-label="Pagination" className="mt-5 flex flex-wrap items-center justify-center gap-1.5">
+      {page > 1 && (
+        <Link href={hrefFor(page - 1)} rel="prev" className={`${step} border border-neutral-200 bg-white text-neutral-600`}>
+          <ChevronLeft className="h-4 w-4" />
+          <span className="sr-only">Previous page</span>
+        </Link>
+      )}
+
+      {numbers.map((n, index) => (
+        <span key={n} className="flex items-center gap-1.5">
+          {index > 0 && numbers[index - 1] !== n - 1 && (
+            <span className="px-0.5 text-xs text-neutral-400" aria-hidden>
+              …
+            </span>
+          )}
+          <Link
+            href={hrefFor(n)}
+            aria-current={n === page ? "page" : undefined}
+            aria-label={`Page ${n}`}
+            className={`${step} ${
+              n === page
+                ? "bg-brand text-white"
+                : "border border-neutral-200 bg-white text-neutral-600"
+            }`}
+          >
+            {n}
+          </Link>
+        </span>
+      ))}
+
+      {page < pageCount && (
+        <Link href={hrefFor(page + 1)} rel="next" className={`${step} border border-neutral-200 bg-white text-neutral-600`}>
+          <ChevronRight className="h-4 w-4" />
+          <span className="sr-only">Next page</span>
+        </Link>
+      )}
+    </nav>
   );
 }
 

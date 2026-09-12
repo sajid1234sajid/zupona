@@ -790,8 +790,10 @@ export interface AdminCategory {
   showInNavigation: boolean;
   /** 1 for a department, 3 for the deepest level. */
   depth: number;
-  /** Products filed directly here. */
+  /** Products filed directly here, by either relationship. */
   productCount: number;
+  /** Products whose primary category this is; a delete must rehome these. */
+  primaryProductCount: number;
   /** Products here or anywhere beneath. */
   totalProductCount: number;
   children: AdminCategory[];
@@ -827,6 +829,7 @@ export async function listCategoryTree(): Promise<AdminCategory[]> {
     showInNavigation: node.showInNavigation,
     depth: node.depth,
     productCount: node.productCount,
+    primaryProductCount: node.primaryProductCount,
     totalProductCount: node.totalProductCount,
     children: node.children.map(toAdmin),
   });

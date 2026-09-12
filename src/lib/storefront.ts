@@ -211,11 +211,22 @@ export interface StoreQuery {
    * page uses: `categoryId` alone only reaches one level down, which was
    * enough when the tree was two levels deep and is not any more. */
   categoryIds?: string[];
+  /** Short stand-in for `categoryIds` when building the cache key.
+   *
+   * The key used to embed the whole id array, which reached 316 bytes for one
+   * department and 1.2 KB for a large one -- past KV's 512-byte key limit, so
+   * the write failed, `cached()` swallowed it and the listing quietly stopped
+   * being cached at exactly the sizes where caching matters most. The scope is
+   * derived from one category and the whole `catalog:` namespace is cleared on
+   * any catalog write, so that category's id identifies it exactly. */
+  scopeId?: string;
   sort?: StoreSort;
   minDiscount?: number;
   maxPrice?: number;
   featuredOnly?: boolean;
   limit?: number;
+  /** Rows to skip, for paging. */
+  offset?: number;
 }
 
 /** Only `active` products are ever shown. A draft or archived product is
@@ -267,13 +278,37 @@ async function queryCards(query: StoreQuery): Promise<StoreProductCard[]> {
   const { where, binds } = buildWhere(query);
   const order = SORT_SQL[query.sort ?? "popular"];
   const limit = Math.min(query.limit ?? 200, 500);
+  const offset = Math.max(0, Math.trunc(query.offset ?? 0));
 
   const { results } = await db
-    .prepare(`${CARD_SELECT} ${where} ORDER BY ${order} LIMIT ?`)
-    .bind(...binds, limit)
+    .prepare(`${CARD_SELECT} ${where} ORDER BY ${order} LIMIT ? OFFSET ?`)
+    .bind(...binds, limit, offset)
     .all<CardRow>();
 
   return results.map(toCard);
+}
+
+/** How many products a query matches, counted by the same rules that list
+ * them.
+ *
+ * Deliberately built from the same `buildWhere`: a count that is assembled
+ * separately is a count that can disagree with the page it labels. Paging and
+ * the "N items" line both read this. */
+async function queryCount(query: StoreQuery): Promise<number> {
+  const db = await getDB();
+  const { where, binds } = buildWhere(query);
+
+  const row = await db
+    .prepare(
+      `SELECT COUNT(*) AS n
+         FROM products p
+         LEFT JOIN categories c ON c.id = p.category_id
+         ${where}`
+    )
+    .bind(...binds)
+    .first<{ n: number }>();
+
+  return row?.n ?? 0;
 }
 
 /** How long a catalog read may be served from KV.
@@ -290,9 +325,38 @@ const CATALOG_TTL_SECONDS = 120;
  *
  * The home page filters this in the browser, so it is fetched once rather than
  * re-queried per chip. */
+/** A stable, short description of a query, for use as a cache key.
+ *
+ * `categoryIds` is replaced by `scopeId` when the caller supplied one, which is
+ * what keeps the key inside KV's 512-byte limit however deep the category tree
+ * gets. Without one the ids are still spelled out -- correct, just uncached
+ * above a certain size, which is the behaviour this replaces rather than a new
+ * failure. */
+function fingerprintOf(query: StoreQuery): string {
+  const { categoryIds, scopeId, ...rest } = query;
+  return JSON.stringify(scopeId ? { ...rest, scope: scopeId } : { ...rest, categoryIds });
+}
+
 export async function listStoreProducts(query: StoreQuery = {}): Promise<StoreProductCard[]> {
-  const fingerprint = JSON.stringify(query);
-  return cached(CacheKeys.productList(fingerprint), () => queryCards(query), CATALOG_TTL_SECONDS);
+  return cached(
+    CacheKeys.productList(fingerprintOf(query)),
+    () => queryCards(query),
+    CATALOG_TTL_SECONDS
+  );
+}
+
+/** Total matches for a query, ignoring its `limit` and `offset`. */
+export async function countStoreProducts(query: StoreQuery = {}): Promise<number> {
+  // The window a page happens to be showing must not change the total.
+  const rest: StoreQuery = { ...query };
+  delete rest.limit;
+  delete rest.offset;
+
+  return cached(
+    CacheKeys.productList(`count:${fingerprintOf(rest)}`),
+    () => queryCount(rest),
+    CATALOG_TTL_SECONDS
+  );
 }
 
 /* -------------------------------------------------------------------------- */

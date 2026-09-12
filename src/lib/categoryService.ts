@@ -71,6 +71,8 @@ export interface CategoryRow {
   seo_title: string | null;
   seo_description: string | null;
   product_count: number;
+  subtree_product_count: number;
+  primary_product_count: number;
 }
 
 export interface CategoryNode {
@@ -105,8 +107,11 @@ export interface CategoryNode {
   href: string;
   /** Ancestors, root first. */
   ancestors: { id: string; name: string; slug: string; href: string }[];
-  /** Products filed directly under this category. */
+  /** Products filed directly under this category, by either relationship. */
   productCount: number;
+  /** Products whose *primary* category this is -- the ones a delete would
+   * leave uncategorised, so the ones that must be reassigned first. */
+  primaryProductCount: number;
   /** Products under this category or anything beneath it. */
   totalProductCount: number;
   children: CategoryNode[];
@@ -122,23 +127,64 @@ export interface CategoryNode {
  * cross-listing table, de-duplicated by the UNION so a product filed both ways
  * is counted once. */
 const TREE_QUERY = `
+  WITH RECURSIVE
+    -- Every (category, product) membership, from both relationships. UNION
+    -- (not UNION ALL) collapses a product that is both the primary and a
+    -- cross-listing of the same category into one row.
+    link(category_id, product_id) AS (
+      SELECT category_id, id FROM products
+       WHERE status = 'active' AND category_id IS NOT NULL
+      UNION
+      SELECT pc.category_id, pc.product_id
+        FROM product_categories pc
+        JOIN products p ON p.id = pc.product_id
+       WHERE p.status = 'active'
+    ),
+    -- Each active category paired with itself and each of its active
+    -- ancestors, so a membership can be rolled up without a query per level.
+    -- Walking only through active parents mirrors how the tree is built in
+    -- JavaScript: a category whose parent is hidden stands on its own there,
+    -- and counts only for itself here.
+    anc(cat, ancestor) AS (
+      SELECT id, id FROM categories WHERE is_active = 1
+      UNION ALL
+      SELECT a.cat, parent.id
+        FROM anc a
+        JOIN categories child ON child.id = a.ancestor
+        JOIN categories parent ON parent.id = child.parent_id AND parent.is_active = 1
+    ),
+    own AS (
+      SELECT category_id, COUNT(*) AS n FROM link GROUP BY category_id
+    ),
+    -- Products this category is the *primary* home of. Deleting the category
+    -- would leave exactly these uncategorised, which is why the admin's delete
+    -- dialog asks where they should go -- and why it must count them by the
+    -- same rule checkCategoryDeletion uses, rather than by the own CTE above,
+    -- which also counts cross-listings that would simply be unlinked.
+    primary_own AS (
+      SELECT category_id, COUNT(*) AS n FROM products
+       WHERE status = 'active' AND category_id IS NOT NULL
+       GROUP BY category_id
+    ),
+    -- COUNT(DISTINCT product_id) is the whole point: a product cross-listed
+    -- into two categories in the same subtree is one product on the listing
+    -- page, so it has to be one here too.
+    subtree AS (
+      SELECT anc.ancestor AS category_id, COUNT(DISTINCT link.product_id) AS n
+        FROM link JOIN anc ON anc.cat = link.category_id
+       GROUP BY anc.ancestor
+    )
   SELECT c.id, c.parent_id, c.name, c.name_en, c.name_bn, c.slug, c.subtitle,
          c.description_en, c.description_bn, c.image_url, c.icon, c.icon_url,
          c.sort_order, c.is_active, c.is_featured, c.show_on_homepage,
          c.show_in_navigation, c.seo_title, c.seo_description,
-         COALESCE(counts.n, 0) AS product_count
+         COALESCE(own.n, 0) AS product_count,
+         COALESCE(subtree.n, 0) AS subtree_product_count,
+         COALESCE(primary_own.n, 0) AS primary_product_count
     FROM categories c
-    LEFT JOIN (
-      SELECT category_id, COUNT(*) AS n FROM (
-        SELECT id AS product_id, category_id FROM products
-         WHERE status = 'active' AND category_id IS NOT NULL
-        UNION
-        SELECT pc.product_id, pc.category_id
-          FROM product_categories pc
-          JOIN products p ON p.id = pc.product_id
-         WHERE p.status = 'active'
-      ) GROUP BY category_id
-    ) counts ON counts.category_id = c.id
+    LEFT JOIN own ON own.category_id = c.id
+    LEFT JOIN subtree ON subtree.category_id = c.id
+    LEFT JOIN primary_own ON primary_own.category_id = c.id
    ORDER BY c.sort_order ASC, c.name ASC`;
 
 /** Thrown when the database predates migration 0009.
@@ -233,7 +279,8 @@ function toNode(row: CategoryRow): CategoryNode {
     href: CATEGORY_ROOT_PATH,
     ancestors: [],
     productCount: row.product_count,
-    totalProductCount: row.product_count,
+    primaryProductCount: row.primary_product_count,
+    totalProductCount: row.subtree_product_count,
     children: [],
   };
 }
@@ -263,14 +310,18 @@ function buildIndex(rows: CategoryRow[], activeOnly: boolean): CategoryIndex {
   const all: CategoryNode[] = [];
   const bySlug = new Map<string, CategoryNode>();
 
+  // `totalProductCount` arrives from the database already counted DISTINCT
+  // across each subtree; it is deliberately not recomputed here. Summing the
+  // children's totals in JavaScript is what used to double-count a product
+  // cross-listed into two categories under the same department, so the tree
+  // claimed ten products where the listing page showed eight.
   const walk = (
     nodes: CategoryNode[],
     depth: number,
     path: string[],
     ancestors: CategoryNode["ancestors"]
-  ): number => {
+  ): void => {
     sortNodes(nodes);
-    let subtreeTotal = 0;
 
     for (const node of nodes) {
       node.depth = depth;
@@ -281,19 +332,13 @@ function buildIndex(rows: CategoryRow[], activeOnly: boolean): CategoryIndex {
       all.push(node);
       bySlug.set(node.slug, node);
 
-      const below =
-        depth < MAX_DEPTH
-          ? walk(node.children, depth + 1, node.path, [
-              ...ancestors,
-              { id: node.id, name: node.name, slug: node.slug, href: node.href },
-            ])
-          : 0;
-
-      node.totalProductCount = node.productCount + below;
-      subtreeTotal += node.totalProductCount;
+      if (depth < MAX_DEPTH) {
+        walk(node.children, depth + 1, node.path, [
+          ...ancestors,
+          { id: node.id, name: node.name, slug: node.slug, href: node.href },
+        ]);
+      }
     }
-
-    return subtreeTotal;
   };
 
   walk(roots, 1, [], []);

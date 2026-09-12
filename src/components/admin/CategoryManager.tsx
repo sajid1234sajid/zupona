@@ -858,7 +858,11 @@ function DeleteDialog({
   );
 
   const blockedByChildren = category.children.length > 0;
-  const needsReassignment = category.productCount > 0;
+  // Only products this category is the *primary* home of need somewhere to go;
+  // a cross-listing is just unlinked. This is the same rule the server applies
+  // in `checkCategoryDeletion`, so the dialog cannot ask for a destination the
+  // delete would not have required.
+  const needsReassignment = category.primaryProductCount > 0;
 
   // Closing is an effect, not a render-time call: the action resolves, the tree
   // is revalidated, and only then does the dialog go away.
@@ -888,10 +892,10 @@ function DeleteDialog({
           <p className="mt-2 text-[13px] text-neutral-500">
             Products are never deleted with a category.
             {needsReassignment
-              ? ` ${category.productCount} product${
-                  category.productCount === 1 ? " is" : "s are"
+              ? ` ${category.primaryProductCount} product${
+                  category.primaryProductCount === 1 ? " is" : "s are"
                 } filed here, so choose where ${
-                  category.productCount === 1 ? "it goes" : "they go"
+                  category.primaryProductCount === 1 ? "it goes" : "they go"
                 }.`
               : " Nothing is filed here, so this only removes the category itself."}
           </p>

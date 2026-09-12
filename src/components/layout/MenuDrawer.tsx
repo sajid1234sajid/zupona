@@ -10,6 +10,7 @@ import {
   Sparkles,
   Heart,
   Package,
+  User,
   Store,
   LifeBuoy,
   Leaf,
@@ -47,6 +48,7 @@ const SECTIONS: MenuSection[] = [
   {
     title: "My Zupona",
     links: [
+      { label: "Account", href: "/account", icon: User },
       { label: "Wishlist", href: "/wishlist", icon: Heart },
       { label: "Orders", href: "/account/orders", icon: Package },
     ],

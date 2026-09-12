@@ -141,60 +141,21 @@ const TREE_QUERY = `
     ) counts ON counts.category_id = c.id
    ORDER BY c.sort_order ASC, c.name ASC`;
 
-/** The same read against a database that has not had 0009 applied yet.
+/** Reads every category and its direct product count.
  *
- * CI deploys code without running migrations, so there is a window where the
- * Worker is new and D1 is old. Rather than 500 every page that renders a
- * category, the tree degrades to the columns that have always existed and the
- * new flags take their default values. The site looks like it did before the
- * feature shipped instead of breaking. */
-const LEGACY_TREE_QUERY = `
-  SELECT c.id, c.parent_id, c.name, c.slug, c.subtitle, c.image_url, c.icon,
-         c.sort_order, c.is_active,
-         COALESCE(counts.n, 0) AS product_count
-    FROM categories c
-    LEFT JOIN (SELECT category_id, COUNT(*) AS n FROM products
-                WHERE status = 'active' GROUP BY category_id) counts
-      ON counts.category_id = c.id
-   ORDER BY c.sort_order ASC, c.name ASC`;
-
+ * There is deliberately no fallback for a database that has not had migration
+ * 0009 applied. An earlier version degraded to the pre-0009 columns so the page
+ * would still render, which meant a deploy that had skipped the migration
+ * looked healthy while the placement flags silently took default values and
+ * every cross-listing was invisible. A missing migration is a broken deploy and
+ * should read as one: this throws, the page 500s, and the cause is in the logs.
+ *
+ * The gate belongs in the pipeline -- 0009 must be applied to the remote D1
+ * before the Worker that needs it ships. See DATABASE.md. */
 async function queryCategoryRows(): Promise<CategoryRow[]> {
   const db = await getDB();
-
-  try {
-    const { results } = await db.prepare(TREE_QUERY).all<CategoryRow>();
-    return results;
-  } catch {
-    const { results } = await db.prepare(LEGACY_TREE_QUERY).all<
-      Omit<
-        CategoryRow,
-        | "name_en"
-        | "name_bn"
-        | "description_en"
-        | "description_bn"
-        | "icon_url"
-        | "is_featured"
-        | "show_on_homepage"
-        | "show_in_navigation"
-        | "seo_title"
-        | "seo_description"
-      >
-    >();
-
-    return results.map((row) => ({
-      ...row,
-      name_en: row.name,
-      name_bn: null,
-      description_en: null,
-      description_bn: null,
-      icon_url: null,
-      is_featured: row.parent_id === null ? 1 : 0,
-      show_on_homepage: 1,
-      show_in_navigation: 1,
-      seo_title: null,
-      seo_description: null,
-    }));
-  }
+  const { results } = await db.prepare(TREE_QUERY).all<CategoryRow>();
+  return results;
 }
 
 /** Cached for ten minutes, cleared by every mutation here. */

@@ -277,7 +277,11 @@ function RailItem({
       type="button"
       onClick={onClick}
       aria-current={active ? "true" : undefined}
-      className={`relative flex w-full items-center gap-2 px-2.5 py-3 text-left transition-colors ${
+      // `min-h-11` is 44px: the smallest reliable touch target. A one-line
+      // entry lands exactly on it and a two-line one grows past it, so the rail
+      // stays as compact as it can be without any row being hard to hit.
+      // The focus ring is inset because the rail clips at its own edge.
+      className={`relative flex min-h-11 w-full items-center gap-2 px-2.5 py-2.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand ${
         active ? "bg-brand-tint" : "hover:bg-brand-tint/50"
       }`}
     >
@@ -362,36 +366,58 @@ function DepartmentPane({
   category: BrowseCategory;
   onBack: () => void;
 }) {
-  const tiles = category.children.map((child) => toTile(child));
+  // Two shapes of section, and they are rendered differently because they mean
+  // different things. A section with types beneath it is a *group*: it gets a
+  // heading and its types are the tiles, because the type is what the shopper
+  // actually wants to reach. A section with nothing beneath it is already the
+  // destination, so it is a tile itself.
+  //
+  // Leaf sections come first as one grid -- that is the whole pane when a
+  // department has no third level, which is most of them -- and the grouped
+  // ones follow, each under its own heading. Nothing is duplicated between the
+  // two, and a heading is never printed with nothing under it.
+  const leaves = category.children.filter((section) => section.children.length === 0);
+  const groups = category.children.filter((section) => section.children.length > 0);
 
   return (
-    <Pane
-      title={category.name}
-      onBack={onBack}
-      action={
-        <Link
-          href={category.href}
-          className="flex shrink-0 items-center gap-0.5 text-[11px] font-semibold text-brand"
-        >
-          View all
-          <ChevronRight className="h-3 w-3" strokeWidth={2.5} />
-        </Link>
-      }
-    >
+    <Pane title={category.name} onBack={onBack}>
       <DepartmentBanner category={category} />
 
-      {tiles.length > 0 ? (
-        <>
-          <h3 className="mt-4 text-[15px] font-bold text-ink">Recommendations</h3>
-          <TileGrid tiles={tiles} />
-        </>
-      ) : (
+      {category.children.length === 0 ? (
         <p className="mt-4 text-[12px] text-ink-muted">
           No subcategories yet — {category.productCount}{" "}
           {category.productCount === 1 ? "product is" : "products are"} filed directly under{" "}
           {category.name}.
         </p>
+      ) : (
+        <>
+          {leaves.length > 0 && (
+            <section className="mt-4">
+              <SectionHeading href={category.href} label="Shop by Category" />
+              <TileGrid tiles={leaves.map((section) => toTile(section))} />
+            </section>
+          )}
+
+          {groups.map((section) => (
+            <section key={section.id} className="mt-5">
+              <SectionHeading
+                href={section.href}
+                label={section.name}
+                count={section.productCount}
+              />
+              <TileGrid tiles={section.children.map((type) => toTile(type))} />
+            </section>
+          ))}
+        </>
       )}
+
+      <Link
+        href={category.href}
+        className="mt-5 flex w-full items-center justify-center gap-1 rounded-full border border-brand-tint bg-brand-mist py-2.5 text-[12px] font-semibold text-brand"
+      >
+        View all {category.name}
+        <ChevronRight className="h-3.5 w-3.5" strokeWidth={2.5} />
+      </Link>
 
       {category.highlights.length > 0 && (
         <>
@@ -426,6 +452,35 @@ function DepartmentPane({
         </>
       )}
     </Pane>
+  );
+}
+
+/** A group heading: what the section is, and a way into it.
+ *
+ * The whole row is the link rather than a small "see all" target beside the
+ * text, because the heading names the destination and a 12px tap target next
+ * to it would be the wrong thing to aim at. */
+function SectionHeading({
+  href,
+  label,
+  count,
+}: {
+  href: string;
+  label: string;
+  count?: number;
+}) {
+  return (
+    <Link href={href} className="flex min-h-[32px] items-center gap-1.5">
+      <span className="min-w-0 flex-1 truncate text-[13px] font-bold text-ink">{label}</span>
+      {/* Spelled out: a bare number beside a heading with three tiles under it
+          reads as "three subcategories", which is not what it counts. */}
+      {typeof count === "number" && (
+        <span className="shrink-0 text-[10.5px] text-ink-muted">
+          {count} {count === 1 ? "item" : "items"}
+        </span>
+      )}
+      <ChevronRight className="h-3.5 w-3.5 shrink-0 text-brand" strokeWidth={2.5} />
+    </Link>
   );
 }
 
@@ -528,15 +583,30 @@ function ShortcutPane({
 /* Tiles                                                                      */
 /* -------------------------------------------------------------------------- */
 
+/** The circular category tiles.
+ *
+ * Two columns below 360px and three above it. At 320px a third column leaves
+ * roughly 53px for a name plus its chevron, which is not enough for "Mobile
+ * Accessories" at any font size worth reading -- dropping to two columns buys
+ * the label the width it needs instead of shrinking the type until it fits.
+ *
+ * The label and the chevron are separate flex children and the chevron is
+ * `shrink-0`, so the chevron's space is reserved before the label gets any.
+ * The label then cannot push into it: `min-w-0` lets its box shrink,
+ * `line-clamp-2` clips at two lines, and `[overflow-wrap:anywhere]` breaks a
+ * single word too long to fit on one line ("Machines") rather than letting it
+ * spill across the chevron, which is exactly what used to happen. */
 function TileGrid({ tiles, captions }: { tiles: Tile[]; captions?: string[] }) {
   return (
-    <div className="mt-2.5 grid grid-cols-3 gap-x-2 gap-y-3.5">
+    <div className="mt-2.5 grid grid-cols-2 gap-x-2 gap-y-3.5 min-[360px]:grid-cols-3">
       {tiles.map((tile, index) => (
         <Link key={tile.key} href={tile.href} className="group flex min-w-0 flex-col items-center">
           <TileArt image={tile.image} icon={tile.icon} name={tile.name} size="md" />
-          <span className="mt-1.5 flex w-full items-center gap-0.5">
-            <span className="min-w-0 flex-1 text-[10.5px] font-medium leading-tight text-ink">
-              {tile.name}
+          <span className="mt-1.5 flex w-full items-center gap-1">
+            <span className="min-w-0 flex-1">
+              <span className="line-clamp-2 text-[11px] font-medium leading-tight text-ink [overflow-wrap:anywhere]">
+                {tile.name}
+              </span>
               {captions?.[index] ? (
                 <span className="mt-0.5 block truncate text-[9px] text-ink-muted">
                   {captions[index]}
@@ -545,7 +615,7 @@ function TileGrid({ tiles, captions }: { tiles: Tile[]; captions?: string[] }) {
             </span>
             <span
               aria-hidden
-              className="grid h-[15px] w-[15px] shrink-0 place-items-center rounded-full bg-brand-tint text-brand transition-colors group-hover:bg-brand group-hover:text-white"
+              className="grid h-4 w-4 shrink-0 place-items-center rounded-full bg-brand-tint text-brand transition-colors group-hover:bg-brand group-hover:text-white"
             >
               <ChevronRight className="h-2.5 w-2.5" strokeWidth={3} />
             </span>

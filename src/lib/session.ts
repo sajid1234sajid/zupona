@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { getDB } from "@/lib/db";
@@ -76,8 +77,14 @@ export async function destroySession(): Promise<void> {
 
 /** Resolves the signed-in user, or null. Suspended and banned accounts are
  * treated as signed out: the status check lives in the query so a moderation
- * decision takes effect on the very next request. */
-export async function getCurrentUser(): Promise<AuthUser | null> {
+ * decision takes effect on the very next request.
+ *
+ * Memoised for the lifetime of one request. A page, its header and the tab
+ * bar all ask who is signed in, and before this that was one session lookup
+ * each; now the first one pays and the rest are free. It is safe because
+ * nothing writes the session cookie and then reads it back in the same
+ * request -- `createSession` is always followed by a redirect. */
+export const getCurrentUser = cache(async function getCurrentUser(): Promise<AuthUser | null> {
   const cookieStore = await cookies();
   const sessionId = cookieStore.get(SESSION_COOKIE)?.value;
   if (!sessionId) return null;
@@ -97,7 +104,7 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
 
   if (!row) return null;
   return toAuthUser(row);
-}
+});
 
 /** For use in server actions/pages that require a signed-in user - redirects to login otherwise. */
 export async function requireUser(): Promise<AuthUser> {

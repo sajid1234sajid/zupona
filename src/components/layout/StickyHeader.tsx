@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Menu, MapPin, ChevronDown, Heart, ShoppingCart, Leaf } from "lucide-react";
 import SearchBar from "./SearchBar";
+import MenuDrawer from "./MenuDrawer";
 
 /** The storefront header, pinned to the top of the viewport.
  *
@@ -35,6 +36,11 @@ export default function StickyHeader({
   cartCount: number;
 }) {
   const [collapsed, setCollapsed] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  // The drawer is only put into the page once the shopper has actually asked
+  // for it, and stays from then on so it can slide out again. A visit that
+  // never opens the menu renders none of its markup.
+  const [menuMounted, setMenuMounted] = useState(false);
 
   useEffect(() => {
     let frame = 0;
@@ -130,6 +136,12 @@ export default function StickyHeader({
         <button
           type="button"
           aria-label="Open menu"
+          aria-expanded={menuOpen}
+          aria-haspopup="dialog"
+          onClick={() => {
+            setMenuMounted(true);
+            setMenuOpen(true);
+          }}
           className="relative h-7 w-7 shrink-0"
         >
           <Menu
@@ -149,6 +161,10 @@ export default function StickyHeader({
 
         <SearchBar />
       </div>
+
+      {menuMounted && (
+        <MenuDrawer open={menuOpen} onClose={() => setMenuOpen(false)} />
+      )}
     </header>
   );
 }

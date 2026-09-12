@@ -14,13 +14,14 @@ import { CATEGORY_SORTS, type CategorySort } from "@/lib/categorySorts";
 export default function CategoryToolbar({
   basePath,
   sort,
-  subcategoryId,
   dealsOnly,
   resultCount,
 }: {
+  /** The category's own URL. Which category is being listed is part of the
+   * path now (`/category/electronics/mobiles`), so the toolbar only ever adds
+   * the sort and filter parameters on top of it. */
   basePath: string;
   sort: CategorySort;
-  subcategoryId: string | null;
   dealsOnly: boolean;
   resultCount: number;
 }) {
@@ -32,7 +33,6 @@ export default function CategoryToolbar({
 
   function buildHref(next: { sort?: CategorySort; deals?: boolean }): string {
     const params = new URLSearchParams();
-    if (subcategoryId) params.set("sub", subcategoryId);
 
     const nextSort = next.sort ?? sort;
     if (nextSort !== "popular") params.set("sort", nextSort);
@@ -51,8 +51,8 @@ export default function CategoryToolbar({
 
   return (
     <>
-      <div className="sticky top-0 z-10 -mx-4 flex items-center gap-2 border-b border-neutral-100 bg-[#f3f5f4]/95 px-4 py-2 backdrop-blur">
-        <span className="text-[10px] text-neutral-400">
+      <div className="sticky top-0 z-10 -mx-4 flex items-center gap-2 border-b border-neutral-100 bg-[#f3f5f4]/95 px-4 py-2 backdrop-blur lg:rounded-xl lg:border lg:bg-white/95">
+        <span className="text-[10px] text-neutral-400 lg:text-xs">
           {resultCount} {resultCount === 1 ? "item" : "items"}
         </span>
 

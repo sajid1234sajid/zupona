@@ -27,6 +27,7 @@ export default async function NewProductPage() {
           sku: "",
           description: "",
           categoryId: "",
+          extraCategoryIds: [],
           brandId: "",
           price: 0,
           discountType: "none",

@@ -20,6 +20,7 @@
 
 import { getDB } from "@/lib/db";
 import { CacheKeys, cached } from "@/lib/cache";
+import { collectDescendantIds, getCategoryIndex } from "@/lib/categoryService";
 
 /* -------------------------------------------------------------------------- */
 /* Shapes                                                                     */
@@ -205,6 +206,11 @@ export interface StoreQuery {
   /** Matches the department and everything filed beneath it. */
   categoryId?: string;
   subcategoryId?: string;
+  /** An explicit category scope -- a category plus every descendant, as
+   * `getCategoryScopeIds()` returns it. This is what a three-level listing
+   * page uses: `categoryId` alone only reaches one level down, which was
+   * enough when the tree was two levels deep and is not any more. */
+  categoryIds?: string[];
   sort?: StoreSort;
   minDiscount?: number;
   maxPrice?: number;
@@ -218,7 +224,22 @@ function buildWhere(query: StoreQuery): { where: string; binds: unknown[] } {
   const clauses = ["p.status = 'active'"];
   const binds: unknown[] = [];
 
-  if (query.categoryId) {
+  // A product counts as "in" a category when that is its primary category or
+  // when it is cross-listed there, which is what product_categories records.
+  const scope = (ids: string[]) => {
+    const placeholders = ids.map(() => "?").join(",");
+    clauses.push(
+      `(p.category_id IN (${placeholders})
+        OR EXISTS (SELECT 1 FROM product_categories pc
+                    WHERE pc.product_id = p.id AND pc.category_id IN (${placeholders})))`
+    );
+    binds.push(...ids, ...ids);
+  };
+
+  if (query.categoryIds && query.categoryIds.length > 0) {
+    scope(query.categoryIds);
+  } else if (query.categoryId) {
+    // Legacy two-level form, kept for callers that still pass a bare id.
     clauses.push("(p.category_id = ? OR c.parent_id = ?)");
     binds.push(query.categoryId, query.categoryId);
   }
@@ -264,7 +285,6 @@ async function queryCards(query: StoreQuery): Promise<StoreProductCard[]> {
  * seconds rather than a shopkeeper reloading and wondering why their price
  * change has not appeared. */
 const CATALOG_TTL_SECONDS = 120;
-const CATEGORY_TTL_SECONDS = 600;
 
 /** The whole shoppable catalog.
  *
@@ -405,71 +425,38 @@ export async function listStoreProductIds(): Promise<string[]> {
 /* Categories                                                                 */
 /* -------------------------------------------------------------------------- */
 
-interface CategoryRow {
-  id: string;
-  parent_id: string | null;
-  name: string;
-  subtitle: string | null;
-  image_url: string | null;
-  sort_order: number;
-  own_count: number;
-}
-
+/** The two-level view of the tree the existing storefront components expect.
+ *
+ * The tree itself -- and its single grouped count query -- lives in
+ * `src/lib/categoryService.ts`; this is a projection of it, not a second read,
+ * so a category is never counted by two different rules. Level three is
+ * reachable through the service and through /category/[...path]; this shape
+ * stops at the subcategory because that is all `StoreCategory` can carry.
+ *
+ * No `cached()` wrapper here: the rows underneath are already cached by the
+ * service, and caching the projection too would mean two keys to invalidate
+ * for one piece of data. */
 async function queryCategories(): Promise<StoreCategory[]> {
-  const db = await getDB();
+  const { roots } = await getCategoryIndex();
 
-  // The counts used to be a correlated COUNT(*) per category, each one
-  // re-scanning products and the category table. On a catalog of forty
-  // products that read nearly three thousand rows per call and was, on its
-  // own, most of a day's D1 row budget. Counting every category once in a
-  // grouped join and rolling the children up in JS reads the two tables a
-  // single time and gives exactly the same numbers.
-  const { results } = await db
-    .prepare(
-      `SELECT c.id, c.parent_id, c.name, c.subtitle, c.image_url, c.sort_order,
-              COALESCE(counts.n, 0) AS own_count
-       FROM categories c
-       LEFT JOIN (SELECT category_id, COUNT(*) AS n
-                    FROM products
-                   WHERE status = 'active'
-                   GROUP BY category_id) counts
-         ON counts.category_id = c.id
-       WHERE c.is_active = 1
-       ORDER BY c.sort_order ASC, c.name ASC`
-    )
-    .all<CategoryRow>();
-
-  // A category's total is its own products plus those of its children, which
-  // is what the old subquery's OR clause meant.
-  const childTotals = new Map<string, number>();
-  for (const row of results) {
-    if (row.parent_id === null) continue;
-    childTotals.set(row.parent_id, (childTotals.get(row.parent_id) ?? 0) + row.own_count);
-  }
-  const totalFor = (row: CategoryRow) => row.own_count + (childTotals.get(row.id) ?? 0);
-
-  const departments = results.filter((row) => row.parent_id === null);
-
-  return departments.map((department) => ({
+  return roots.map((department) => ({
     id: department.id,
     name: department.name,
     subtitle: department.subtitle,
-    image: department.image_url ?? PLACEHOLDER_IMAGE,
+    image: department.imageUrl ?? PLACEHOLDER_IMAGE,
     accent: CATEGORY_ACCENTS[department.id] ?? FALLBACK_ACCENT,
-    productCount: totalFor(department),
-    subcategories: results
-      .filter((row) => row.parent_id === department.id)
-      .map((row) => ({
-        id: row.id,
-        name: row.name,
-        image: row.image_url ?? PLACEHOLDER_IMAGE,
-        productCount: totalFor(row),
-      })),
+    productCount: department.totalProductCount,
+    subcategories: department.children.map((child) => ({
+      id: child.id,
+      name: child.name,
+      image: child.imageUrl ?? PLACEHOLDER_IMAGE,
+      productCount: child.totalProductCount,
+    })),
   }));
 }
 
 export async function listStoreCategories(): Promise<StoreCategory[]> {
-  return cached(CacheKeys.categories(), queryCategories, CATEGORY_TTL_SECONDS);
+  return queryCategories();
 }
 
 export async function getStoreCategory(id: string): Promise<StoreCategory | undefined> {
@@ -495,40 +482,58 @@ export interface StoreCategoryOverview extends StoreCategory {
   highlights: StoreProductCard[];
 }
 
-/** Everything the /categories browser needs, in two queries rather than one
- * per department. */
+/** Everything the category browser needs, in one stats query plus the cached
+ * tree -- not one query per department.
+ *
+ * The "from" price and best discount are grouped per *category* and then rolled
+ * up in JavaScript over each department's descendants, which is what makes them
+ * correct at three levels: a SQL join to `parent_id` only ever reaches one
+ * level up, so a product filed under a level-three category used to fall out of
+ * its department's figures entirely. */
 export async function listCategoryOverviews(
   highlightCount = 6
 ): Promise<StoreCategoryOverview[]> {
   const db = await getDB();
-  const categories = await listStoreCategories();
+  const [categories, index] = await Promise.all([listStoreCategories(), getCategoryIndex()]);
 
   const { results: stats } = await db
     .prepare(
-      `SELECT COALESCE(parent.id, c.id) AS department,
+      `SELECT p.category_id AS category_id,
               MIN(p.price) AS from_price,
               MAX(CASE WHEN p.old_price > p.price
                        THEN (p.old_price - p.price) * 100.0 / p.old_price ELSE 0 END)
                 AS best_discount
-       FROM products p
-       JOIN categories c ON c.id = p.category_id
-       LEFT JOIN categories parent ON parent.id = c.parent_id
-       WHERE p.status = 'active'
-       GROUP BY department`
+         FROM products p
+        WHERE p.status = 'active' AND p.category_id IS NOT NULL
+        GROUP BY p.category_id`
     )
-    .all<{ department: string; from_price: number | null; best_discount: number | null }>();
+    .all<{ category_id: string; from_price: number | null; best_discount: number | null }>();
 
-  const byDepartment = new Map(stats.map((row) => [row.department, row]));
+  const byCategory = new Map(stats.map((row) => [row.category_id, row]));
 
   return Promise.all(
     categories.map(async (category) => {
-      const stat = byDepartment.get(category.id);
+      const node = index.byId.get(category.id);
+      const scope = node ? collectDescendantIds(node) : [category.id];
+
+      let fromPrice: number | null = null;
+      let bestDiscount = 0;
+
+      for (const id of scope) {
+        const stat = byCategory.get(id);
+        if (!stat) continue;
+        if (stat.from_price !== null) {
+          fromPrice = fromPrice === null ? stat.from_price : Math.min(fromPrice, stat.from_price);
+        }
+        bestDiscount = Math.max(bestDiscount, stat.best_discount ?? 0);
+      }
+
       return {
         ...category,
-        bestDiscount: Math.round(stat?.best_discount ?? 0),
-        fromPrice: stat?.from_price ?? null,
+        bestDiscount: Math.round(bestDiscount),
+        fromPrice,
         highlights: await listStoreProducts({
-          categoryId: category.id,
+          categoryIds: scope,
           sort: "popular",
           limit: highlightCount,
         }),

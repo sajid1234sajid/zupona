@@ -1,4 +1,5 @@
 import StickyHeader from "./StickyHeader";
+import CategoryNavBar from "@/components/category/CategoryNavBar";
 import { getCurrentUser } from "@/lib/session";
 import { getWishlistCount } from "@/lib/wishlist";
 import { getCartCount } from "@/lib/cart";
@@ -9,12 +10,23 @@ import { getCartCount } from "@/lib/cart";
  * rather than popping in after hydration. The markup itself lives in
  * `StickyHeader`, which needs the browser to know how far the page has
  * scrolled; this file exists to keep that data read on the server. */
-export default async function Header() {
+export default async function Header({ searchPlaceholder }: { searchPlaceholder?: string } = {}) {
   const user = await getCurrentUser();
   const [wishlistCount, cartCount] = await Promise.all([
     getWishlistCount(user?.id ?? null),
     getCartCount(user?.id ?? null),
   ]);
 
-  return <StickyHeader wishlistCount={wishlistCount} cartCount={cartCount} />;
+  // The mega menu bar is desktop-only and breaks out of the mobile shell's
+  // width itself; on a phone it renders nothing at all.
+  return (
+    <>
+      <CategoryNavBar />
+      <StickyHeader
+        wishlistCount={wishlistCount}
+        cartCount={cartCount}
+        searchPlaceholder={searchPlaceholder}
+      />
+    </>
+  );
 }

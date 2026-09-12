@@ -8,8 +8,17 @@ import { useProductSearch } from "@/components/search/SearchProvider";
  * The text is held in `SearchProvider` rather than here, because the results
  * appear in the product grid further down the page. Typing filters live, so
  * submitting has nothing left to do -- the button is kept because the design
- * has one, and it re-focuses the field rather than reloading the page. */
-export default function SearchBar() {
+ * has one, and it re-focuses the field rather than reloading the page.
+ *
+ * The placeholder is a prop because the same box searches different things
+ * depending on the page it is on: products on the home page, categories on the
+ * category index. What it actually filters is decided by whichever component
+ * reads the shared query, not here. */
+export default function SearchBar({
+  placeholder = "Search for products, brands and more...",
+}: {
+  placeholder?: string;
+}) {
   const { query, setQuery } = useProductSearch();
 
   return (
@@ -23,8 +32,8 @@ export default function SearchBar() {
         type="search"
         value={query}
         onChange={(event) => setQuery(event.target.value)}
-        placeholder="Search for products, brands and more..."
-        aria-label="Search for products, brands and more"
+        placeholder={placeholder}
+        aria-label={placeholder}
         className="min-w-0 flex-1 bg-transparent text-[11px] text-ink placeholder:text-ink-muted/80 outline-none [&::-webkit-search-cancel-button]:hidden"
       />
       <button

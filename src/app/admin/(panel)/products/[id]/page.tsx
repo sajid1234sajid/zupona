@@ -96,6 +96,7 @@ export default async function EditProductPage(props: PageProps<"/admin/products/
           sku: product.sku ?? "",
           description: product.description ?? "",
           categoryId: product.categoryId ?? "",
+          extraCategoryIds: product.extraCategoryIds,
           brandId: product.brandId ?? "",
           price: product.basePrice,
           discountType: product.discountType,

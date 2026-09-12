@@ -1,52 +1,77 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { getDB } from "@/lib/db";
-import { invalidateCatalog } from "@/lib/cache";
 import { AuthorizationError, logAdminAction, requireAdmin } from "@/lib/admin";
+import {
+  CategoryError,
+  createCategory,
+  deleteCategory,
+  getAdminCategoryIndex,
+  reorderCategories,
+  setCategoryActive,
+  updateCategory,
+  type CategoryInput,
+} from "@/lib/categoryService";
+
+/** Category mutations for the admin panel.
+ *
+ * Every action starts with `requireAdmin()` -- a hidden button is not a
+ * security boundary, and a server action can be invoked directly by anything
+ * that knows its id. The rules themselves (depth, cycles, duplicate slugs, what
+ * makes a category safe to delete) live in `src/lib/categoryService.ts` so this
+ * file stays about authorization, form parsing and cache invalidation, and so a
+ * rule cannot be enforced on one screen and forgotten on another.
+ *
+ * The service invalidates the catalog cache itself; what is left here is
+ * `revalidatePath` for the rendered pages. */
 
 export interface CategoryFormState {
   error?: string;
   success?: string;
 }
 
-function slugify(value: string): string {
-  return (
-    value
-      .toLowerCase()
-      .normalize("NFKD")
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "")
-      .slice(0, 60) || "category"
-  );
-}
-
-async function uniqueSlug(base: string, exceptId?: string): Promise<string> {
-  const db = await getDB();
-  let candidate = base;
-
-  for (let attempt = 2; attempt < 60; attempt += 1) {
-    const clash = await db
-      .prepare("SELECT id FROM categories WHERE slug = ? AND id != ?")
-      .bind(candidate, exceptId ?? "")
-      .first<{ id: string }>();
-    if (!clash) return candidate;
-    candidate = `${base}-${attempt}`;
-  }
-
-  return `${base}-${crypto.randomUUID().slice(0, 6)}`;
-}
-
 function refresh(): void {
   revalidatePath("/admin/categories");
   revalidatePath("/admin/products");
   revalidatePath("/categories");
+  revalidatePath("/category", "layout");
   revalidatePath("/");
 }
 
+/** Turns the two expected failures into a form message and lets anything else
+ * -- a genuine fault -- propagate to the error boundary. */
 function toFormError(error: unknown): CategoryFormState {
+  if (error instanceof CategoryError) return { error: error.message };
   if (error instanceof AuthorizationError) return { error: error.message };
   throw error;
+}
+
+const text = (formData: FormData, key: string): string => String(formData.get(key) ?? "").trim();
+
+/** An unchecked box posts nothing at all, so its absence is what "off" looks
+ * like. Only meaningful on a form that actually rendered the box -- which is
+ * why the toggle actions below send an explicit value instead. */
+const checkbox = (formData: FormData, key: string): boolean => formData.get(key) !== null;
+
+function readInput(formData: FormData): CategoryInput {
+  return {
+    name: text(formData, "name"),
+    nameBn: text(formData, "nameBn"),
+    slug: text(formData, "slug"),
+    parentId: text(formData, "parentId") || null,
+    subtitle: text(formData, "subtitle"),
+    descriptionEn: text(formData, "descriptionEn"),
+    descriptionBn: text(formData, "descriptionBn"),
+    imageUrl: text(formData, "image"),
+    iconUrl: text(formData, "iconImage"),
+    icon: text(formData, "icon"),
+    seoTitle: text(formData, "seoTitle"),
+    seoDescription: text(formData, "seoDescription"),
+    isActive: checkbox(formData, "isActive"),
+    isFeatured: checkbox(formData, "isFeatured"),
+    showOnHomepage: checkbox(formData, "showOnHomepage"),
+    showInNavigation: checkbox(formData, "showInNavigation"),
+  };
 }
 
 export async function createCategoryAction(
@@ -55,51 +80,18 @@ export async function createCategoryAction(
 ): Promise<CategoryFormState> {
   try {
     const admin = await requireAdmin();
+    const input = readInput(formData);
 
-    const name = String(formData.get("name") ?? "").trim();
-    if (!name) return { error: "Enter a category name." };
-
-    const parentId = String(formData.get("parentId") ?? "").trim() || null;
-
-    // Two levels is what the storefront's category browser renders; allowing a
-    // third would create categories no page could reach.
-    if (parentId) {
-      const db = await getDB();
-      const parent = await db
-        .prepare("SELECT parent_id FROM categories WHERE id = ?")
-        .bind(parentId)
-        .first<{ parent_id: string | null }>();
-
-      if (!parent) return { error: "That parent category no longer exists." };
-      if (parent.parent_id) {
-        return { error: "Categories only go two levels deep." };
-      }
+    const sortOrder = Number(formData.get("sortOrder"));
+    if (Number.isFinite(sortOrder) && text(formData, "sortOrder") !== "") {
+      input.sortOrder = sortOrder;
     }
 
-    const db = await getDB();
-    const id = crypto.randomUUID();
+    const created = await createCategory(input);
 
-    await db
-      .prepare(
-        `INSERT INTO categories (id, parent_id, name, slug, subtitle, image_url, icon,
-                                 sort_order, is_active)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-      )
-      .bind(
-        id,
-        parentId,
-        name,
-        await uniqueSlug(slugify(name)),
-        String(formData.get("subtitle") ?? "").trim() || null,
-        String(formData.get("image") ?? "").trim() || null,
-        String(formData.get("icon") ?? "").trim() || null,
-        Number(formData.get("sortOrder") ?? 0) || 0,
-        formData.get("isActive") === null ? 1 : 1
-      )
-      .run();
-
-    await logAdminAction(admin.id, "category.create", "category", id, { after: { name, parentId } });
-    await invalidateCatalog();
+    await logAdminAction(admin.id, "category.create", "category", created.id, {
+      after: { name: created.name, slug: created.slug, parentId: created.parentId },
+    });
   } catch (error) {
     return toFormError(error);
   }
@@ -115,39 +107,24 @@ export async function updateCategoryAction(
   try {
     const admin = await requireAdmin();
 
-    const id = String(formData.get("categoryId") ?? "");
-    const name = String(formData.get("name") ?? "").trim();
-    if (!id || !name) return { error: "Enter a category name." };
+    const id = text(formData, "categoryId");
+    if (!id) return { error: "That category no longer exists." };
 
-    const db = await getDB();
-    const before = await db
-      .prepare("SELECT name, slug FROM categories WHERE id = ?")
-      .bind(id)
-      .first<{ name: string; slug: string }>();
-
+    const before = (await getAdminCategoryIndex()).byId.get(id);
     if (!before) return { error: "That category no longer exists." };
 
-    const slug = before.name === name ? before.slug : await uniqueSlug(slugify(name), id);
+    const input = readInput(formData);
+    const sortOrder = Number(formData.get("sortOrder"));
+    if (Number.isFinite(sortOrder) && text(formData, "sortOrder") !== "") {
+      input.sortOrder = sortOrder;
+    }
 
-    await db
-      .prepare(
-        `UPDATE categories SET name = ?, slug = ?, subtitle = ?, image_url = ?, icon = ?,
-                               sort_order = ?
-         WHERE id = ?`
-      )
-      .bind(
-        name,
-        slug,
-        String(formData.get("subtitle") ?? "").trim() || null,
-        String(formData.get("image") ?? "").trim() || null,
-        String(formData.get("icon") ?? "").trim() || null,
-        Number(formData.get("sortOrder") ?? 0) || 0,
-        id
-      )
-      .run();
+    await updateCategory(id, input);
 
-    await logAdminAction(admin.id, "category.update", "category", id, { before, after: { name } });
-    await invalidateCatalog();
+    await logAdminAction(admin.id, "category.update", "category", id, {
+      before: { name: before.name, slug: before.slug, parentId: before.parentId },
+      after: { name: input.name, slug: input.slug, parentId: input.parentId },
+    });
   } catch (error) {
     return toFormError(error);
   }
@@ -156,55 +133,90 @@ export async function updateCategoryAction(
   return { success: "Category saved." };
 }
 
-/** Hiding a parent hides its subcategories too, otherwise a "hidden" section
- * would still be reachable through its own children. */
-export async function toggleCategoryAction(formData: FormData): Promise<void> {
+/** The four placement switches, through one action.
+ *
+ * The button posts `toggle` as "<flag>:<0|1>" -- flag and desired state in one
+ * field, because a button carries a single value and one form per switch would
+ * mean four nested forms in every tree row. The state is sent explicitly rather
+ * than inferred: read as a checkbox, "absent" would mean "off" on every click.
+ *
+ * Which flags exist is decided here, not by the form: an unrecognised one is
+ * ignored rather than written. */
+export async function toggleCategoryFlagAction(formData: FormData): Promise<void> {
   const admin = await requireAdmin();
-  const id = String(formData.get("categoryId") ?? "");
-  if (!id) return;
+  const id = text(formData, "categoryId");
+  const [flag, rawValue] = text(formData, "toggle").split(":");
+  const value = rawValue === "1";
+  if (!id || !flag) return;
 
-  const db = await getDB();
-  const row = await db
-    .prepare("SELECT is_active FROM categories WHERE id = ?")
-    .bind(id)
-    .first<{ is_active: number }>();
+  try {
+    switch (flag) {
+      case "active":
+        await setCategoryActive(id, value);
+        break;
+      case "featured":
+        await updateCategory(id, { isFeatured: value });
+        break;
+      case "homepage":
+        await updateCategory(id, { showOnHomepage: value });
+        break;
+      case "navigation":
+        await updateCategory(id, { showInNavigation: value });
+        break;
+      default:
+        return;
+    }
+  } catch (error) {
+    // A toggle has nowhere to render a message; an invalid one is a no-op.
+    if (!(error instanceof CategoryError)) throw error;
+    return;
+  }
 
-  if (!row) return;
-  const next = row.is_active === 1 ? 0 : 1;
-
-  await db.batch([
-    db.prepare("UPDATE categories SET is_active = ? WHERE id = ?").bind(next, id),
-    db.prepare("UPDATE categories SET is_active = ? WHERE parent_id = ?").bind(next, id),
-  ]);
-
-  await logAdminAction(admin.id, next === 1 ? "category.show" : "category.hide", "category", id);
-  await invalidateCatalog();
+  await logAdminAction(admin.id, `category.${flag}.${value ? "on" : "off"}`, "category", id);
   refresh();
 }
 
-/** Refuses while anything still points at the category.
+/** Deletes a category, moving any products filed under it somewhere else.
  *
- * The foreign keys are ON DELETE SET NULL, so a delete would silently
- * un-categorise products and orphan subcategories rather than failing. Saying
- * so is more useful than quietly doing it. */
-export async function deleteCategoryAction(formData: FormData): Promise<void> {
+ * Refuses rather than cascading: the schema's ON DELETE SET NULL would leave
+ * the products uncategorised, which looks like nothing happened until a
+ * shopper cannot find them. */
+export async function deleteCategoryAction(
+  _prevState: CategoryFormState,
+  formData: FormData
+): Promise<CategoryFormState> {
+  const id = text(formData, "categoryId");
+
+  try {
+    const admin = await requireAdmin();
+    if (!id) return { error: "That category no longer exists." };
+
+    const before = (await getAdminCategoryIndex()).byId.get(id);
+    await deleteCategory(id, { reassignTo: text(formData, "reassignTo") || null });
+
+    await logAdminAction(admin.id, "category.delete", "category", id, {
+      before: before ? { name: before.name, slug: before.slug } : undefined,
+    });
+  } catch (error) {
+    return toFormError(error);
+  }
+
+  refresh();
+  return { success: "Category deleted." };
+}
+
+/** Writes a new order for one level of the tree after a drag.
+ *
+ * The ids are the level's new order; the service ignores any that are not
+ * actually siblings, so a tampered payload cannot re-parent a category here. */
+export async function reorderCategoriesAction(
+  parentId: string | null,
+  orderedIds: string[]
+): Promise<void> {
   const admin = await requireAdmin();
-  const id = String(formData.get("categoryId") ?? "");
-  if (!id) return;
-
-  const db = await getDB();
-  const usage = await db
-    .prepare(
-      `SELECT (SELECT COUNT(*) FROM products WHERE category_id = ?) AS products,
-              (SELECT COUNT(*) FROM categories WHERE parent_id = ?) AS children`
-    )
-    .bind(id, id)
-    .first<{ products: number; children: number }>();
-
-  if ((usage?.products ?? 0) > 0 || (usage?.children ?? 0) > 0) return;
-
-  await db.prepare("DELETE FROM categories WHERE id = ?").bind(id).run();
-  await logAdminAction(admin.id, "category.delete", "category", id);
-  await invalidateCatalog();
+  await reorderCategories(parentId, orderedIds);
+  await logAdminAction(admin.id, "category.reorder", "category", parentId ?? "root", {
+    after: { order: orderedIds },
+  });
   refresh();
 }

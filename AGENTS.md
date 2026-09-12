@@ -80,6 +80,16 @@ divide by; match `formatPrice()` in `src/lib/format.ts`.
 `inventory_movements` ledger stay in agreement. A variant's `price` is `NULL`
 when it inherits the product price — read `effectivePrice`, not `price`.
 
+**Categories go through `src/lib/categoryService.ts`, never straight to SQL.**
+It is the only module that writes the `categories` table, and it owns the rules:
+three levels maximum, no category inside its own subtree, unique slugs, and a
+delete that refuses rather than un-categorising products. It also clears the KV
+cache, so a category edited any other way will not show up on the shop.
+
+**Category links are slug paths.** `/category/electronics/mobiles` comes from
+`node.href`; never build one from a category id, which is a UUID for anything
+created in the admin panel. Old id links still resolve and redirect.
+
 **Admin-uploaded media must not go through the Next image optimizer.** It
 cannot fetch `/api/media/` URLs and answers 404, which renders uploaded imagery
 as broken thumbnails. Pass `unoptimized` for those; see

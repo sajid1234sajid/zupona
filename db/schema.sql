@@ -149,20 +149,45 @@ CREATE INDEX IF NOT EXISTS idx_seller_documents_seller_id ON seller_documents (s
 -- 3. CATALOG -- categories, brands, products, variants, images, attributes
 -- ============================================================================
 
+-- Three levels at most (department -> section -> type); the depth guard lives
+-- in src/lib/categoryService.ts, which is also what refuses a parent that
+-- would make the tree circular.
+--
+-- `name` is the canonical display name and `name_en` is kept equal to it;
+-- `name_bn` carries the Bangla name. `subtitle` is the one-line tagline under
+-- a tile, `description_*` the longer copy on the category landing page.
+-- `icon` is a lucide icon name, `icon_url` an uploaded image.
 CREATE TABLE IF NOT EXISTS categories (
   id TEXT PRIMARY KEY,
   parent_id TEXT REFERENCES categories(id) ON DELETE SET NULL,
   name TEXT NOT NULL,
+  name_en TEXT,
+  name_bn TEXT,
   slug TEXT NOT NULL UNIQUE,
   subtitle TEXT,
+  description_en TEXT,
+  description_bn TEXT,
   image_url TEXT,
   icon TEXT,
+  icon_url TEXT,
   sort_order INTEGER NOT NULL DEFAULT 0,
   is_active INTEGER NOT NULL DEFAULT 1,
-  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  is_featured INTEGER NOT NULL DEFAULT 0,
+  show_on_homepage INTEGER NOT NULL DEFAULT 1,
+  show_in_navigation INTEGER NOT NULL DEFAULT 1,
+  seo_title TEXT,
+  seo_description TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 CREATE INDEX IF NOT EXISTS idx_categories_parent_id ON categories (parent_id);
+CREATE INDEX IF NOT EXISTS idx_categories_navigation
+  ON categories (is_active, show_in_navigation, sort_order);
+CREATE INDEX IF NOT EXISTS idx_categories_homepage
+  ON categories (is_active, show_on_homepage, sort_order);
+CREATE INDEX IF NOT EXISTS idx_categories_featured
+  ON categories (is_active, is_featured, sort_order);
 
 CREATE TABLE IF NOT EXISTS brands (
   id TEXT PRIMARY KEY,
@@ -208,6 +233,26 @@ CREATE INDEX IF NOT EXISTS idx_products_brand_id ON products (brand_id);
 CREATE INDEX IF NOT EXISTS idx_products_status ON products (status);
 CREATE INDEX IF NOT EXISTS idx_products_name ON products (name);
 CREATE INDEX IF NOT EXISTS idx_products_featured ON products (is_featured);
+
+-- Cross-listing. A product's *primary* category stays products.category_id --
+-- that column is what the catalog, the admin product form and every order
+-- report read -- and this table lets the same product also appear under other
+-- categories. The partial unique index keeps exactly one primary link.
+--
+-- ON DELETE CASCADE removes the link, never the product: deleting a category a
+-- product is cross-listed in un-files it from that category and nothing more.
+CREATE TABLE IF NOT EXISTS product_categories (
+  product_id  TEXT NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  category_id TEXT NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
+  is_primary  INTEGER NOT NULL DEFAULT 0,
+  created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+  PRIMARY KEY (product_id, category_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_product_categories_category
+  ON product_categories (category_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_product_categories_primary
+  ON product_categories (product_id) WHERE is_primary = 1;
 
 CREATE TABLE IF NOT EXISTS product_images (
   id TEXT PRIMARY KEY,

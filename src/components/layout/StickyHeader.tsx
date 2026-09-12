@@ -30,9 +30,11 @@ const UNFOLD_AT = 24;
 export default function StickyHeader({
   wishlistCount,
   cartCount,
+  searchPlaceholder,
 }: {
   wishlistCount: number;
   cartCount: number;
+  searchPlaceholder?: string;
 }) {
   const [collapsed, setCollapsed] = useState(false);
 
@@ -62,7 +64,10 @@ export default function StickyHeader({
   }, []);
 
   return (
-    <header className="sticky top-0 z-40 bg-brand-dark px-3.5 pb-2.5 pt-2 text-white">
+    // `lg:top-10` clears the desktop category bar, which is 40px tall and
+    // sticks at the very top of the viewport. On a phone that bar is not
+    // rendered at all and this header sits at 0 as it always has.
+    <header className="sticky top-0 z-40 bg-brand-dark px-3.5 pb-2.5 pt-2 text-white lg:top-10">
       {/* A 0fr/1fr grid row rather than a max-height: the row animates to its
           own natural height, so nothing has to hard-code how tall the brand
           block is. */}
@@ -147,7 +152,7 @@ export default function StickyHeader({
           </span>
         </button>
 
-        <SearchBar />
+        <SearchBar placeholder={searchPlaceholder} />
       </div>
     </header>
   );

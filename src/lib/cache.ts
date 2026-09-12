@@ -13,6 +13,9 @@ import { getCache } from "@/lib/db";
 /** Namespaced so `invalidatePrefix` can clear one family of keys at a time. */
 export const CacheKeys = {
   categories: () => "catalog:categories",
+  /** The flat category rows behind the tree; the tree itself is rebuilt per
+   * request because a Map does not survive JSON. */
+  categoryTree: () => "catalog:category-tree",
   featuredProducts: (limit: number) => `catalog:featured:${limit}`,
   product: (id: string) => `catalog:product:${id}`,
   productList: (fingerprint: string) => `catalog:list:${fingerprint}`,

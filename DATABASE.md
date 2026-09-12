@@ -76,7 +76,7 @@ Two notes carried from building `0003`:
 
 ## Schema map
 
-44 tables, grouped by concern.
+45 tables, grouped by concern.
 
 **Identity and access** — `users` (with `role`, `status`, verification flags,
 referral fields), `sessions` (with device metadata), `oauth_accounts` for
@@ -86,10 +86,10 @@ multi-provider sign-in, `login_attempts` for lockout and the security page,
 **Sellers** — `sellers` (store, approval state, commission rate, payout
 details) and `seller_documents` for KYC paperwork held in R2.
 
-**Catalog** — `categories` (self-referencing for subcategories), `brands`,
-`products`, `product_images`, `product_variants`, `product_attributes`
-(spec sheet), `product_features` (badge icons), `inventory_movements` (the
-stock ledger) and `price_history`.
+**Catalog** — `categories` (self-referencing, three levels), `brands`,
+`products`, `product_categories` (cross-listing), `product_images`,
+`product_variants`, `product_attributes` (spec sheet), `product_features`
+(badge icons), `inventory_movements` (the stock ledger) and `price_history`.
 
 **Shopping** — `cart_items`, `wishlist_items`, `recently_viewed`,
 `search_queries`.
@@ -135,6 +135,28 @@ row per seller, which is what fulfillment, commission and payouts key off.
 inside the same batch as every review write, so listing pages can sort by
 rating without a join and can never show a stale average.
 
+**Categories are three levels and no more.** Department → section → type.
+The limit, the ban on a category becoming its own descendant, slug uniqueness
+and what makes a category safe to delete all live in
+`src/lib/categoryService.ts`, which is the only module that writes the table —
+so a rule added there holds for the admin panel and for anything built on it
+later. The tree and every product count come back in one grouped query, cached
+in KV and cleared by every mutation.
+
+**A product has one primary category and any number of cross-listings.**
+`products.category_id` stays the primary one — it is what the product page, the
+admin form and every order report read — and `product_categories` records the
+rest, with a partial unique index keeping exactly one `is_primary` row per
+product. Deleting a category never deletes a product: the service refuses while
+products are filed there unless the caller names where they move to, and
+cross-listing rows simply un-file the product from that category.
+
+**Category URLs are slug paths, never ids.** `/category/electronics/mobiles`
+is built from the slug chain; an id (a UUID for anything created in the admin
+panel) still resolves and redirects to the canonical path, as does the right
+slug reached by the wrong ancestry. One address per category is what the
+canonical tag promises.
+
 **Deletes are soft where history matters.** Archiving a product keeps its order
 lines and reviews; a hard `DELETE` would cascade them away.
 
@@ -143,7 +165,8 @@ lines and reviews; a hard `DELETE` would cascade them away.
 | Module | Responsibility |
 | --- | --- |
 | `src/lib/db.ts` | Binding accessors for D1, R2 and KV |
-| `src/lib/catalog.ts` | Products, categories, brands, variants, search, browsing signals |
+| `src/lib/catalog.ts` | Products, brands, variants, search, browsing signals |
+| `src/lib/categoryService.ts` | The category tree, its lookups and its validated mutations |
 | `src/lib/inventory.ts` | Stock levels, ledger, reservations, low-stock reporting |
 | `src/lib/sellers.ts` | Seller onboarding, approval, storefronts, earnings |
 | `src/lib/reviews.ts` | Reviews, rating breakdown, moderation, seller replies |

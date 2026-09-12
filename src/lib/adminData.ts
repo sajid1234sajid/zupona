@@ -11,6 +11,7 @@
  * exist. */
 
 import { getDB } from "@/lib/db";
+import { getAdminCategoryIndex, type CategoryNode } from "@/lib/categoryService";
 
 /* -------------------------------------------------------------------------- */
 /* Shared                                                                     */
@@ -770,67 +771,67 @@ export interface AdminCategory {
   id: string;
   parentId: string | null;
   name: string;
+  nameBn: string | null;
   slug: string;
+  /** Canonical storefront URL, e.g. /category/electronics/mobiles. */
+  href: string;
   subtitle: string | null;
+  descriptionEn: string | null;
+  descriptionBn: string | null;
   imageUrl: string | null;
+  iconUrl: string | null;
   icon: string | null;
+  seoTitle: string | null;
+  seoDescription: string | null;
   sortOrder: number;
   isActive: boolean;
+  isFeatured: boolean;
+  showOnHomepage: boolean;
+  showInNavigation: boolean;
+  /** 1 for a department, 3 for the deepest level. */
+  depth: number;
+  /** Products filed directly here. */
   productCount: number;
+  /** Products here or anywhere beneath. */
+  totalProductCount: number;
   children: AdminCategory[];
 }
 
-/** The full category tree with per-category product counts. Admin tooling
- * needs inactive categories too, which `listCategories()` filters out. */
+/** The full category tree, hidden categories included -- which is what makes
+ * them un-hideable again.
+ *
+ * A projection of `getAdminCategoryIndex()` rather than its own query: the
+ * service already reads every category and counts every product in one
+ * statement, and a second read here is how the panel and the shop end up
+ * disagreeing about what exists. */
 export async function listCategoryTree(): Promise<AdminCategory[]> {
-  const db = await getDB();
-  const { results } = await db
-    .prepare(
-      `SELECT c.id, c.parent_id, c.name, c.slug, c.subtitle, c.image_url, c.icon,
-              c.sort_order, c.is_active,
-              (SELECT COUNT(*) FROM products p
-                WHERE p.category_id = c.id AND p.status != 'archived') AS product_count
-       FROM categories c
-       ORDER BY c.sort_order ASC, c.name ASC`
-    )
-    .all<{
-      id: string;
-      parent_id: string | null;
-      name: string;
-      slug: string;
-      subtitle: string | null;
-      image_url: string | null;
-      icon: string | null;
-      sort_order: number;
-      is_active: number;
-      product_count: number;
-    }>();
+  const toAdmin = (node: CategoryNode): AdminCategory => ({
+    id: node.id,
+    parentId: node.parentId,
+    name: node.name,
+    nameBn: node.nameBn,
+    slug: node.slug,
+    href: node.href,
+    subtitle: node.subtitle,
+    descriptionEn: node.descriptionEn,
+    descriptionBn: node.descriptionBn,
+    imageUrl: node.imageUrl,
+    iconUrl: node.iconUrl,
+    icon: node.icon,
+    seoTitle: node.seoTitle,
+    seoDescription: node.seoDescription,
+    sortOrder: node.sortOrder,
+    isActive: node.isActive,
+    isFeatured: node.isFeatured,
+    showOnHomepage: node.showOnHomepage,
+    showInNavigation: node.showInNavigation,
+    depth: node.depth,
+    productCount: node.productCount,
+    totalProductCount: node.totalProductCount,
+    children: node.children.map(toAdmin),
+  });
 
-  const byId = new Map<string, AdminCategory>();
-  for (const row of results) {
-    byId.set(row.id, {
-      id: row.id,
-      parentId: row.parent_id,
-      name: row.name,
-      slug: row.slug,
-      subtitle: row.subtitle,
-      imageUrl: row.image_url,
-      icon: row.icon,
-      sortOrder: row.sort_order,
-      isActive: row.is_active === 1,
-      productCount: row.product_count,
-      children: [],
-    });
-  }
-
-  const roots: AdminCategory[] = [];
-  for (const category of byId.values()) {
-    const parent = category.parentId ? byId.get(category.parentId) : undefined;
-    if (parent) parent.children.push(category);
-    else roots.push(category);
-  }
-
-  return roots;
+  return (await getAdminCategoryIndex()).roots.map(toAdmin);
 }
 
 /** Flat list of every category, indented by depth, for <select> menus. */
@@ -1688,6 +1689,8 @@ export interface EditableProduct {
   sku: string | null;
   description: string | null;
   categoryId: string | null;
+  /** Categories the product is cross-listed in, excluding the primary one. */
+  extraCategoryIds: string[];
   brandId: string | null;
   status: string;
   /** The pre-discount figure the form shows in its Price box: `old_price`
@@ -1765,7 +1768,9 @@ export async function getProductForEdit(productId: string): Promise<EditableProd
 
   if (!row) return null;
 
-  const [images, videos, attributes, variants] = await db.batch<Record<string, unknown>>([
+  const [images, videos, attributes, variants, crossListed] = await db.batch<
+    Record<string, unknown>
+  >([
     db
       .prepare(
         "SELECT url FROM product_images WHERE product_id = ? ORDER BY is_primary DESC, sort_order ASC"
@@ -1786,6 +1791,13 @@ export async function getProductForEdit(productId: string): Promise<EditableProd
         `SELECT id, sku, option1_value, option2_value, price, stock_quantity,
                 reserved_quantity, low_stock_threshold
          FROM product_variants WHERE product_id = ? AND is_active = 1 ORDER BY rowid ASC`
+      )
+      .bind(productId),
+    // Cross-listings only: the primary link mirrors products.category_id, which
+    // the form already has in its own field.
+    db
+      .prepare(
+        "SELECT category_id FROM product_categories WHERE product_id = ? AND is_primary = 0"
       )
       .bind(productId),
   ]);
@@ -1832,6 +1844,9 @@ export async function getProductForEdit(productId: string): Promise<EditableProd
     sku: row.sku,
     description: row.description,
     categoryId: row.category_id,
+    extraCategoryIds: (crossListed.results as unknown as { category_id: string }[]).map(
+      (link) => link.category_id
+    ),
     brandId: row.brand_id,
     status: row.status,
     basePrice: discounted ? row.old_price : row.price,

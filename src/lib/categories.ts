@@ -1,59 +1,31 @@
-/** Category tree lookups and category-scoped product queries.
+/** Category-shaped helpers that are not part of the category *system*.
  *
- * This used to read the hardcoded catalog in `src/data/`. It now reads the
- * database through `src/lib/storefront.ts`, which is what makes a category
- * created or renamed in the admin panel appear on the shop. The function
- * names are unchanged so the pages that call them did not have to be
- * rewritten -- but they are asynchronous now, because the data comes from D1.
+ * The tree, its lookups and its mutations all live in
+ * `src/lib/categoryService.ts`. What is left here is the two things the cart,
+ * wishlist and offers pages need from a category without wanting the tree:
+ * a product's category name, and the narrowing of a catalog row to the summary
+ * shape client components receive.
  *
- * Sorting and filtering happen in SQL rather than in JavaScript: the catalog
- * is no longer a fixed array that can be held in memory. */
+ * This module used to hold the lookups and the category-scoped product queries
+ * too. Those moved to the service when categories grew a third level -- keeping
+ * a second set of functions that answered the same questions two levels deep
+ * was exactly the duplication that lets one page disagree with another. */
 
-import {
-  getStoreCategory,
-  getStoreSubcategory,
-  listCategoryOverviews,
-  listStoreCategories,
-  listStoreProducts,
-  type StoreCategory,
-  type StoreCategoryOverview,
-  type StoreProductCard,
-  type StoreSort,
-  type StoreSubcategory,
-} from "@/lib/storefront";
+import type { StoreProductCard } from "@/lib/storefront";
+import { getCategoryIndex } from "@/lib/categoryService";
 import type { ProductSummary } from "@/types";
-import type { CategorySort } from "@/lib/categorySorts";
 
 // Re-exported so existing server-side imports keep working; the definitions
 // live in a database-free module because a client component needs them.
 export { CATEGORY_SORTS, isCategorySort, type CategorySort } from "@/lib/categorySorts";
 
-/** Kept for the components that already import this name. */
-export type CategoryOverview = StoreCategoryOverview;
-
-export async function getCategory(categoryId: string): Promise<StoreCategory | undefined> {
-  return getStoreCategory(categoryId);
-}
-
-export async function getSubcategory(
-  categoryId: string,
-  subcategoryId: string
-): Promise<StoreSubcategory | undefined> {
-  return getStoreSubcategory(categoryId, subcategoryId);
-}
-
+/** The display name for whatever category id a product row carries, at any
+ * level of the tree. Reads the cached index rather than walking a projection
+ * of it, so a level-three category resolves the same as a department. */
 export async function categoryName(categoryId: string | null): Promise<string> {
   if (!categoryId) return "Uncategorised";
-  const category = await getStoreCategory(categoryId);
-  if (category) return category.name;
-
-  // The id may name a subcategory rather than a department.
-  const all = await listStoreCategories();
-  for (const department of all) {
-    const sub = department.subcategories.find((entry) => entry.id === categoryId);
-    if (sub) return sub.name;
-  }
-  return "Uncategorised";
+  const { byId } = await getCategoryIndex();
+  return byId.get(categoryId)?.name ?? "Uncategorised";
 }
 
 /** Trims a catalog row to the shape client components receive. The database
@@ -70,32 +42,4 @@ export function toSummary(product: StoreProductCard): ProductSummary {
     rating: product.rating,
     reviews: product.reviews,
   };
-}
-
-export interface CategoryQuery {
-  categoryId: string;
-  subcategoryId?: string;
-  sort?: CategorySort;
-  /** Only products with a discount of at least this many percent. */
-  minDiscount?: number;
-  maxPrice?: number;
-}
-
-export async function productsInCategory(query: CategoryQuery): Promise<StoreProductCard[]> {
-  return listStoreProducts({
-    categoryId: query.categoryId,
-    subcategoryId: query.subcategoryId,
-    sort: query.sort ?? "popular",
-    minDiscount: query.minDiscount,
-    maxPrice: query.maxPrice,
-  });
-}
-
-export async function countInCategory(categoryId: string): Promise<number> {
-  const category = await getStoreCategory(categoryId);
-  return category?.productCount ?? 0;
-}
-
-export async function categoryOverviews(highlightCount = 6): Promise<CategoryOverview[]> {
-  return listCategoryOverviews(highlightCount);
 }

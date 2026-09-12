@@ -20,6 +20,8 @@ export interface ProductFormValues {
   sku: string;
   description: string;
   categoryId: string;
+  /** Extra categories the product is listed in, besides the primary one. */
+  extraCategoryIds: string[];
   brandId: string;
   /** The pre-discount price. */
   price: number;
@@ -119,9 +121,38 @@ export default function ProductForm({
                 </select>
               </Field>
 
-              <Field label="Category" className="sm:col-span-2">
+              <Field
+                label="Category"
+                className="sm:col-span-2"
+                hint="Where the product lives — its breadcrumb and its place in the tree"
+              >
                 <select name="categoryId" defaultValue={values.categoryId} className={fieldStyles}>
                   <option value="">Select category</option>
+                  {categories.map((category) => (
+                    <option key={category.id} value={category.id}>
+                      {category.label}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+
+              {/* Cross-listing. The primary category above is what the product
+                  page and every report read; these only add the product to
+                  other category listings, so a power bank filed under Mobile
+                  Accessories can also show up under Home Appliances without
+                  pretending to belong there. */}
+              <Field
+                label="Also list in"
+                className="sm:col-span-2"
+                hint="Optional — hold Ctrl (⌘ on Mac) to pick more than one"
+              >
+                <select
+                  name="extraCategoryIds"
+                  multiple
+                  size={6}
+                  defaultValue={values.extraCategoryIds}
+                  className={`${fieldStyles} h-auto py-2`}
+                >
                   {categories.map((category) => (
                     <option key={category.id} value={category.id}>
                       {category.label}

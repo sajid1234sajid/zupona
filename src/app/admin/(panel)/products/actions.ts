@@ -8,6 +8,7 @@ import { AuthorizationError, logAdminAction, requireAdmin } from "@/lib/admin";
 import { setProductStatus } from "@/lib/catalog";
 import { adminUrl } from "@/lib/adminUrl";
 import { adjustStock } from "@/lib/inventory";
+import { syncProductCategories } from "@/lib/categoryService";
 import type { ProductStatus } from "@/types";
 
 export interface ProductFormState {
@@ -307,6 +308,13 @@ export async function createProductAction(
     });
 
     await db.batch(statements);
+    // The cross-listing table mirrors the primary category, in the same request
+    // as the write so the two can never be observed out of step.
+    await syncProductCategories(
+      productId,
+      readText(formData, "categoryId"),
+      formData.getAll("extraCategoryIds").map(String)
+    );
     await logAdminAction(admin.id, "product.create", "product", productId, {
       after: { name, price: pricing.price, status },
     });
@@ -443,6 +451,11 @@ export async function updateProductAction(
     }
 
     await db.batch(statements);
+    await syncProductCategories(
+      productId,
+      readText(formData, "categoryId"),
+      formData.getAll("extraCategoryIds").map(String)
+    );
     await logAdminAction(admin.id, "product.update", "product", productId, {
       before,
       after: { name, price: pricing.price, status },

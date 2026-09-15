@@ -1,6 +1,7 @@
--- Legacy data shaped like production before 0011: orders with no suborders,
--- variants in the old two-slot form, variants in the new canonical form, and a
--- variant with no options at all.
+-- Data shaped the way production's is at the 0008 schema: variants carry
+-- options in the two fixed `option1_*` / `option2_*` slots only, because the
+-- canonical option tables do not exist yet; orders have no suborders; cart
+-- lines predate the variant-aware cart.
 
 INSERT INTO users (id, name, email, phone, role) VALUES
   ('u1', 'Sajid Rahman', 'sajid@example.com', '01711000001', 'customer'),
@@ -18,35 +19,30 @@ INSERT INTO products (id, seller_id, category_id, name, slug, price) VALUES
   ('p4', NULL, 'c1', 'Leather Wallet', 'leather-wallet', 5200),
   ('p5', NULL, 'c1', 'Cotton Socks',   'cotton-socks',    450);
 
--- A. Legacy two-slot variants, no canonical rows at all (0013 section C).
+INSERT INTO product_images (id, product_id, url, sort_order) VALUES
+  ('img1', 'p1', '/a.jpg', 0);
+
+-- p1: one colour group, with swatches.       p2: colour and size together.
+-- p3: a group that is neither colour nor size, so 0013 must not mirror it.
+-- p4: a colour group with no swatch at all.  p5: a variant with no options.
 INSERT INTO product_variants (id, product_id, sku, option1_name, option1_value, option2_name, option2_value, swatch, price, stock_quantity) VALUES
-  ('v1', 'p1', 'CW-BG',  'Color', 'Black & Gold', NULL,   NULL, '#111111', NULL, 10),
-  ('v2', 'p1', 'CW-SL',  'Color', 'Silver',       NULL,   NULL, '#cccccc', 3700,  4),
-  ('v3', 'p2', 'RS-R42', 'Color', 'Red',          'Size', '42', '#dd2222', NULL,  6),
-  ('v4', 'p2', 'RS-R43', 'Color', 'Red',          'Size', '43', '#dd2222', NULL,  3);
+  ('v1', 'p1', 'CW-BG',  'Color',  'Black & Gold', NULL,   NULL, '#111111', NULL, 10),
+  ('v2', 'p1', 'CW-SL',  'Color',  'Silver',       NULL,   NULL, '#cccccc', 3700,  4),
+  ('v3', 'p2', 'RS-R42', 'Color',  'Red',          'Size', '42', '#dd2222', NULL,  6),
+  ('v4', 'p2', 'RS-R43', 'Color',  'Red',          'Size', '43', '#dd2222', NULL,  3),
+  ('v5', 'p3', 'FS-30',  'Volume', '30 ml',        NULL,   NULL, NULL,      NULL, 12),
+  ('v6', 'p3', 'FS-50',  'Volume', '50 ml',        NULL,   NULL, NULL,      NULL,  7),
+  ('v7', 'p4', 'LW-MB',  'Color',  'Midnight Blue',NULL,   NULL, NULL,      NULL,  5),
+  ('v8', 'p5', 'CS-1',   NULL,     NULL,           NULL,   NULL, NULL,      NULL, 40);
 
--- B. Canonical-only variants, no legacy columns.
-INSERT INTO product_option_groups (id, product_id, key, name, display, show_labels, sort_order) VALUES
-  ('g_vol', 'p3', 'volume', 'Volume', 'pill',   1, 0),
-  ('g_col', 'p4', 'color',  'Colour', 'swatch', 1, 0);
+-- Cart lines as the pre-0010 table holds them: one chosen by variant, one by
+-- colour alone, and one belonging to a second shopper.
+INSERT INTO cart_items (id, user_id, product_id, variant_id, seller_id, color, quantity) VALUES
+  ('ci1', 'u1', 'p1', 'v1',  NULL, 'Black & Gold', 1),
+  ('ci2', 'u1', 'p5', NULL,  NULL, '',             3),
+  ('ci3', 'u2', 'p2', 'v3',  's1', 'Red',          2);
 
-INSERT INTO product_option_values (id, group_id, value, label, color_hex, sort_order) VALUES
-  ('ov30',  'g_vol', '30ml',          '30 ml',         NULL,      0),
-  ('ov50',  'g_vol', '50ml',          '50 ml',         NULL,      1),
-  ('ovblu', 'g_col', 'midnight-blue', 'Midnight Blue', '#12325f', 0);
-
-INSERT INTO product_variants (id, product_id, sku, stock_quantity) VALUES
-  ('v5', 'p3', 'FS-30', 12),
-  ('v6', 'p3', 'FS-50',  7),
-  ('v7', 'p4', 'LW-MB',  5),
-  ('v8', 'p5', 'CS-1',  40);   -- no options at all
-
-INSERT INTO product_variant_options (variant_id, group_id, value_id) VALUES
-  ('v5', 'g_vol', 'ov30'),
-  ('v6', 'g_vol', 'ov50'),
-  ('v7', 'g_col', 'ovblu');
-
--- C. Orders written before suborders existed.
+-- Orders written before suborders were ever populated.
 INSERT INTO orders (id, order_number, user_id, status, payment_status, subtotal, shipping_fee, total,
                     address_label, address_full_name, address_phone, address_line, address_area, address_city,
                     payment_label, placed_at) VALUES
@@ -69,10 +65,5 @@ VALUES ('i4', 'o3', 'p1', 'v1', 's1', 'sub_pre', 'Classic Watch', '/a.jpg', 'Bla
 
 -- o4 has no items at all.
 
--- A buy-now session, for the 0011 column.
-INSERT INTO buy_now_sessions (id, user_id, product_id, variant_id, quantity, expires_at)
-VALUES ('bn1', 'u1', 'p1', 'v1', 1, '2026-08-01 10:30:00');
-
--- A stock movement, so the 0011 partial unique index has something to see.
 INSERT INTO inventory_movements (id, variant_id, change_qty, reason, reference_type, reference_id)
 VALUES ('m1', 'v1', -1, 'sale', 'order', 'o1');

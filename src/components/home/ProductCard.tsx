@@ -76,6 +76,10 @@ export default function ProductCard({
             fill
             sizes="(max-width: 480px) 46vw, 200px"
             className="object-cover"
+            // An admin upload is served by /api/media, which the image
+            // optimizer cannot fetch: it answers 404 and the tile shows a
+            // broken image. Those files are already stored at a sane size.
+            unoptimized={product.image.startsWith("/api/media/")}
           />
         </Link>
 

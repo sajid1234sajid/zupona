@@ -4,15 +4,24 @@
 // predict whether 0013's unique index can be built. Both are checked here.
 import { DatabaseSync } from "node:sqlite";
 import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-const HERE = new URL(".", import.meta.url).pathname;
-const R = `${HERE}.work`;
+const HERE = fileURLToPath(new URL(".", import.meta.url));
+// Scratch databases live outside the repository: a SQLite file inside the
+// project is watched by the dev server, and on Windows a locked one crashes it.
+const WORK = path.join(os.tmpdir(), "zupona-rehearsal");
+const R = `${WORK}`;
 const M = `${HERE}../migrations`;
 const CHAIN = ["0009_dynamic_options.sql", "0010_variant_cart.sql", "0011_order_integrity.sql",
                "0012_order_suborders.sql", "0013_option_builder.sql"];
 
 let pass = 0, fail = 0;
-const ok = (n, c, d = "") => { c ? (pass++, console.log(`  PASS  ${n}`)) : (fail++, console.log(`  FAIL  ${n}${d ? "  -> " + d : ""}`)); };
+const ok = (n, c, d = "") => {
+  if (c) { pass++; console.log(`  PASS  ${n}`); }
+  else { fail++; console.log(`  FAIL  ${n}${d ? "  -> " + d : ""}`); }
+};
 const eq = (n, g, w) => ok(n, JSON.stringify(g) === JSON.stringify(w), `got ${JSON.stringify(g)}, want ${JSON.stringify(w)}`);
 
 const queries = fs.readFileSync(`${HERE}../preflight.sql`, "utf8")

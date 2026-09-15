@@ -1,6 +1,8 @@
 -- How much is in the database right now, table by table.
 --
---   npx wrangler d1 execute zupona-v3-db --remote --file=./db/census.sql
+--   node db/run-query.mjs db/census.sql
+--
+-- Not `wrangler d1 execute --file`: that path runs a file but returns no rows.
 --
 -- Read-only. Run it once before taking a backup and keep the numbers: they are
 -- what proves the backup is complete (db/rehearsal/check-backup.mjs reads the

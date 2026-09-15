@@ -4,8 +4,10 @@
 -- expects? Every row comes back ok = 1 on a fully migrated database; any row
 -- with ok = 0 names exactly what is missing.
 --
---   npx wrangler d1 execute zupona-v3-db --local  --file=./db/verify-schema.sql
---   npx wrangler d1 execute zupona-v3-db --remote --file=./db/verify-schema.sql
+--   node db/run-query.mjs db/verify-schema.sql --local
+--   node db/run-query.mjs db/verify-schema.sql
+--
+-- Not `wrangler d1 execute --file`, which runs a file but returns no rows.
 --
 -- Read-only. It queries sqlite_master and pragma_table_info and changes
 -- nothing, so it is safe against production at any time -- including before a

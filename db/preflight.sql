@@ -5,9 +5,10 @@
 -- there. Every statement below is a SELECT, and none of them touches a table
 -- 0009 creates -- Q1 is what establishes where the database actually stands.
 --
---   npx wrangler d1 execute zupona-v3-db --remote --file=./db/preflight.sql
+--   node db/run-query.mjs db/preflight.sql
 --
--- or paste them one at a time into the D1 console.
+-- or paste them one at a time into the D1 console. Not `wrangler d1 execute
+-- --file`, which runs a file but returns no rows.
 
 -- ---------------------------------------------------------------------------
 -- 1. Which migration has the database reached? Tables, by the one that makes

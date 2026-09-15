@@ -8,9 +8,15 @@
 import { DatabaseSync } from "node:sqlite";
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-const HERE = new URL(".", import.meta.url).pathname;
-const R = `${HERE}.work`;
+const HERE = fileURLToPath(new URL(".", import.meta.url));
+// Scratch databases live outside the repository: a SQLite file inside the
+// project is watched by the dev server, and on Windows a locked one crashes it.
+const WORK = path.join(os.tmpdir(), "zupona-rehearsal");
+const R = `${WORK}`;
 fs.mkdirSync(R, { recursive: true });
 
 const REF = process.env.BASELINE_REF ?? "origin/main";

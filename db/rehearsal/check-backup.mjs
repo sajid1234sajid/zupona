@@ -10,6 +10,9 @@
 // connection fails here rather than three weeks from now.
 import { DatabaseSync } from "node:sqlite";
 import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 const file = process.argv[2];
 if (!file) { console.error("usage: check-backup.mjs <backup.sql>"); process.exit(2); }
@@ -21,9 +24,12 @@ console.log(`file        ${file}`);
 console.log(`size        ${(bytes / 1024).toFixed(1)} KB`);
 if (bytes === 0) { console.log("\nFAIL  the file is empty"); process.exit(1); }
 
-const HERE = new URL(".", import.meta.url).pathname;
-const tmp = `${HERE}.work/backup-check.sqlite`;
-fs.mkdirSync(`${HERE}.work`, { recursive: true });
+const HERE = fileURLToPath(new URL(".", import.meta.url));
+// Scratch databases live outside the repository: a SQLite file inside the
+// project is watched by the dev server, and on Windows a locked one crashes it.
+const WORK = path.join(os.tmpdir(), "zupona-rehearsal");
+const tmp = `${WORK}/backup-check.sqlite`;
+fs.mkdirSync(`${WORK}`, { recursive: true });
 fs.rmSync(tmp, { force: true });
 
 const db = new DatabaseSync(tmp);

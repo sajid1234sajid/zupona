@@ -12,14 +12,34 @@ order is not negotiable:
 > **migrations first, then merge to `main`.**
 
 Merging first puts code on zupona.com that queries tables the database does not
-have. Applying the migrations first is harmless in the meantime: every one of
-them is additive from the old code's point of view, and the 0008 code neither
-reads nor writes anything they introduce.
+have. Applying the migrations first is the lesser risk, but it is not free, so
+keep the window between step 4 and step 6 to minutes:
+
+- The 0008 code's admin "add product" and "add variant" actions insert variants
+  without an `option_signature`. Once 0013 has built `idx_variant_combination`,
+  a second variant on the same product collides on the empty signature and the
+  save fails. **Do not add products or variants in the admin panel between
+  applying 0013 and the deploy finishing.**
+- Shopping, cart, checkout and the order list are unaffected: the old code
+  reads nothing the migrations remove, and its inserts into `orders` and
+  `cart_items` satisfy the new defaults and indexes.
+
+Have the merged branch built and checked locally **before** step 4, so that the
+deploy can follow the last migration immediately.
+
+## Reading query results
+
+`wrangler d1 execute --file` runs a file through D1's import path, which
+returns no rows -- only `Total queries executed`. That is right for the
+migrations, which return nothing, and useless for the checks, whose rows are
+the point. Run every check through `db/run-query.mjs`, which sends each SELECT
+through `--command` and prints the rows, and refuses anything that is not a
+SELECT. The D1 dashboard's Console tab shows rows too.
 
 ## 1. Census, before anything
 
 ```bash
-npx wrangler d1 execute zupona-v3-db --remote --file=./db/census.sql
+node db/run-query.mjs db/census.sql
 ```
 
 Keep the numbers. They are what the backup is checked against, and what proves
@@ -47,7 +67,7 @@ phones and addresses, and `sajid1234sajid/zupona` is public.
 ## 3. Preflight
 
 ```bash
-npx wrangler d1 execute zupona-v3-db --remote --file=./db/preflight.sql
+node db/run-query.mjs db/preflight.sql
 ```
 
 Q1 must show 0009's four tables MISSING and everything earlier present. **Q6
@@ -87,8 +107,8 @@ What each one does, and what to watch:
 ## 5. Verify
 
 ```bash
-npx wrangler d1 execute zupona-v3-db --remote --file=./db/verify-schema.sql
-npx wrangler d1 execute zupona-v3-db --remote --file=./db/census.sql
+node db/run-query.mjs db/verify-schema.sql
+node db/run-query.mjs db/census.sql
 ```
 
 `verify-schema.sql` is 50 checks; every row must come back `ok = 1`. The census

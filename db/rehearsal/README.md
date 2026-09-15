@@ -71,5 +71,10 @@ and Q6 is checked against three different collisions -- a repeated colour, the
 same pair with the option slots swapped, and a second variant with no options
 at all -- each confirmed to stop 0013 for real.
 
-These scripts read the migrations and never write to Cloudflare. Everything
-they create lives in `.work/`, which is not committed.
+These scripts read the migrations and never write to Cloudflare. The scratch
+databases they build go to `zupona-rehearsal` under the system temp directory,
+outside the repository: a SQLite file inside the project is watched by the dev
+server, and on Windows a locked one crashes its file watcher.
+
+Reading the remote database is `db/run-query.mjs`, not `wrangler d1 execute
+--file`, which runs a file but returns no rows.

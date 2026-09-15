@@ -38,3 +38,17 @@ and C2 on the group name.
 
 These scripts read the migrations and never write to Cloudflare. Everything
 they create lives in `.work/`, which is not committed.
+
+## Preflight
+
+`db/preflight.sql` is the read-only half: five SELECTs to run against the
+remote database before any migration. They report which of these migrations
+have already been applied, how many rows 0012 will touch, and -- the one that
+decides -- whether 0013's unique index can be created, rebuilt from the
+canonical links and the legacy slots because `option_signature` does not exist
+yet. `test-preflight.mjs` proves that prediction: it runs the query on a
+pre-0013 database, applies 0013, and compares the two variant for variant.
+
+```bash
+node --experimental-sqlite db/rehearsal/test-preflight.mjs
+```

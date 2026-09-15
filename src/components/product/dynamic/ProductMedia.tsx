@@ -29,6 +29,8 @@ export default function ProductMedia({
   badgeLabel,
   productName,
   toolbar,
+  overlayStart,
+  overlayEnd,
 }: {
   media: StoreMediaItem[];
   activeId: string;
@@ -38,6 +40,10 @@ export default function ProductMedia({
   productName: string;
   /** Share and wishlist, floated over the top-right of the hero. */
   toolbar?: React.ReactNode;
+  /** Floated over the bottom-left of the hero, e.g. the rating chip. */
+  overlayStart?: React.ReactNode;
+  /** Floated over the bottom-right of the hero, e.g. "View Similar". */
+  overlayEnd?: React.ReactNode;
 }) {
   const active = media.find((item) => item.id === activeId) ?? media[0];
   const activeIndex = media.findIndex((item) => item.id === active?.id);
@@ -92,10 +98,18 @@ export default function ProductMedia({
 
         {toolbar && <div className="absolute right-3 top-3 flex gap-2">{toolbar}</div>}
 
-        {media.length > 1 && (
-          <span className="absolute bottom-3 right-3 rounded-full bg-black/60 px-2.5 py-1 text-[11px] font-bold text-white">
-            {activeIndex + 1}/{media.length}
-          </span>
+        {(overlayStart || overlayEnd || media.length > 1) && (
+          <div className="pointer-events-none absolute inset-x-3 bottom-3 flex items-end justify-between gap-2 [&>*]:pointer-events-auto">
+            <div className="flex min-w-0 items-center gap-2">
+              {overlayStart}
+              {media.length > 1 && (
+                <span className="shrink-0 rounded-full bg-black/60 px-2.5 py-1 text-[11px] font-bold text-white">
+                  {activeIndex + 1}/{media.length}
+                </span>
+              )}
+            </div>
+            {overlayEnd}
+          </div>
         )}
       </div>
 

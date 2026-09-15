@@ -135,6 +135,33 @@ export function StoreSettingsForm({ settings }: { settings: ShopSettings }) {
       </Card>
 
       <Card>
+        <CardHeader
+          title="Returns & Exchange"
+          subtitle="Shown on every product page — 0 hides the line"
+        />
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Return window (days)">
+            <input
+              name="return_days"
+              type="number"
+              min={0}
+              defaultValue={settings.returnDays}
+              className={fieldStyles}
+            />
+          </Field>
+          <Field label="Exchange window (days)">
+            <input
+              name="exchange_days"
+              type="number"
+              min={0}
+              defaultValue={settings.exchangeDays}
+              className={fieldStyles}
+            />
+          </Field>
+        </div>
+      </Card>
+
+      <Card>
         <CardHeader title="Marketplace & Inventory" />
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Default commission rate (%)" hint="Applied to new distributor stores">

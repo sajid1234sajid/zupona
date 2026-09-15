@@ -1,9 +1,10 @@
 import Link from "next/link";
 import Image from "next/image";
 import { notFound } from "next/navigation";
-import { ChevronLeft, MapPin, CreditCard } from "lucide-react";
+import { ChevronLeft, MapPin, CreditCard, BadgeCheck, PenLine } from "lucide-react";
 import { requireUser } from "@/lib/session";
 import { getOrder } from "@/lib/orders";
+import { getOrderReviewStates } from "@/lib/reviews";
 import { formatPrice } from "@/lib/format";
 import OrderTracker from "@/components/order/OrderTracker";
 
@@ -13,6 +14,8 @@ export default async function OrderDetailPage({ params }: PageProps<"/account/or
   const order = await getOrder(user.id, id);
 
   if (!order) notFound();
+
+  const reviewStates = await getOrderReviewStates(user.id, order.id);
 
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-md flex-col bg-brand-mist pb-10">
@@ -69,6 +72,29 @@ export default async function OrderDetailPage({ params }: PageProps<"/account/or
                   <p className="truncate text-sm font-semibold text-heading">{item.name}</p>
                   {item.color && <p className="text-xs text-ink-slate">Color: {item.color}</p>}
                   <p className="text-xs text-ink-slate">Qty {item.quantity}</p>
+                  {(() => {
+                    const review = reviewStates.get(item.id);
+                    if (review?.state === "reviewed") {
+                      return (
+                        <p className="mt-1 flex items-center gap-1 text-[11px] font-semibold text-brand">
+                          <BadgeCheck className="h-3.5 w-3.5" aria-hidden />
+                          Reviewed
+                        </p>
+                      );
+                    }
+                    if (review?.state === "reviewable" && review.slug) {
+                      return (
+                        <Link
+                          href={`/products/${review.slug}#write-review`}
+                          className="mt-1.5 inline-flex min-h-[32px] items-center gap-1 rounded-full border border-brand px-3 text-[11px] font-bold text-brand"
+                        >
+                          <PenLine className="h-3.5 w-3.5" aria-hidden />
+                          Write a review
+                        </Link>
+                      );
+                    }
+                    return null;
+                  })()}
                 </div>
                 <span className="shrink-0 text-sm font-bold text-heading">
                   {formatPrice(item.price * item.quantity)}

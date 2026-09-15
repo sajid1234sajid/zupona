@@ -22,6 +22,10 @@ export interface ShopSettings {
   freeShippingThreshold: number;
   lowStockThreshold: number;
   reviewsNeedApproval: boolean;
+  /** Days a shopper has to return an item. 0 hides the line on product pages. */
+  returnDays: number;
+  /** Days a shopper has to exchange an item. 0 hides the line on product pages. */
+  exchangeDays: number;
   guestCheckoutEnabled: boolean;
   maintenanceMode: boolean;
   /** Echoes the one-time code back to the browser so checkout can be tested
@@ -44,6 +48,9 @@ export const DEFAULT_SETTINGS: ShopSettings = {
   freeShippingThreshold: 999,
   lowStockThreshold: 5,
   reviewsNeedApproval: false,
+  // Zero until the shop states a policy, so no product promises one it has not made.
+  returnDays: 0,
+  exchangeDays: 0,
   guestCheckoutEnabled: true,
   maintenanceMode: false,
   otpDemoMode: false,
@@ -92,6 +99,8 @@ async function querySettings(): Promise<ShopSettings> {
       map.get("reviews_need_approval"),
       DEFAULT_SETTINGS.reviewsNeedApproval
     ),
+    returnDays: readInt(map.get("return_days"), DEFAULT_SETTINGS.returnDays),
+    exchangeDays: readInt(map.get("exchange_days"), DEFAULT_SETTINGS.exchangeDays),
     guestCheckoutEnabled: readFlag(
       map.get("guest_checkout_enabled"),
       DEFAULT_SETTINGS.guestCheckoutEnabled

@@ -363,7 +363,11 @@ async function queryProduct(id: string): Promise<StoreProduct | null> {
               p.is_best_seller, p.category_id, p.slug, p.description,
               p.hero_headline, p.hero_subtitle,
               p.short_description, p.badge_label, p.return_policy, p.warranty,
-              p.sold_count,
+              -- Units actually ordered. products.sold_count is never written by
+              -- checkout, so it would read 0 on every product.
+              (SELECT COALESCE(SUM(oi.quantity), 0) FROM order_items oi
+                 JOIN orders o ON o.id = oi.order_id
+                WHERE oi.product_id = p.id AND o.status != 'cancelled') AS sold_count,
               c.parent_id, c.name AS category_name, b.name AS brand_name,
               (SELECT url FROM product_images i WHERE i.product_id = p.id
                 ORDER BY i.is_primary DESC, i.sort_order ASC LIMIT 1) AS image,

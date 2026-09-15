@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Heart, LoaderCircle, ShoppingCart, Star, Zap } from "lucide-react";
+import { Heart, LayoutGrid, LoaderCircle, ShoppingCart, Star, Zap } from "lucide-react";
 import type { StoreMediaItem, StoreProduct } from "@/lib/storefront";
 import { formatPrice } from "@/lib/format";
 import { addSelectionToCartAction, buyNowAction } from "@/app/cart/actions";
@@ -14,7 +14,7 @@ import OptionGroups from "./OptionGroups";
 import QuantityPicker from "./QuantityPicker";
 import ShareButton from "./ShareButton";
 import FeatureBar from "./FeatureBar";
-import DeliveryCard, { type DeliveryLine } from "./DeliveryCard";
+import PurchaseInfo, { type DeliveryLine } from "./PurchaseInfo";
 import {
   findVariant,
   initialSelections,
@@ -36,6 +36,11 @@ export default function ProductView({
   product,
   breadcrumbs,
   deliveryLines,
+  returnDays,
+  exchangeDays,
+  estimatedDelivery,
+  reviewSummary,
+  hasSimilar,
   initiallyWishlisted,
 }: {
   product: StoreProduct;
@@ -43,6 +48,14 @@ export default function ProductView({
    * as ids rather than a trail. */
   breadcrumbs: string[];
   deliveryLines: DeliveryLine[];
+  returnDays: number;
+  exchangeDays: number;
+  estimatedDelivery: string | null;
+  /** Read fresh from the reviews table rather than the cached product, so a
+   * review just posted is counted straight away. */
+  reviewSummary: { average: number; total: number };
+  /** Whether there is a Similar Products section for "View Similar" to reach. */
+  hasSimilar: boolean;
   initiallyWishlisted: boolean;
 }) {
   const router = useRouter();
@@ -192,6 +205,33 @@ export default function ProductView({
             badgeLabel={product.badgeLabel}
             productName={product.name}
             toolbar={<ShareButton title={product.name} />}
+            overlayStart={
+              (reviewSummary.total > 0 || product.soldCount > 0) && (
+                <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-white/95 px-2.5 py-1 text-[11px] font-bold text-heading shadow-card">
+                  {reviewSummary.total > 0 && (
+                    <span className="flex items-center gap-0.5">
+                      <Star className="h-3 w-3 fill-gold text-gold" aria-hidden />
+                      {reviewSummary.average.toFixed(1)}
+                    </span>
+                  )}
+                  {reviewSummary.total > 0 && product.soldCount > 0 && (
+                    <span aria-hidden className="h-3 w-px bg-line" />
+                  )}
+                  {product.soldCount > 0 && <span>{product.soldCount.toLocaleString("en-US")} sold</span>}
+                </span>
+              )
+            }
+            overlayEnd={
+              hasSimilar && (
+                <a
+                  href="#similar"
+                  className="flex min-h-[32px] shrink-0 items-center gap-1.5 rounded-full bg-white/95 px-3 text-[11px] font-bold text-brand-darkest shadow-card focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                >
+                  <LayoutGrid className="h-3.5 w-3.5" aria-hidden />
+                  View Similar
+                </a>
+              )
+            }
           />
         </div>
 
@@ -224,52 +264,68 @@ export default function ProductView({
             <p className="mt-1.5 text-sm text-ink-soft">{product.shortDescription}</p>
           )}
 
-          <div className="mt-2.5 flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
-            <span className="flex items-center gap-0.5" aria-label={`Rated ${product.rating} out of 5`}>
-              {[0, 1, 2, 3, 4].map((index) => (
-                <Star
-                  key={index}
-                  className={`h-[18px] w-[18px] ${
-                    product.rating >= index + 0.5 ? "fill-gold text-gold" : "fill-line text-line"
-                  }`}
-                />
-              ))}
+          {/* Reviews | Sold | Stock. Stock follows the selected option, so it
+              says what can actually be bought in the size on screen. */}
+          <div className="mt-2.5 flex flex-wrap items-center gap-y-1.5 text-[13px]">
+            <a
+              href="#reviews"
+              className="flex min-h-[36px] items-center gap-1 rounded-md font-semibold text-heading focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+            >
+              {reviewSummary.total > 0 && (
+                <>
+                  <Star className="h-4 w-4 fill-gold text-gold" aria-hidden />
+                  {reviewSummary.average.toFixed(1)}
+                  <span className="text-ink-muted">·</span>
+                </>
+              )}
+              {reviewSummary.total} {reviewSummary.total === 1 ? "Review" : "Reviews"}
+            </a>
+            <span aria-hidden className="mx-2.5 h-3.5 w-px bg-line" />
+            <span className="font-semibold text-heading">
+              Sold {product.soldCount.toLocaleString("en-US")}
             </span>
-            <span className="text-[15px] font-bold text-brand">{product.rating.toFixed(1)}</span>
-            <span className="text-sm text-heading">({product.reviews} Reviews)</span>
-            {product.soldCount > 0 && (
-              <span className="flex w-full items-center gap-1.5 text-[13px] text-ink-soft">
-                <ShoppingCart className="h-4 w-4" aria-hidden />
-                {product.soldCount.toLocaleString("en-US")}+ sold
-              </span>
-            )}
+            <span aria-hidden className="mx-2.5 h-3.5 w-px bg-line" />
+            <span className={`font-semibold ${available > 0 ? "text-brand" : "text-accent-red"}`}>
+              {available > 0 ? `Stock ${available.toLocaleString("en-US")}` : "Out of Stock"}
+            </span>
           </div>
 
-          <div className="mt-3.5 flex flex-wrap items-center gap-2.5">
-            <span className="text-[30px] font-extrabold leading-none tracking-tight text-heading">
+          <div className="mt-3 flex flex-wrap items-baseline gap-x-2 gap-y-1">
+            <span className="text-[30px] font-extrabold leading-none tracking-tight text-brand">
               {formatPrice(price)}
             </span>
             {compareAtPrice > price && (
-              <span className="text-sm text-[#8c8e90] line-through">{formatPrice(compareAtPrice)}</span>
+              <span className="text-sm text-ink-faint line-through">{formatPrice(compareAtPrice)}</span>
             )}
             {discountPercent > 0 && (
-              <span className="rounded-full bg-brand px-2.5 py-1.5 text-[11px] font-extrabold text-white">
-                {discountPercent}% OFF
-              </span>
+              <span className="text-sm font-extrabold text-brand">({discountPercent}% OFF)</span>
             )}
           </div>
 
-          <div className="mt-5">
-            <OptionGroups
-              groups={optionGroups}
-              variants={variants}
-              selections={selections}
-              onSelect={choose}
-            />
-          </div>
+          <div className="mt-4 rounded-2xl border border-line bg-white p-4">
+            {optionGroups.length > 0 && (
+              <div className="mb-4">
+                <OptionGroups
+                  groups={optionGroups}
+                  variants={variants}
+                  selections={selections}
+                  onSelect={choose}
+                />
+              </div>
+            )}
 
-          <div className="mt-5">
             <QuantityPicker quantity={quantity} available={available} onChange={setQuantity} />
+
+            <div className="mt-4 border-t border-dashed border-line pt-4">
+              <PurchaseInfo
+                returnDays={returnDays}
+                exchangeDays={exchangeDays}
+                estimatedDelivery={estimatedDelivery}
+                deliveryLines={deliveryLines}
+                returnPolicy={product.returnPolicy}
+                warranty={product.warranty}
+              />
+            </div>
           </div>
 
           {feedback && (
@@ -291,12 +347,6 @@ export default function ProductView({
           <div className="mt-4 hidden gap-3 tab:flex">{actions}</div>
 
           <FeatureBar features={product.features ?? []} />
-
-          <DeliveryCard
-            lines={deliveryLines}
-            returnPolicy={product.returnPolicy}
-            warranty={product.warranty}
-          />
         </div>
       </div>
 

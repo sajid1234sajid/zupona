@@ -28,6 +28,8 @@ const EDITABLE: Record<string, "text" | "number" | "boolean"> = {
   express_shipping_fee: "number",
   default_commission_rate: "number",
   low_stock_threshold: "number",
+  return_days: "number",
+  exchange_days: "number",
   reviews_need_approval: "boolean",
   guest_checkout_enabled: "boolean",
   maintenance_mode: "boolean",

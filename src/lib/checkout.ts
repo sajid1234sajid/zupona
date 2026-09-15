@@ -45,12 +45,16 @@ export interface DeliveryMethod {
   fee: number;
 }
 
+/** Standard delivery's window as numbers, so the product page can promise
+ * actual dates. The ETA text below is built from it so the two cannot differ. */
+export const STANDARD_DELIVERY_DAYS = { min: 2, max: 3 } as const;
+
 export const deliveryMethods: DeliveryMethod[] = [
   {
     id: "standard",
     name: "Standard Delivery",
     tagline: "Safe & reliable delivery",
-    eta: "2-3 days",
+    eta: `${STANDARD_DELIVERY_DAYS.min}-${STANDARD_DELIVERY_DAYS.max} days`,
     fee: 80,
   },
   {

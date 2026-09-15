@@ -319,6 +319,8 @@ export interface Review {
   helpfulCount: number;
   images: string[];
   createdAt: string;
+  /** What the reviewer bought, e.g. "Size: L", when the review came from an order. */
+  purchasedOption?: string | null;
 }
 
 export type CouponType = "percent" | "fixed" | "free_shipping";

@@ -3,12 +3,16 @@ import { formatPrice } from "@/lib/format";
 import { getDeliveryMethod } from "@/lib/checkout";
 import type { DeliveryMethodId, Order, OrderItem, OrderStatus, OrderStep } from "@/types";
 
+/** When the simulated tracker shows an order as delivered. Exported because
+ * review eligibility has to agree with what the shopper's tracker says. */
+export const DELIVERED_AFTER_HOURS = 48;
+
 const STEP_DEFS: { status: OrderStatus; label: string; afterMs: number }[] = [
   { status: "placed", label: "Order Placed", afterMs: 0 },
   { status: "confirmed", label: "Confirmed", afterMs: 2 * 60 * 1000 },
   { status: "shipped", label: "Shipped", afterMs: 60 * 60 * 1000 },
   { status: "out_for_delivery", label: "Out for Delivery", afterMs: 24 * 60 * 60 * 1000 },
-  { status: "delivered", label: "Delivered", afterMs: 2 * 24 * 60 * 60 * 1000 },
+  { status: "delivered", label: "Delivered", afterMs: DELIVERED_AFTER_HOURS * 60 * 60 * 1000 },
 ];
 
 const POINTS_PER_TAKA = 1 / 50;

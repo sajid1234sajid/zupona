@@ -1,7 +1,7 @@
 import Header from "@/components/layout/Header";
 import BottomNav from "@/components/layout/BottomNav";
 import HeroBanner from "@/components/home/HeroBanner";
-import CategoryGrid, { AllCategories } from "@/components/home/CategoryGrid";
+import CategoryGrid from "@/components/home/CategoryGrid";
 import PromoBanners from "@/components/home/PromoBanners";
 import FeaturedProducts from "@/components/home/FeaturedProducts";
 import SearchProvider from "@/components/search/SearchProvider";
@@ -17,8 +17,7 @@ import { listStoreCategories, listStoreProducts } from "@/lib/storefront";
  * products are picked out of the same rows rather than fetched again -- a
  * second query for `is_featured = 1` returned a subset of what was already in
  * hand and doubled the home page's database reads. The departments are read
- * once for the same reason and shared by the featured tiles up top and the
- * full list at the bottom. */
+ * alongside them rather than one after another. */
 export default async function Home() {
   const user = await getCurrentUser();
   const [wishlistIds, catalog, categories] = await Promise.all([
@@ -45,7 +44,6 @@ export default async function Home() {
             wishlistIds={Array.from(wishlistIds)}
             isSignedIn={Boolean(user)}
           />
-          <AllCategories categories={categories} />
         </main>
         <BottomNav />
       </div>

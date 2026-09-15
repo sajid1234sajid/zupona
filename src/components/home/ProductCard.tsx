@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { Star, Heart, LoaderCircle, ShoppingCart, Check } from "lucide-react";
+import { Star, Heart, LoaderCircle, Check } from "lucide-react";
 import type { ProductSummary } from "@/types";
 import { formatPrice } from "@/lib/format";
 import { toggleWishlistAction } from "@/app/wishlist/actions";
@@ -108,7 +108,7 @@ export default function ProductCard({
         </button>
       </div>
 
-      <div className="flex flex-1 flex-col p-2">
+      <div className="flex flex-1 flex-col p-1.5">
         <Link href={`/product/${product.id}`} className="block">
           <h3 className="line-clamp-2 min-h-[2.5em] text-[12px] font-semibold leading-[1.25] text-heading">
             {product.name}
@@ -121,13 +121,16 @@ export default function ProductCard({
           </span>
         </Link>
 
-        <div className="mt-auto flex items-end justify-between gap-1 pt-1.5">
-          <span className="flex min-w-0 flex-wrap items-baseline gap-x-1">
-            <span className="truncate text-[13px] font-extrabold leading-tight text-brand-darkest">
+        {/* Price and Add always share one row, the button bottom-right. The old
+            price sits under the new one so the row stays narrow enough for the
+            categories pane on a 320px phone without cutting the price off. */}
+        <div className="mt-auto flex items-end justify-between gap-0.5 pt-1.5">
+          <span className="flex min-w-0 flex-col">
+            <span className="whitespace-nowrap text-[13px] font-extrabold leading-tight text-brand-darkest">
               {formatPrice(product.price)}
             </span>
             {product.oldPrice > product.price && (
-              <span className="truncate text-[10px] leading-tight text-ink-slate line-through">
+              <span className="whitespace-nowrap text-[10px] leading-tight text-ink-slate line-through">
                 {formatPrice(product.oldPrice)}
               </span>
             )}
@@ -138,16 +141,14 @@ export default function ProductCard({
             onClick={handleAddToCart}
             disabled={cartPending}
             aria-label={justAdded ? "Added to cart" : "Add to cart"}
-            className={`grid h-7 w-7 shrink-0 place-items-center rounded-full border transition-colors disabled:opacity-70 ${
-              justAdded ? "border-brand bg-brand text-white" : "border-brand-tint bg-brand-mist text-brand"
-            }`}
+            className="inline-flex h-7 min-w-[32px] shrink-0 items-center justify-center rounded-full bg-brand px-1.5 text-[10.5px] font-bold text-white transition-colors disabled:opacity-70"
           >
             {cartPending ? (
               <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
             ) : justAdded ? (
-              <Check className="h-3.5 w-3.5" strokeWidth={2.6} />
+              <Check className="h-3.5 w-3.5" strokeWidth={2.8} />
             ) : (
-              <ShoppingCart className="h-3.5 w-3.5" strokeWidth={2.2} />
+              "Add"
             )}
           </button>
         </div>

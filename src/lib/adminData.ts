@@ -980,7 +980,8 @@ export interface CustomerFilter {
 }
 
 function customerWhere(filter: CustomerFilter): { where: string; binds: unknown[] } {
-  const clauses: string[] = [];
+  // Guests are carts without an account, not customers.
+  const clauses: string[] = ["u.role != 'guest'"];
   const binds: unknown[] = [];
 
   if (filter.status && filter.status !== "all") {
@@ -1062,7 +1063,7 @@ export async function getCustomerStats() {
          COUNT(CASE WHEN status = 'active' THEN 1 END) AS active,
          COUNT(CASE WHEN status IN ('suspended', 'banned') THEN 1 END) AS blocked,
          COUNT(CASE WHEN created_at >= datetime('now', '-30 days') THEN 1 END) AS new_this_month
-       FROM users`
+       FROM users WHERE role != 'guest'`
     )
     .first<{ total: number; active: number; blocked: number; new_this_month: number }>();
 

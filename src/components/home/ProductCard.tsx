@@ -17,10 +17,10 @@ import { addToCartAction } from "@/app/cart/actions";
  * reach either reliably. The photo and the title are the links; wishlist and
  * add-to-cart are ordinary buttons sitting beside them.
  *
- * Carts and wishlists belong to an account, so a signed-out shopper is sent to
- * sign in rather than having the tap do nothing. The server actions redirect
- * too, but a redirect thrown inside an action is not followed from here, which
- * is what made both buttons look broken to a guest. */
+ * Anyone can add to the cart without signing in. A wishlist belongs to an
+ * account, so a signed-out shopper is sent to sign in rather than having that
+ * tap do nothing -- a redirect thrown inside an action is not followed from
+ * here, which is what made the button look broken to a guest. */
 export default function ProductCard({
   product,
   isWishlisted = false,
@@ -52,10 +52,6 @@ export default function ProductCard({
   }
 
   function handleAddToCart() {
-    if (!isSignedIn) {
-      router.push("/account/login");
-      return;
-    }
     startCartTransition(async () => {
       await addToCartAction(product.id);
       setJustAdded(true);

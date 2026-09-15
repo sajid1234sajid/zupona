@@ -2,10 +2,10 @@
 
 import { redirect } from "next/navigation";
 import { getDB } from "@/lib/db";
-import { createSession, requireUser } from "@/lib/session";
+import { claimGuest, createSession, getShopper } from "@/lib/session";
 import { getCartItems } from "@/lib/cart";
 import { calcPointsEarned, generateOrderNumber } from "@/lib/orders";
-import { getDeliveryMethod, getPaymentOption, normalizeBdPhone, formatBdPhone } from "@/lib/checkout";
+import { getDeliveryMethod, getPaymentOption, normalizeBdPhone } from "@/lib/checkout";
 import { getShopSettings, shippingFeeFor } from "@/lib/shopSettings";
 import {
   clearPhoneVerification,
@@ -31,7 +31,7 @@ export interface SendCodeState {
   demoCode?: string;
 }
 
-/** Step 1 / step 3: issues the code for a mobile number. */
+/** Step 3: issues the code for the delivery number. */
 export async function sendCodeAction(rawPhone: string): Promise<SendCodeState> {
   const phone = normalizeBdPhone(rawPhone);
   if (!phone) return { error: "Enter a valid Bangladeshi mobile number, e.g. 01712345678." };
@@ -53,52 +53,6 @@ export async function sendCodeAction(rawPhone: string): Promise<SendCodeState> {
   // which is the correct production behaviour, not a bug.
   const { otpDemoMode } = await getShopSettings();
   return otpDemoMode ? { phone, demoCode: code } : { phone };
-}
-
-export interface SignInState {
-  error?: string;
-  success?: boolean;
-}
-
-/**
- * Step 1: confirms the code and signs the shopper in, creating the account on
- * first use. Possession of the number is what authenticates here, which is why
- * the code is checked before any session is issued.
- */
-export async function verifyAndSignInAction(rawPhone: string, code: string): Promise<SignInState> {
-  const phone = normalizeBdPhone(rawPhone);
-  if (!phone) return { error: "Enter a valid Bangladeshi mobile number." };
-
-  const check = await confirmPhoneCode(code);
-  if (!check.ok) return { error: check.error };
-  if (check.phone !== phone) return { error: "That code was sent to a different number." };
-
-  const db = await getDB();
-  const existing = await db
-    .prepare("SELECT id FROM users WHERE phone = ?")
-    .bind(phone)
-    .first<{ id: string }>();
-
-  let userId = existing?.id;
-  if (!userId) {
-    userId = crypto.randomUUID();
-    await db
-      .prepare("INSERT INTO users (id, name, phone, phone_verified) VALUES (?, ?, ?, 1)")
-      .bind(userId, formatBdPhone(phone), phone)
-      .run();
-  } else {
-    // Reaching here means a code sent to this number was just confirmed on the
-    // server, so the flag is simply true. It was never written before, which
-    // left the admin customer list reporting every OTP customer as unverified.
-    await db.prepare("UPDATE users SET phone_verified = 1 WHERE id = ?").bind(userId).run();
-  }
-
-  await createSession(userId);
-
-  // Redirecting (rather than letting the client re-render) is what reloads
-  // /checkout with the cart, saved address and verified number of this account.
-  const items = await getCartItems(userId);
-  redirect(items.length === 0 ? "/cart" : "/checkout");
 }
 
 export interface PlaceOrderState {
@@ -142,7 +96,9 @@ export async function placeOrderAction(
   _prevState: PlaceOrderState,
   _formData: FormData
 ): Promise<PlaceOrderState> {
-  const user = await requireUser();
+  // Signed in or not: a guest buys with nothing but a confirmed phone number.
+  const shopper = await getShopper();
+  if (!shopper) return { error: "Your cart is empty." };
   const db = await getDB();
 
   const fullName = details.fullName.trim();
@@ -176,13 +132,13 @@ export async function placeOrderAction(
   if (details.idempotencyKey) {
     const already = await db
       .prepare("SELECT id FROM orders WHERE idempotency_key = ? AND user_id = ?")
-      .bind(details.idempotencyKey, user.id)
+      .bind(details.idempotencyKey, shopper.id)
       .first<{ id: string }>();
     if (already) redirect(`/checkout/confirmed/${already.id}`);
   }
 
   // Buy Now buys its own line and never reads the cart.
-  const buyNow = details.source === "buynow" ? await getBuyNowLine(user.id) : null;
+  const buyNow = details.source === "buynow" ? await getBuyNowLine(shopper.id) : null;
   if (details.source === "buynow" && !buyNow) {
     return { error: "That checkout session has expired. Please start again." };
   }
@@ -190,7 +146,7 @@ export async function placeOrderAction(
   // A line whose combination has been retired cannot be bought. It is refused
   // by name rather than quietly left out of the order -- which is the same
   // thing the cart page is already telling the shopper.
-  const cartLines = buyNow ? [] : await getCartItems(user.id);
+  const cartLines = buyNow ? [] : await getCartItems(shopper.id);
   if (cartLines.some((item) => item.unavailable)) {
     return {
       error:
@@ -226,6 +182,15 @@ export async function placeOrderAction(
       }));
 
   if (lines.length === 0) return { error: "Your cart is empty." };
+
+  /* Who the order belongs to. The number was confirmed above, so a guest now
+   * becomes a customer under it -- or, when the number already has an account,
+   * the order goes to that account and the browser is signed in to it below.
+   * The lines were read from the guest's own cart either way, so an account's
+   * saved cart is never bought by accident. */
+  const buyer = shopper.isGuest
+    ? await claimGuest(shopper, phone, fullName)
+    : { id: shopper.id, existing: false };
 
   /* Who sells each line, read now and stored on the order line. A product that
    * later moves to a different seller does not rewrite the history of orders
@@ -297,7 +262,7 @@ export async function placeOrderAction(
       .bind(
         orderId,
         orderNumber,
-        user.id,
+        buyer.id,
         subtotal,
         shippingFee,
         total,
@@ -322,7 +287,7 @@ export async function placeOrderAction(
     if (/UNIQUE constraint failed/i.test(message)) {
       const winner = await db
         .prepare("SELECT id FROM orders WHERE idempotency_key = ? AND user_id = ?")
-        .bind(details.idempotencyKey, user.id)
+        .bind(details.idempotencyKey, buyer.id)
         .first<{ id: string }>();
       if (winner) redirect(`/checkout/confirmed/${winner.id}`);
     }
@@ -367,7 +332,7 @@ export async function placeOrderAction(
   // in place rather than appended, so repeat orders don't pile up duplicates.
   const savedDefault = await db
     .prepare("SELECT id FROM addresses WHERE user_id = ? AND is_default = 1")
-    .bind(user.id)
+    .bind(buyer.id)
     .first<{ id: string }>();
 
   if (savedDefault) {
@@ -385,7 +350,7 @@ export async function placeOrderAction(
       )
       .bind(
         crypto.randomUUID(),
-        user.id,
+        buyer.id,
         fullName,
         phone,
         addressDetails,
@@ -396,16 +361,17 @@ export async function placeOrderAction(
       .run();
   }
 
-  await db.prepare("UPDATE users SET points = points + ? WHERE id = ?").bind(pointsEarned, user.id).run();
+  await db.prepare("UPDATE users SET points = points + ? WHERE id = ?").bind(pointsEarned, buyer.id).run();
 
-  // users.phone is UNIQUE, so only claim the number when it is free.
-  if (!user.phone) {
+  // users.phone is UNIQUE, so only claim the number when it is free. A guest
+  // already took it, or found its owner, in `claimGuest`.
+  if (!shopper.isGuest && !shopper.phone) {
     const phoneOwner = await db
       .prepare("SELECT id FROM users WHERE phone = ?")
       .bind(phone)
       .first<{ id: string }>();
     if (!phoneOwner) {
-      await db.prepare("UPDATE users SET phone = ? WHERE id = ?").bind(phone, user.id).run();
+      await db.prepare("UPDATE users SET phone = ? WHERE id = ?").bind(phone, buyer.id).run();
     }
   }
   /* Empty whichever the shopper was actually buying from. A Buy Now order
@@ -414,7 +380,7 @@ export async function placeOrderAction(
     await consumeBuyNowSession(buyNow.sessionId);
     await clearBuyNowCookie();
   } else {
-    await db.prepare("DELETE FROM cart_items WHERE user_id = ?").bind(user.id).run();
+    await db.prepare("DELETE FROM cart_items WHERE user_id = ?").bind(shopper.id).run();
   }
 
   /* Three records that belong to every order and were not being written.
@@ -458,7 +424,7 @@ export async function placeOrderAction(
         crypto.randomUUID(),
         orderId,
         `Placed by the customer · ${payment.name}`,
-        user.id
+        buyer.id
       ),
     db
       .prepare(
@@ -467,7 +433,7 @@ export async function placeOrderAction(
       )
       .bind(
         crypto.randomUUID(),
-        user.id,
+        buyer.id,
         "Order placed",
         `Your order ${orderNumber} has been placed and you earned ${pointsEarned} points.`,
         orderId
@@ -516,6 +482,11 @@ export async function placeOrderAction(
   }
 
   await clearPhoneVerification();
+
+  // A guest whose number already had an account is signed in to it, so the
+  // confirmation and the order history are theirs to see. Whatever else the
+  // guest had in the cart moves across with them.
+  if (buyer.existing) await createSession(buyer.id);
 
   redirect(`/checkout/confirmed/${orderId}`);
 }

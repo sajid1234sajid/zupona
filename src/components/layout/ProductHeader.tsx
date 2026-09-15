@@ -1,15 +1,15 @@
 import Link from "next/link";
 import { Search, Heart, ShoppingCart } from "lucide-react";
 import ZuponaMark from "@/components/brand/ZuponaMark";
-import { getCurrentUser } from "@/lib/session";
+import { getCurrentUser, getShopper } from "@/lib/session";
 import { getWishlistCount } from "@/lib/wishlist";
 import { getCartCount } from "@/lib/cart";
 
 export default async function ProductHeader() {
-  const user = await getCurrentUser();
+  const [user, shopper] = await Promise.all([getCurrentUser(), getShopper()]);
   const [wishlistCount, cartCount] = await Promise.all([
     getWishlistCount(user?.id ?? null),
-    getCartCount(user?.id ?? null),
+    getCartCount(shopper?.id ?? null),
   ]);
 
   return (

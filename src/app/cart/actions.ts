@@ -1,16 +1,20 @@
 "use server";
 
 import { getDB } from "@/lib/db";
-import { requireUser } from "@/lib/session";
+import { getOrCreateShopper, getShopper } from "@/lib/session";
 import { getStoreProductCard } from "@/lib/storefront";
 import { resolveSelection } from "@/lib/selection";
 import { createBuyNowSession } from "@/lib/buyNow";
 
+/* No sign-in is needed to shop. Adding to the cart or buying now makes a guest
+ * for a signed-out browser; changing a line only ever touches a cart that
+ * already exists. */
+
 export async function addToCartAction(productId: string, color = "", quantity = 1): Promise<void> {
-  const user = await requireUser();
   // Checked against the live catalog, so a product unpublished in the admin
   // panel can no longer be added to a cart.
   if (!(await getStoreProductCard(productId))) return;
+  const user = await getOrCreateShopper();
 
   const db = await getDB();
   const existing = await db
@@ -32,7 +36,8 @@ export async function addToCartAction(productId: string, color = "", quantity = 
 }
 
 export async function updateCartQuantityAction(itemId: string, quantity: number): Promise<void> {
-  const user = await requireUser();
+  const user = await getShopper();
+  if (!user) return;
   const db = await getDB();
 
   if (quantity < 1) {
@@ -73,7 +78,8 @@ export async function updateCartQuantityAction(itemId: string, quantity: number)
 }
 
 export async function removeFromCartAction(itemId: string): Promise<void> {
-  const user = await requireUser();
+  const user = await getShopper();
+  if (!user) return;
   const db = await getDB();
   await db.prepare("DELETE FROM cart_items WHERE id = ? AND user_id = ?").bind(itemId, user.id).run();
 }
@@ -107,14 +113,13 @@ export async function addSelectionToCartAction(input: {
   variantId?: string | null;
   quantity: number;
 }): Promise<AddSelectionResult> {
-  const user = await requireUser();
-
   // The browser sends an id and a quantity; the price, the stock and the
   // options all come back out of the database here.
   const selection = await resolveSelection(input);
   if (!selection.ok) return selection;
   if (selection.available <= 0) return { ok: false, error: "This option is out of stock." };
 
+  const user = await getOrCreateShopper();
   const db = await getDB();
   const existing = await db
     .prepare(
@@ -172,7 +177,7 @@ export async function buyNowAction(input: {
   variantId?: string | null;
   quantity: number;
 }): Promise<AddSelectionResult> {
-  const user = await requireUser();
+  const user = await getOrCreateShopper();
   const result = await createBuyNowSession(user.id, input);
   return result.ok ? { ok: true } : { ok: false, error: result.error };
 }

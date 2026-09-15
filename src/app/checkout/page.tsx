@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getCurrentUser } from "@/lib/session";
+import { getShopper } from "@/lib/session";
 import { getCartItems, cartSubtotal } from "@/lib/cart";
 import { getBuyNowLine } from "@/lib/buyNow";
 import { getAddresses } from "@/lib/addresses";
@@ -10,49 +10,26 @@ import { availablePaymentMethods } from "@/lib/payments";
 import { getDeliveryFees } from "@/lib/shopSettings";
 import CheckoutWizard from "@/components/checkout/CheckoutWizard";
 
-const EMPTY_DETAILS: DeliveryDetails = {
-  fullName: "",
-  phone: "",
-  division: "",
-  district: "",
-  area: "",
-  addressDetails: "",
-  deliveryMethod: "standard",
-};
-
 export default async function CheckoutPage({ searchParams }: PageProps<"/checkout">) {
-  const user = await getCurrentUser();
+  // No sign-in step. A guest checks out exactly like an account holder; the
+  // phone number they deliver to is confirmed with a code before the order is
+  // accepted, and that is all that is asked of them.
+  const shopper = await getShopper();
+  if (!shopper) redirect("/cart");
+
   const [verifiedPhone, fees] = await Promise.all([getVerifiedPhone(), getDeliveryFees()]);
   const pricedDelivery = deliveryMethodsWithFees(fees);
   const payableWith = await availablePaymentMethods();
-
-  // Signed-out shoppers get step 1 (the mobile-number login) instead of being
-  // bounced to the login page, so checkout carries on where they left off.
-  if (!user) {
-    return (
-      <CheckoutWizard
-        key="guest"
-        source="cart"
-        signedIn={false}
-        initialDetails={EMPTY_DETAILS}
-        verifiedPhone={verifiedPhone}
-        lines={[]}
-        subtotal={0}
-        deliveryMethods={pricedDelivery}
-        payableWith={payableWith}
-      />
-    );
-  }
 
   // Buy Now checks out one line held in its own session; the cart is not read
   // at all, so nothing else the shopper had saved comes along.
   const query = await searchParams;
   const wantsBuyNow = (Array.isArray(query.mode) ? query.mode[0] : query.mode) === "buynow";
-  const buyNow = wantsBuyNow ? await getBuyNowLine(user.id) : null;
+  const buyNow = wantsBuyNow ? await getBuyNowLine(shopper.id) : null;
 
   // A session that has expired or been spent falls back to the cart rather
   // than dead-ending on an empty checkout.
-  const items = buyNow ? [] : await getCartItems(user.id);
+  const items = buyNow ? [] : await getCartItems(shopper.id);
   if (!buyNow && items.length === 0) redirect("/cart");
   // A line whose combination has been retired cannot be bought, so checkout is
   // not somewhere to start: the shopper goes back to the cart, which says which
@@ -60,15 +37,15 @@ export default async function CheckoutPage({ searchParams }: PageProps<"/checkou
   // address first and find out at "Pay Now" would be the same refusal, later.
   if (!buyNow && items.some((item) => item.unavailable)) redirect("/cart");
 
-  const addresses = await getAddresses(user.id);
+  const addresses = shopper.isGuest ? [] : await getAddresses(shopper.id);
   const saved = addresses.find((address) => address.isDefault) ?? addresses[0] ?? null;
-  // Phone-only accounts get their number as a display name - not something to
-  // prefill as the recipient's name.
-  const accountName = user.name.startsWith("+") ? "" : user.name;
+  // Phone-only accounts get their number as a display name, and guests are
+  // called "Guest" - neither is something to prefill as the recipient's name.
+  const accountName = shopper.isGuest || shopper.name.startsWith("+") ? "" : shopper.name;
 
   const initialDetails: DeliveryDetails = {
     fullName: saved?.fullName ?? accountName,
-    phone: saved?.phone ?? user.phone ?? "",
+    phone: saved?.phone ?? shopper.phone ?? "",
     division: saved && divisionNames.includes(saved.city) ? saved.city : "",
     district: saved?.district ?? "",
     area: saved?.area ?? "",
@@ -78,8 +55,7 @@ export default async function CheckoutPage({ searchParams }: PageProps<"/checkou
 
   return (
     <CheckoutWizard
-      key={user.id}
-      signedIn
+      key={shopper.id}
       initialDetails={initialDetails}
       verifiedPhone={verifiedPhone}
       source={buyNow ? "buynow" : "cart"}

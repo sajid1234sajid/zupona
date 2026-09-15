@@ -14,7 +14,6 @@ import { placeOrderAction, sendCodeAction, type PlaceOrderState } from "@/app/ch
 import CheckoutHeader from "./CheckoutHeader";
 import CheckoutStepper from "./CheckoutStepper";
 import LeafBackdrop from "./LeafBackdrop";
-import StepDetails from "./StepDetails";
 import StepDelivery from "./StepDelivery";
 import StepPayment from "./StepPayment";
 import type { SummaryLine } from "./OrderSummary";
@@ -23,8 +22,6 @@ interface CheckoutWizardProps {
   /** Whether this is the cart being checked out or a single Buy Now line. The
    * server needs to know which, because the two are emptied differently. */
   source: "cart" | "buynow";
-  /** Signed-out shoppers start on step 1 (the login step); everyone else skips it. */
-  signedIn: boolean;
   initialDetails: DeliveryDetails;
   /** Which payment methods have working credentials behind them. */
   payableWith: string[];
@@ -38,7 +35,6 @@ interface CheckoutWizardProps {
 
 export default function CheckoutWizard({
   source,
-  signedIn,
   initialDetails,
   payableWith,
   verifiedPhone,
@@ -47,7 +43,9 @@ export default function CheckoutWizard({
   deliveryMethods,
 }: CheckoutWizardProps) {
   const router = useRouter();
-  const [step, setStep] = useState<1 | 2 | 3>(signedIn ? 2 : 1);
+  // Nobody is asked to sign in, so checkout opens on delivery. The phone number
+  // entered there is confirmed with a code on the payment step.
+  const [step, setStep] = useState<2 | 3>(2);
   const [details, setDetails] = useState<DeliveryDetails>(initialDetails);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethodId>("cod");
   const [code, setCode] = useState("");
@@ -128,10 +126,6 @@ export default function CheckoutWizard({
       setStep(2);
       return;
     }
-    if (step === 2 && !signedIn) {
-      setStep(1);
-      return;
-    }
     router.push("/cart");
   }
 
@@ -146,15 +140,13 @@ export default function CheckoutWizard({
 
       <div className="relative flex flex-1 flex-col">
         <CheckoutHeader
-          onBack={step === 1 ? undefined : goBack}
+          onBack={goBack}
           secureNote={step === 3 ? "Your information is safe" : undefined}
         />
 
         <div className="pb-5 pt-1">
           <CheckoutStepper current={step} />
         </div>
-
-        {step === 1 && <StepDetails />}
 
         {step === 2 && (
           <StepDelivery

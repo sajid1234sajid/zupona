@@ -3,15 +3,17 @@ import { ShoppingCart } from "lucide-react";
 import ProductHeader from "@/components/layout/ProductHeader";
 import BottomNav from "@/components/layout/BottomNav";
 import CartItemRow from "@/components/cart/CartItemRow";
-import { requireUser } from "@/lib/session";
+import { getShopper } from "@/lib/session";
 import { getCartItems, cartSubtotal } from "@/lib/cart";
 import { getDeliveryMethod } from "@/lib/checkout";
 import { getDeliveryFees } from "@/lib/shopSettings";
 import { formatPrice } from "@/lib/format";
 
 export default async function CartPage() {
-  const user = await requireUser();
-  const items = await getCartItems(user.id);
+  // A browser that has never added anything has no shopper yet, and simply an
+  // empty cart -- not a trip to the sign-in page.
+  const shopper = await getShopper();
+  const items = shopper ? await getCartItems(shopper.id) : [];
   const subtotal = cartSubtotal(items);
   const fees = await getDeliveryFees();
   const shippingFee = items.length > 0 ? getDeliveryMethod("standard", fees).fee : 0;

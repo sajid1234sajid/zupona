@@ -249,7 +249,7 @@ export async function getPlatformStats(): Promise<PlatformStats> {
   const db = await getDB();
 
   const [users, sellers, products, orders, tickets] = await db.batch<Record<string, number>>([
-    db.prepare("SELECT COUNT(*) AS n FROM users"),
+    db.prepare("SELECT COUNT(*) AS n FROM users WHERE role != 'guest'"),
     db
       .prepare(
         `SELECT COUNT(*) AS n,

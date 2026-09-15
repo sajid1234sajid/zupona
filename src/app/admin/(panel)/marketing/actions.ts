@@ -134,14 +134,15 @@ export async function broadcastAction(
     const segment = String(formData.get("segment") ?? "all");
     const db = await getDB();
 
+    // Guests have no account to read a notification in.
     const where =
       segment === "buyers"
-        ? "WHERE status = 'active' AND EXISTS (SELECT 1 FROM orders o WHERE o.user_id = users.id)"
+        ? "WHERE status = 'active' AND role != 'guest' AND EXISTS (SELECT 1 FROM orders o WHERE o.user_id = users.id)"
         : segment === "inactive"
-          ? `WHERE status = 'active'
+          ? `WHERE status = 'active' AND role != 'guest'
              AND NOT EXISTS (SELECT 1 FROM orders o WHERE o.user_id = users.id
                              AND o.placed_at >= datetime('now', '-90 days'))`
-          : "WHERE status = 'active'";
+          : "WHERE status = 'active' AND role != 'guest'";
 
     const { results: recipients } = await db
       .prepare(`SELECT id FROM users ${where} LIMIT 5000`)

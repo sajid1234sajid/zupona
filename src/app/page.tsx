@@ -11,17 +11,20 @@ import { listStoreProducts } from "@/lib/storefront";
 
 /** The storefront home page.
  *
- * Two catalog reads rather than one: `featured` is the curated grid a shopper
- * lands on, `catalog` is what the header's search box looks through. Both are
- * fetched here on the server so typing into the search box filters instantly
- * instead of waiting on a round trip. */
+ * The whole shoppable catalog is read once and handed to the grid, which
+ * filters it in the browser: that is what makes typing in the header's search
+ * box filter instantly instead of waiting on a round trip. The curated
+ * products are picked out of the same rows rather than fetched again -- a
+ * second query for `is_featured = 1` returned a subset of what was already in
+ * hand and doubled the home page's database reads. */
 export default async function Home() {
   const user = await getCurrentUser();
-  const [wishlistIds, featured, catalog] = await Promise.all([
+  const [wishlistIds, catalog] = await Promise.all([
     getWishlistProductIds(user?.id ?? null),
-    listStoreProducts({ featuredOnly: true, sort: "popular" }),
     listStoreProducts({ sort: "popular" }),
   ]);
+
+  const featured = catalog.filter((product) => product.featured);
 
   return (
     <SearchProvider>

@@ -109,6 +109,57 @@ export async function uploadMedia(
   return { key, size: file.size, contentType: file.type };
 }
 
+/** Stores an upload by streaming it straight into R2.
+ *
+ * The multipart path above has to hold the whole file in the Worker's memory
+ * and spend CPU parsing it, which a phone video is large enough to blow past.
+ * Here the request body is handed to R2 as a stream, so the Worker only ever
+ * shuttles bytes: no buffering, and almost no CPU regardless of size.
+ *
+ * Size is taken from Content-Length rather than measured, because measuring
+ * would mean draining the stream first -- exactly the buffering this avoids.
+ * A client that lies about it only lies about its own upload; R2 stores
+ * whatever actually arrives. */
+export async function uploadMediaStream(
+  body: ReadableStream,
+  contentType: string,
+  declaredSize: number,
+  folder: MediaFolder,
+  ownerId: string
+): Promise<UploadResult> {
+  if (!Number.isFinite(declaredSize) || declaredSize <= 0) {
+    throw new Error("Upload is empty.");
+  }
+
+  const video = isVideoFolder(folder);
+  const maxBytes = video ? MAX_VIDEO_BYTES : MAX_IMAGE_BYTES;
+  if (declaredSize > maxBytes) {
+    throw new Error(`File is larger than ${maxBytes / 1024 / 1024} MB.`);
+  }
+
+  const allowed = video
+    ? ALLOWED_VIDEO_TYPES
+    : folder === "kyc"
+      ? ALLOWED_DOCUMENT_TYPES
+      : ALLOWED_IMAGE_TYPES;
+  if (!allowed.has(contentType)) {
+    throw new Error(`Unsupported file type: ${contentType || "unknown"}.`);
+  }
+
+  const key = `${folder}/${ownerId}/${crypto.randomUUID()}.${extensionFor(contentType)}`;
+  const bucket = await getMedia();
+
+  await bucket.put(key, body, {
+    httpMetadata: {
+      contentType,
+      cacheControl: "public, max-age=31536000, immutable",
+    },
+    customMetadata: { ownerId, folder },
+  });
+
+  return { key, size: declaredSize, contentType };
+}
+
 /** Fetches a stored object, optionally only part of it.
  *
  * `options` is passed through to R2 so the media route can answer a Range

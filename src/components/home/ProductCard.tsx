@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { Star, Heart, LoaderCircle } from "lucide-react";
+import { Star, Heart, LoaderCircle, ShoppingCart, Check } from "lucide-react";
 import type { ProductSummary } from "@/types";
 import { formatPrice } from "@/lib/format";
 import { toggleWishlistAction } from "@/app/wishlist/actions";
@@ -64,11 +64,13 @@ export default function ProductCard({
   }
 
   return (
-    <article className="overflow-hidden rounded-xl border border-brand-tint bg-white p-1.5">
+    <article className="flex min-w-0 flex-col overflow-hidden rounded-xl border border-line bg-white">
       <div className="relative">
+        {/* A square photo that scales with the column, so the tile is the same
+            shape in every two-column grid instead of a fixed-height strip. */}
         <Link
           href={`/product/${product.id}`}
-          className="relative block h-[74px] overflow-hidden rounded-lg bg-brand-mist"
+          className="relative block aspect-square overflow-hidden bg-brand-mist"
         >
           <Image
             src={product.image}
@@ -84,7 +86,7 @@ export default function ProductCard({
         </Link>
 
         {product.discountPercent > 0 && (
-          <span className="pointer-events-none absolute left-1 top-1 rounded-md bg-white/95 px-1 py-[1px] text-[10px] font-extrabold text-brand shadow-card">
+          <span className="pointer-events-none absolute left-1.5 top-1.5 rounded-full bg-brand px-1.5 py-[2px] text-[10px] font-bold leading-none text-white">
             -{product.discountPercent}%
           </span>
         )}
@@ -95,53 +97,60 @@ export default function ProductCard({
           aria-pressed={wishlisted}
           onClick={handleWishlistToggle}
           disabled={wishlistPending}
-          className="absolute right-1 top-1 grid h-[18px] w-[18px] place-items-center rounded-full bg-white/95 shadow-card"
+          className="absolute right-1.5 top-1.5 grid h-7 w-7 place-items-center rounded-full bg-white/95 shadow-card"
         >
           <Heart
-            className={`h-[11px] w-[11px] ${
+            className={`h-3.5 w-3.5 ${
               wishlisted ? "fill-accent-red text-accent-red" : "text-ink-muted"
             }`}
-            strokeWidth={2.4}
+            strokeWidth={2.2}
           />
         </button>
       </div>
 
-      <Link href={`/product/${product.id}`} className="mt-1 block">
-        <h3 className="truncate text-[12px] font-bold leading-tight text-heading">{product.name}</h3>
-        <span className="mt-[3px] flex items-center gap-0.5">
-          <Star className="h-[12px] w-[12px] fill-gold text-gold" />
-          <span className="text-[11px] font-medium text-ink-slate">
-            {product.rating} ({product.reviews})
-          </span>
-        </span>
-      </Link>
-
-      <div className="mt-1 flex items-center justify-between gap-1">
-        <span className="min-w-0">
-          <span className="block truncate text-[14px] font-extrabold leading-[1.25] text-brand-darkest">
-            {formatPrice(product.price)}
-          </span>
-          {product.oldPrice > product.price && (
-            <span className="mt-[2px] block truncate text-[11px] leading-[1.3] text-ink-slate line-through">
-              {formatPrice(product.oldPrice)}
+      <div className="flex flex-1 flex-col p-2">
+        <Link href={`/product/${product.id}`} className="block">
+          <h3 className="line-clamp-2 min-h-[2.5em] text-[12px] font-semibold leading-[1.25] text-heading">
+            {product.name}
+          </h3>
+          <span className="mt-1 flex items-center gap-0.5">
+            <Star className="h-3 w-3 fill-gold text-gold" />
+            <span className="text-[10.5px] font-medium text-ink-slate">
+              {product.rating} ({product.reviews})
             </span>
-          )}
-        </span>
+          </span>
+        </Link>
 
-        <button
-          type="button"
-          onClick={handleAddToCart}
-          disabled={cartPending}
-          className="inline-flex shrink-0 items-center justify-center gap-1 rounded-full bg-brand px-2.5 py-[6px] text-[11px] font-bold text-white disabled:opacity-70"
-        >
-          {cartPending ? (
-            <LoaderCircle className="h-2.5 w-2.5 animate-spin" />
-          ) : justAdded ? (
-            "Added"
-          ) : (
-            "Add to Cart"
-          )}
-        </button>
+        <div className="mt-auto flex items-end justify-between gap-1 pt-1.5">
+          <span className="flex min-w-0 flex-wrap items-baseline gap-x-1">
+            <span className="truncate text-[13px] font-extrabold leading-tight text-brand-darkest">
+              {formatPrice(product.price)}
+            </span>
+            {product.oldPrice > product.price && (
+              <span className="truncate text-[10px] leading-tight text-ink-slate line-through">
+                {formatPrice(product.oldPrice)}
+              </span>
+            )}
+          </span>
+
+          <button
+            type="button"
+            onClick={handleAddToCart}
+            disabled={cartPending}
+            aria-label={justAdded ? "Added to cart" : "Add to cart"}
+            className={`grid h-7 w-7 shrink-0 place-items-center rounded-full border transition-colors disabled:opacity-70 ${
+              justAdded ? "border-brand bg-brand text-white" : "border-brand-tint bg-brand-mist text-brand"
+            }`}
+          >
+            {cartPending ? (
+              <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
+            ) : justAdded ? (
+              <Check className="h-3.5 w-3.5" strokeWidth={2.6} />
+            ) : (
+              <ShoppingCart className="h-3.5 w-3.5" strokeWidth={2.2} />
+            )}
+          </button>
+        </div>
       </div>
     </article>
   );

@@ -170,6 +170,7 @@ export default async function OffersPage({ searchParams }: PageProps<"/offers">)
                   key={product.id}
                   product={product}
                   isWishlisted={wishlistIds.has(product.id)}
+                  isSignedIn={Boolean(user)}
                 />
               ))}
             </div>

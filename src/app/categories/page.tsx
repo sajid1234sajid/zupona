@@ -3,6 +3,8 @@ import ProductHeader from "@/components/layout/ProductHeader";
 import BottomNav from "@/components/layout/BottomNav";
 import CategoryBrowser from "@/components/category/CategoryBrowser";
 import { categoryOverviews } from "@/lib/categories";
+import { getCurrentUser } from "@/lib/session";
+import { getWishlistProductIds } from "@/lib/wishlist";
 
 export const metadata: Metadata = {
   title: "All Categories — Zupona",
@@ -10,7 +12,11 @@ export const metadata: Metadata = {
 };
 
 export default async function CategoriesPage() {
-  const categories = await categoryOverviews();
+  const user = await getCurrentUser();
+  const [categories, wishlistIds] = await Promise.all([
+    categoryOverviews(),
+    getWishlistProductIds(user?.id ?? null),
+  ]);
 
   return (
     // h-screen (not min-h-screen): the two panes scroll independently inside
@@ -24,7 +30,11 @@ export default async function CategoriesPage() {
           {categories.reduce((total, category) => total + category.productCount, 0)} products
         </p>
       </div>
-      <CategoryBrowser categories={categories} />
+      <CategoryBrowser
+        categories={categories}
+        wishlistIds={[...wishlistIds]}
+        isSignedIn={Boolean(user)}
+      />
       <BottomNav />
     </div>
   );

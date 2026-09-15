@@ -151,6 +151,7 @@ export default async function CategoryPage({
                 key={product.id}
                 product={toSummary(product)}
                 isWishlisted={wishlistIds.has(product.id)}
+                isSignedIn={Boolean(user)}
               />
             ))}
           </div>

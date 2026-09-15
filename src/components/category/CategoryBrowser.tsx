@@ -6,6 +6,7 @@ import Link from "next/link";
 import { ChevronRight, Tag } from "lucide-react";
 import type { CategoryOverview } from "@/lib/categories";
 import { formatPrice } from "@/lib/format";
+import ProductCard from "@/components/home/ProductCard";
 
 /** Two-pane category browser: a fixed rail of departments on the left, the
  * selected department's subcategories on the right.
@@ -23,10 +24,15 @@ import { formatPrice } from "@/lib/format";
  */
 export default function CategoryBrowser({
   categories,
+  wishlistIds = [],
+  isSignedIn = false,
 }: {
   categories: CategoryOverview[];
+  wishlistIds?: string[];
+  isSignedIn?: boolean;
 }) {
   const [activeId, setActiveId] = useState(categories[0]?.id ?? "");
+  const wishlistSet = new Set(wishlistIds);
   const active = categories.find((category) => category.id === activeId) ?? categories[0];
 
   if (!active) return null;
@@ -149,34 +155,14 @@ export default function CategoryBrowser({
             <h3 className="mt-4 text-[10px] font-semibold uppercase tracking-wide text-ink-slate">
               Popular in {active.name}
             </h3>
-            <div className="mt-1.5 flex gap-2 overflow-x-auto pb-1 no-scrollbar">
+            <div className="mt-1.5 grid grid-cols-2 gap-2">
               {active.highlights.map((product) => (
-                <Link
+                <ProductCard
                   key={product.id}
-                  href={`/product/${product.id}`}
-                  className="w-[84px] shrink-0"
-                >
-                  <span className="relative block h-[84px] w-full overflow-hidden rounded-lg bg-brand-mist">
-                    <Image
-                      src={product.image}
-                      alt={product.name}
-                      fill
-                      sizes="84px"
-                      className="object-cover"
-                    />
-                    {product.discountPercent > 0 && (
-                      <span className="absolute left-1 top-1 rounded bg-brand px-1 text-[10px] font-bold text-white">
-                        -{product.discountPercent}%
-                      </span>
-                    )}
-                  </span>
-                  <span className="mt-1 block truncate text-[9.5px] font-medium text-ink">
-                    {product.name}
-                  </span>
-                  <span className="block text-[10px] font-bold text-heading">
-                    {formatPrice(product.price)}
-                  </span>
-                </Link>
+                  product={product}
+                  isWishlisted={wishlistSet.has(product.id)}
+                  isSignedIn={isSignedIn}
+                />
               ))}
             </div>
           </>

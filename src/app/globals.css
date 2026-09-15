@@ -162,3 +162,12 @@ body {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* The home page's "More" tile is a fragment link to the full category list.
+ * Smooth scrolling is scoped to the page that has that list: set on every
+ * page, Next 16 would also animate the jump to the top on route changes. */
+@media (prefers-reduced-motion: no-preference) {
+  html:has(#all-categories) {
+    scroll-behavior: smooth;
+  }
+}

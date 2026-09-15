@@ -1,13 +1,13 @@
 import Header from "@/components/layout/Header";
 import BottomNav from "@/components/layout/BottomNav";
 import HeroBanner from "@/components/home/HeroBanner";
-import CategoryGrid from "@/components/home/CategoryGrid";
+import CategoryGrid, { AllCategories } from "@/components/home/CategoryGrid";
 import PromoBanners from "@/components/home/PromoBanners";
 import FeaturedProducts from "@/components/home/FeaturedProducts";
 import SearchProvider from "@/components/search/SearchProvider";
 import { getCurrentUser } from "@/lib/session";
 import { getWishlistProductIds } from "@/lib/wishlist";
-import { listStoreProducts } from "@/lib/storefront";
+import { listStoreCategories, listStoreProducts } from "@/lib/storefront";
 
 /** The storefront home page.
  *
@@ -16,12 +16,15 @@ import { listStoreProducts } from "@/lib/storefront";
  * box filter instantly instead of waiting on a round trip. The curated
  * products are picked out of the same rows rather than fetched again -- a
  * second query for `is_featured = 1` returned a subset of what was already in
- * hand and doubled the home page's database reads. */
+ * hand and doubled the home page's database reads. The departments are read
+ * once for the same reason and shared by the featured tiles up top and the
+ * full list at the bottom. */
 export default async function Home() {
   const user = await getCurrentUser();
-  const [wishlistIds, catalog] = await Promise.all([
+  const [wishlistIds, catalog, categories] = await Promise.all([
     getWishlistProductIds(user?.id ?? null),
     listStoreProducts({ sort: "popular" }),
+    listStoreCategories(),
   ]);
 
   const featured = catalog.filter((product) => product.featured);
@@ -34,7 +37,7 @@ export default async function Home() {
         <Header />
         <main className="flex-1">
           <HeroBanner />
-          <CategoryGrid />
+          <CategoryGrid categories={categories} />
           <PromoBanners />
           <FeaturedProducts
             featured={featured}
@@ -42,6 +45,7 @@ export default async function Home() {
             wishlistIds={Array.from(wishlistIds)}
             isSignedIn={Boolean(user)}
           />
+          <AllCategories categories={categories} />
         </main>
         <BottomNav />
       </div>

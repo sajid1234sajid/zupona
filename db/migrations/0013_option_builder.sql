@@ -86,6 +86,16 @@ SELECT lower(hex(randomblob(16))),
        0
 FROM product_variants v
 WHERE v.option1_value IS NOT NULL AND v.option1_name IS NOT NULL
+  -- ...unless the product already offers a group under this name. `key` is
+  -- slugified from the name here, but a group created by the option builder
+  -- keeps the key it was born with while its name is free to be renamed --
+  -- "Color" to "Colour" -- so a name can belong to a group whose key no longer
+  -- matches it. Without this guard UNIQUE (product_id, key) does not collide,
+  -- a second group appears under the same name, the variant is linked to both,
+  -- and its signature reads `color=..|colour=..`. Section D writes such a name
+  -- into the legacy slot, so this is reachable on the very next run.
+  AND NOT EXISTS (SELECT 1 FROM product_option_groups g
+                   WHERE g.product_id = v.product_id AND g.name = v.option1_name)
 GROUP BY v.product_id, v.option1_name;
 
 -- C2. Groups from option2.
@@ -99,6 +109,8 @@ SELECT lower(hex(randomblob(16))),
        1
 FROM product_variants v
 WHERE v.option2_value IS NOT NULL AND v.option2_name IS NOT NULL
+  AND NOT EXISTS (SELECT 1 FROM product_option_groups g
+                   WHERE g.product_id = v.product_id AND g.name = v.option2_name)
 GROUP BY v.product_id, v.option2_name;
 
 -- C3. Values from option1.

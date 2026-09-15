@@ -147,8 +147,12 @@ export default function AccountProfile({
         </section>
 
         {/* ---------------- Support ---------------- */}
+        {/* Support is handled on WhatsApp; wa.me wants the number in
+            international form, so 01627498933 becomes 8801627498933. */}
         <a
-          href="mailto:support@zupona.shop"
+          href="https://wa.me/8801627498933"
+          target="_blank"
+          rel="noopener noreferrer"
           className="relative mt-3 flex items-center gap-3 overflow-hidden rounded-2xl bg-gradient-to-r from-brand-dark to-brand p-3.5 text-white shadow-[0_10px_22px_-16px_rgba(0,85,61,0.9)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
         >
           <BotanicalBackdrop

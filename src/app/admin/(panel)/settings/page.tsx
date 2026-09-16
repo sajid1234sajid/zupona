@@ -4,7 +4,7 @@ import { getShopSettings } from "@/lib/shopSettings";
 import { recentSmsSends, smsGatewayStatus } from "@/lib/sms";
 import { getCurrentUser } from "@/lib/session";
 import { formatDateTime } from "@/lib/format";
-import { PasswordForm, StoreSettingsForm } from "@/components/admin/SettingsForms";
+import { PasswordForm, SmsTestForm, StoreSettingsForm } from "@/components/admin/SettingsForms";
 import { Avatar, Card, CardHeader, PageHeader, StatusPill } from "@/components/admin/ui";
 
 export const metadata = { title: "Settings" };
@@ -49,6 +49,8 @@ export default async function SettingsPage() {
           </Card>
 
           <PasswordForm />
+
+          <SmsTestForm configured={smsStatus.configured} />
 
           <Card>
             <CardHeader

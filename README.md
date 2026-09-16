@@ -127,9 +127,11 @@ new installs only need `db/schema.sql`.
 
   See `.dev.vars.example` for every variable. The admin **Settings → Verification
   & SMS** card says whether the gateway can send and, when it cannot, exactly
-  what is missing; **SMS Delivery** in the same page lists recent sends and the
-  gateway's own error for the failures. The sender mask is edited there rather
-  than deployed, so a newly approved mask needs no release.
+  what is missing; **Send a test message** puts one real SMS through it and
+  shows the gateway's own answer, so a key or an unapproved sender mask is
+  diagnosed without placing an order; **SMS Delivery** lists recent sends. The
+  sender mask is edited there rather than deployed, so a newly approved mask
+  needs no release.
 
   With no gateway configured, no code can be sent and checkout cannot be
   completed. The "Show verification codes on screen" toggle prints the code in

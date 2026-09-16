@@ -1,11 +1,12 @@
 "use client";
 
 import { useActionState } from "react";
-import { KeyRound, Loader2, MessageSquare, Save } from "lucide-react";
+import { KeyRound, Loader2, MessageSquare, Save, Send } from "lucide-react";
 import { Card, CardHeader, Field, FormMessage, buttonStyles, fieldStyles } from "./ui";
 import {
   changeAdminPasswordAction,
   saveSettingsAction,
+  sendTestSmsAction,
   type SettingsFormState,
 } from "@/app/admin/(panel)/settings/actions";
 import type { ShopSettings } from "@/lib/shopSettings";
@@ -282,6 +283,51 @@ export function StoreSettingsForm({
         </button>
       </div>
     </form>
+  );
+}
+
+/** Proves the gateway end to end without placing an order.
+ *
+ * Its own form rather than a field in the settings form: forms cannot nest,
+ * and sending a message is not a setting -- pressing Save should never post a
+ * text to whatever number was left in a box. */
+export function SmsTestForm({ configured }: { configured: boolean }) {
+  const [state, formAction, pending] = useActionState<SettingsFormState, FormData>(
+    sendTestSmsAction,
+    {}
+  );
+
+  return (
+    <Card>
+      <CardHeader title="Send a test message" subtitle="One real SMS, to check the gateway" />
+      <form action={formAction} className="space-y-3">
+        <FormMessage error={state.error} success={state.success} />
+
+        <Field label="Mobile number">
+          <input
+            name="test_phone"
+            inputMode="numeric"
+            placeholder="01712345678"
+            className={fieldStyles}
+          />
+        </Field>
+
+        <button
+          type="submit"
+          disabled={pending || !configured}
+          className={`${buttonStyles.primary} w-full justify-center disabled:opacity-40`}
+        >
+          {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+          {pending ? "Sending…" : "Send test"}
+        </button>
+
+        {!configured && (
+          <p className="text-[11px] text-neutral-400">
+            Connect a gateway first — see Verification &amp; SMS.
+          </p>
+        )}
+      </form>
+    </Card>
   );
 }
 

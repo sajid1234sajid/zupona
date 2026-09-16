@@ -1,8 +1,8 @@
-import { Leaf } from "lucide-react";
 import AuthForm from "./AuthForm";
 import BottomNav from "@/components/layout/BottomNav";
 import DesktopHeader from "@/components/layout/DesktopHeader";
 import type { AuthActionState } from "@/app/account/actions";
+import ZuponaMark from "@/components/brand/ZuponaMark";
 
 interface AuthScreenProps {
   mode: "signup" | "login";
@@ -18,9 +18,7 @@ export default function AuthScreen({ mode, title, subtitle, action, initialError
       <DesktopHeader />
       <div className="relative mx-auto flex w-full max-w-md flex-1 flex-col px-6 pb-28 pt-14 tab:pb-16 tab:pt-12">
         <div className="mb-8 flex flex-col items-center text-center">
-          <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-darkest shadow-lg shadow-brand/20">
-            <Leaf className="h-7 w-7 text-brand-light" />
-          </div>
+          <ZuponaMark className="mb-4 h-14 w-14" />
           <h1 className="text-2xl font-bold text-brand-darkest">{title}</h1>
           <p className="mt-2 max-w-xs text-sm text-ink-slate">{subtitle}</p>
         </div>

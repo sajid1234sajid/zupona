@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { Search, Bell, Leaf } from "lucide-react";
+import { Search, Bell } from "lucide-react";
+import ZuponaMark from "@/components/brand/ZuponaMark";
 
 /** The Account section's own header.
  *
@@ -20,9 +21,7 @@ export default function AccountHeader({ unreadCount }: { unreadCount: number }) 
           href="/"
           className="flex shrink-0 items-center gap-2 rounded-xl py-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
         >
-          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-brand-tint">
-            <Leaf className="h-[18px] w-[18px] text-brand" strokeWidth={2.25} />
-          </span>
+          <ZuponaMark className="h-9 w-9 shrink-0" />
           <span className="hidden leading-tight min-[360px]:block">
             <span className="block text-[15px] font-extrabold tracking-tight text-brand-darkest">
               Zupona

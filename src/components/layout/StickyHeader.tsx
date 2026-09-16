@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Menu, MapPin, ChevronDown, Heart, Leaf } from "lucide-react";
+import { Menu, MapPin, ChevronDown, Heart } from "lucide-react";
 import SearchBar from "./SearchBar";
 import MenuDrawer from "./MenuDrawer";
+import ZuponaMark from "@/components/brand/ZuponaMark";
 
 /** The storefront header, pinned to the top of the viewport.
  *
@@ -79,8 +80,8 @@ export default function StickyHeader({ wishlistCount }: { wishlistCount: number 
         <div className="overflow-hidden">
           <div className="flex items-center justify-between gap-2 pb-2 pt-1">
             <div className="flex min-w-0 items-center gap-1.5">
-              <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-white/15">
-                <Leaf className="h-4 w-4 text-white" strokeWidth={2.25} />
+              <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-white">
+                <ZuponaMark className="h-[22px] w-[22px]" />
               </span>
               <span className="min-w-0 leading-none">
                 <span className="block text-[17px] font-extrabold tracking-tight">Zupona</span>
@@ -136,11 +137,11 @@ export default function StickyHeader({ wishlistCount }: { wishlistCount: number 
             strokeWidth={2.25}
           />
           <span
-            className={`absolute inset-0 grid place-items-center rounded-lg bg-white/15 transition-[opacity,transform] duration-200 ease-out ${
+            className={`absolute inset-0 grid place-items-center rounded-lg bg-white transition-[opacity,transform] duration-200 ease-out ${
               collapsed ? "scale-100 opacity-100" : "scale-75 opacity-0"
             }`}
           >
-            <Leaf className="h-4 w-4 text-white" strokeWidth={2.25} />
+            <ZuponaMark className="h-[22px] w-[22px]" />
           </span>
         </button>
 

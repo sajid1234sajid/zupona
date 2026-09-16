@@ -13,11 +13,11 @@ import {
   User,
   Store,
   LifeBuoy,
-  Leaf,
   MapPin,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import BotanicalBackdrop from "@/components/home/BotanicalBackdrop";
+import ZuponaMark from "@/components/brand/ZuponaMark";
 
 interface MenuLink {
   label: string;
@@ -194,8 +194,8 @@ export default function MenuDrawer({
 
             <div className="relative flex items-start justify-between gap-2">
               <div className="flex min-w-0 items-center gap-2.5">
-                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-white/15 ring-1 ring-white/25">
-                  <Leaf className="h-[19px] w-[19px]" strokeWidth={2.25} />
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-white ring-1 ring-white/25">
+                  <ZuponaMark className="h-8 w-8" />
                 </span>
                 <span className="min-w-0 leading-tight">
                   <span className="block text-[15px] font-extrabold tracking-tight">

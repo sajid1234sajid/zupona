@@ -7,6 +7,7 @@ import { ChevronDown, Leaf, LogOut } from "lucide-react";
 import { ICONS } from "./icons";
 import { NAV_ITEMS, isActive } from "./nav";
 import { logOutAdminAction } from "@/app/admin/actions";
+import ZuponaMark from "@/components/brand/ZuponaMark";
 
 interface SidebarProps {
   /** Closes the mobile drawer after a navigation. Absent on the desktop rail. */
@@ -48,8 +49,8 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
         onClick={onNavigate}
         className="relative flex items-center gap-3 px-5 py-6"
       >
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand shadow-lg shadow-black/20">
-          <Leaf className="h-5 w-5 text-white" />
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white shadow-lg shadow-black/20">
+          <ZuponaMark className="h-8 w-8" />
         </span>
         <span className="min-w-0">
           <span className="block truncate text-lg font-extrabold tracking-wide">ZUPONA</span>

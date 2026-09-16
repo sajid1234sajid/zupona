@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { Leaf, ShieldCheck } from "lucide-react";
 import { getCurrentUser } from "@/lib/session";
 import LoginForm from "@/components/admin/LoginForm";
+import ZuponaMark from "@/components/brand/ZuponaMark";
 
 export const metadata: Metadata = {
   title: "Sign in",
@@ -29,8 +30,8 @@ export default async function AdminLoginPage() {
 
       <div className="relative w-full max-w-[400px]">
         <div className="mb-6 flex flex-col items-center text-center">
-          <span className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-brand shadow-xl shadow-black/30">
-            <Leaf className="h-7 w-7 text-white" />
+          <span className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-white shadow-xl shadow-black/30">
+            <ZuponaMark className="h-11 w-11" />
           </span>
           <h1 className="text-2xl font-extrabold tracking-wide text-white">ZUPONA</h1>
           <p className="mt-1 text-sm text-white/55">Admin Panel</p>

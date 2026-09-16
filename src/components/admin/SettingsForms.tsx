@@ -10,7 +10,7 @@ import {
   type SettingsFormState,
 } from "@/app/admin/(panel)/settings/actions";
 import type { ShopSettings } from "@/lib/shopSettings";
-import type { SmsGatewayStatus } from "@/lib/sms";
+import type { SmsBalance, SmsGatewayStatus } from "@/lib/sms";
 
 /** A switch whose "off" state still reaches the server.
  *
@@ -50,13 +50,22 @@ function Toggle({
  * included. Hardcoding fallbacks in the form instead would mean saving the
  * page could quietly change a value nobody touched -- the free-shipping
  * threshold showing 0 while the shop was really using 999, for instance. */
+/** Below this, the gateway is close enough to empty to say so out loud. A
+ * Bangladeshi bulk SMS costs a fraction of a Taka, so this is a couple of
+ * hundred codes -- days of ordinary trading, not months. */
+const LOW_BALANCE_TAKA = 50;
+
 export function StoreSettingsForm({
   settings,
   smsStatus,
+  smsBalance,
 }: {
   settings: ShopSettings;
   smsStatus: SmsGatewayStatus;
+  /** What is left at the gateway, when the provider will say. */
+  smsBalance: SmsBalance | null;
 }) {
+  const balanceLow = smsBalance !== null && smsBalance.amount < LOW_BALANCE_TAKA;
   const [state, formAction, pending] = useActionState<SettingsFormState, FormData>(
     saveSettingsAction,
     {}
@@ -223,14 +232,14 @@ export function StoreSettingsForm({
 
         <div
           className={`mb-4 flex items-start gap-2.5 rounded-xl border px-3.5 py-3 ${
-            smsStatus.configured
+            smsStatus.configured && !balanceLow
               ? "border-brand/40 bg-brand-tint/40"
               : "border-amber-300 bg-amber-50"
           }`}
         >
           <MessageSquare
             className={`mt-0.5 h-4 w-4 shrink-0 ${
-              smsStatus.configured ? "text-brand" : "text-amber-600"
+              smsStatus.configured && !balanceLow ? "text-brand" : "text-amber-600"
             }`}
           />
           <div className="min-w-0">
@@ -246,6 +255,20 @@ export function StoreSettingsForm({
                   : "Codes go out on the gateway's default route — no sender mask set."
                 : smsStatus.problem}
             </p>
+
+            {smsBalance !== null && (
+              <p
+                className={`mt-1 text-[11px] ${
+                  balanceLow ? "font-semibold text-amber-700" : "text-neutral-500"
+                }`}
+              >
+                {/* The gateway bills in Taka whatever currency the storefront
+                    displays, so this figure is not the shop's symbol. */}
+                Gateway balance ৳{smsBalance.amount}
+                {smsBalance.validUntil ? ` · valid to ${smsBalance.validUntil.slice(0, 10)}` : ""}
+                {balanceLow && " — top this up. When it runs out no code is sent, and every checkout stops at the verification step."}
+              </p>
+            )}
           </div>
         </div>
 

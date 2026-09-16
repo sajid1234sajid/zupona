@@ -1,7 +1,7 @@
 import { MessageSquare, ScrollText } from "lucide-react";
 import { listAuditLog } from "@/lib/admin";
 import { getShopSettings } from "@/lib/shopSettings";
-import { recentSmsSends, smsGatewayStatus } from "@/lib/sms";
+import { recentSmsSends, smsBalance, smsGatewayStatus } from "@/lib/sms";
 import { getCurrentUser } from "@/lib/session";
 import { formatDateTime } from "@/lib/format";
 import { PasswordForm, SmsTestForm, StoreSettingsForm } from "@/components/admin/SettingsForms";
@@ -10,12 +10,13 @@ import { Avatar, Card, CardHeader, PageHeader, StatusPill } from "@/components/a
 export const metadata = { title: "Settings" };
 
 export default async function SettingsPage() {
-  const [settings, audit, user, smsStatus, smsLog] = await Promise.all([
+  const [settings, audit, user, smsStatus, smsLog, balance] = await Promise.all([
     getShopSettings(),
     listAuditLog({ limit: 25 }),
     getCurrentUser(),
     smsGatewayStatus(),
     recentSmsSends(8),
+    smsBalance(),
   ]);
 
   return (
@@ -28,7 +29,7 @@ export default async function SettingsPage() {
 
       <div className="grid gap-5 xl:grid-cols-12">
         <div className="min-w-0 xl:col-span-8">
-          <StoreSettingsForm settings={settings} smsStatus={smsStatus} />
+          <StoreSettingsForm settings={settings} smsStatus={smsStatus} smsBalance={balance} />
         </div>
 
         <div className="min-w-0 space-y-4 xl:col-span-4">

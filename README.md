@@ -133,8 +133,10 @@ new installs only need `db/schema.sql`.
 
   See `.dev.vars.example` for every variable. The admin **Settings → Verification
   & SMS** card says whether the gateway can send and, when it cannot, exactly
-  what is missing; **Send a test message** puts one real SMS through it and
-  shows the gateway's own answer, so a key or an unapproved sender mask is
+  what is missing, and how much credit is left at the gateway — running out is
+  silent and stops every checkout at the verification step, so the card turns
+  amber well before that; **Send a test message** puts one real SMS through it
+  and shows the gateway's own answer, so a key or an unapproved sender mask is
   diagnosed without placing an order; **SMS Delivery** lists recent sends. The
   sender mask is edited there rather than deployed, so a newly approved mask
   needs no release.

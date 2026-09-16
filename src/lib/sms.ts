@@ -18,6 +18,7 @@
 
 import { getDB } from "@/lib/db";
 import { getShopSettings } from "@/lib/shopSettings";
+import { cached } from "@/lib/cache";
 
 export type SmsProviderId = "smsnetbd" | "bulksmsbd" | "mimsms" | "custom";
 
@@ -170,6 +171,74 @@ export async function smsGatewayStatus(): Promise<SmsGatewayStatus> {
     senderId: resolved.config.senderId,
     problem: null,
   };
+}
+
+/* -------------------------------------------------------------------------- */
+/* Balance                                                                    */
+/* -------------------------------------------------------------------------- */
+
+/** Where each provider reports what is left. Absent for the ones that offer no
+ * such endpoint, in which case the admin panel says nothing rather than
+ * inventing a number. */
+const BALANCE_ENDPOINT: Partial<Record<SmsProviderId, string>> = {
+  smsnetbd: "https://api.sms.net.bd/user/balance",
+  bulksmsbd: "https://bulksmsbd.net/api/getBalanceApi",
+};
+
+export interface SmsBalance {
+  /** Whole Taka, rounded down -- a gateway reporting "2.1000" has two. */
+  amount: number;
+  /** When the credit expires, if the provider says so. */
+  validUntil: string | null;
+}
+
+/** What is left at the gateway, or null when it cannot be read.
+ *
+ * Worth a place on the page because running out is silent and total: the
+ * gateway starts refusing, no code reaches anyone, and every checkout stops at
+ * the verification step. A shop finds that out from its customers rather than
+ * from its own admin panel.
+ *
+ * Cached, since this runs on an admin page load and the figure moves a few
+ * poisha at a time. Never throws: a gateway that will not answer is one less
+ * line on the page, not a broken page.
+ */
+export async function smsBalance(): Promise<SmsBalance | null> {
+  const resolved = await getSmsConfig();
+  if (!resolved.ok) return null;
+
+  const { config } = resolved;
+  const url = BALANCE_ENDPOINT[config.provider];
+  if (!url) return null;
+
+  // A custom endpoint means the shop is pointed at something other than the
+  // provider's own API -- a reseller, or a stand-in during testing -- and
+  // asking the real host for a balance would report a different account.
+  const env = await readEnv();
+  if (text(env?.SMS_ENDPOINT)) return null;
+
+  return cached(
+    `sms:balance:${config.provider}`,
+    async () => {
+      const response = await post(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({ api_key: config.apiKey }).toString(),
+      });
+      if (!response.ok) return null;
+
+      const json = parseJson(response.body);
+      if (!json) return null;
+
+      // sms.net.bd nests it under `data`; BulkSMSBD returns it at the top.
+      const data = (json.data ?? json) as Record<string, unknown>;
+      const raw = Number.parseFloat(String(data.balance ?? ""));
+      if (!Number.isFinite(raw)) return null;
+
+      return { amount: Math.floor(raw), validUntil: text(data.validity) };
+    },
+    300
+  );
 }
 
 /* -------------------------------------------------------------------------- */

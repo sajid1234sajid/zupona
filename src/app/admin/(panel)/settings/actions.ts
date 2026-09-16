@@ -34,6 +34,7 @@ const EDITABLE: Record<string, "text" | "number" | "boolean"> = {
   guest_checkout_enabled: "boolean",
   maintenance_mode: "boolean",
   otp_demo_mode: "boolean",
+  sms_sender_id: "text",
 };
 
 function toFormError(error: unknown): SettingsFormState {

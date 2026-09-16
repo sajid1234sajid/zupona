@@ -14,7 +14,7 @@ A multi-vendor marketplace (platform and independent sellers both list;
 orders split per seller) built as a Next.js app on [vinext](https://vinext.dev),
 deployed as a **single Cloudflare Worker**. Read [README.md](README.md) for
 setup and [DATABASE.md](DATABASE.md) for the data layer — that one is the real
-reference, 44 tables with the reasoning behind them.
+reference, 51 tables with the reasoning behind them.
 
 [HISTORY.md](HISTORY.md) covers what lives outside the repository — the
 Cloudflare and GitHub state, why the deploy pipeline is shaped the way it is,

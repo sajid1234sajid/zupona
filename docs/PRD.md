@@ -246,7 +246,7 @@ shown at checkout in 100% of cases; every order has exactly one
 | FR-ID-01 | Sign up with name + email + password; password hashed with PBKDF2 via Web Crypto, never stored in plaintext | P0 | Live |
 | FR-ID-02 | Log in with email + password; failures return a mapped, human-readable message | P0 | Live |
 | FR-ID-03 | "Continue with Google" OAuth sign-in with CSRF `state` cookie; degrades to a "not set up yet" message when `GOOGLE_CLIENT_ID` is unset rather than erroring | P1 | Live |
-| FR-ID-04 | Sign in by mobile number at checkout: a 6-digit code, 5-minute TTL, 30-second resend throttle. The account is created on first use | P0 | Partial — no SMS gateway; the code is returned to the browser as `demoCode` |
+| FR-ID-04 | Sign in by mobile number at checkout: a 6-digit code, 5-minute TTL, 30-second resend throttle. The account is created on first use | P0 | Live — sent over SMS by `src/lib/sms.ts` (sms.net.bd, BulkSMSBD, MiMSMS or a custom URL), capped at 5 codes per number and 15 per IP per hour. Needs `SMS_API_KEY`; with none set, no code can be sent |
 | FR-ID-05 | Sessions are opaque IDs in a `sessions` table referenced by an `httpOnly` cookie; the row records IP and user agent | P0 | Live |
 | FR-ID-06 | A `suspended` or `banned` account is treated as signed out on its next request | P0 | Live |
 | FR-ID-07 | Roles are `customer` / `seller` / `admin` / `support`. There is no self-service path to `admin` | P0 | Live |
@@ -472,7 +472,7 @@ of the product.
 | FR-NOT-02 | Order-placed notification written on checkout | P1 | Live |
 | FR-NOT-03 | Admin broadcast to all customers | P2 | Live |
 | FR-NOT-04 | Notifications on status change, shipment, delivery, refund | P1 | Planned |
-| FR-NOT-05 | SMS notifications | P1 | Planned — no gateway (see FR-ID-04) |
+| FR-NOT-05 | SMS notifications | P1 | Partial — the gateway exists and sends verification codes; nothing sends order or delivery updates yet |
 | FR-NOT-06 | Email notifications | P2 | Planned |
 | FR-NOT-07 | Support tickets with threaded messages, priority and assignment | P2 | Schema only |
 
@@ -645,7 +645,7 @@ Ranked by risk. Items 1–5 are the Phase 1 gate.
 | **7** | **No seller-facing surface exists.** No application, no portal, no KYC upload, no order queue, no earnings | The product is a marketplace in schema only | FR-MKT-05/06/07 |
 | **8** | **Points accrue and cannot be spent** | An unbounded liability with no discharge mechanism | FR-LOY-04 |
 | **9** | **Three admin settings are read by nothing** — `guest_checkout_enabled`, `maintenance_mode`, `reviews_need_approval` | An operator toggles a switch and believes the store changed. Silently untrue | FR-CHK-16, FR-ADM-18, FR-REV-07 |
-| **10** | **OTP codes are returned to the browser** (`demoCode`) because no SMS gateway is connected | Phone verification is decorative: anyone can "verify" any number | FR-ID-04 |
+| **10** | **OTP codes are only returned to the browser when `otp_demo_mode` is on**, which the SMS gateway migration turns off | Closed — with a gateway configured the code goes to the handset and nothing else; with demo mode on, verification is decorative again | FR-ID-04 |
 | **11** | **Storefront logins are not recorded** in `login_attempts`; no lockout exists | No brute-force protection on customer accounts; the security page's activity list is incomplete | FR-ID-12/13 |
 | **12** | **Returns, shipments, Q&A and support tickets are schema only** | Post-purchase service has no product surface | FR-ORD-07/08, FR-REV-09, FR-NOT-07 |
 
@@ -681,7 +681,8 @@ Per-seller fulfilment and shipments (FR-MKT-09, FR-ORD-08).
 ### Phase 4 — Settlement and scale
 
 Payout runs (FR-MKT-11). Payment gateway for bKash/Nagad/card (FR-CHK-17). SMS
-gateway (FR-ID-04, FR-NOT-05). Server-side search with trending terms (FR-CAT-12).
+order and delivery updates on the gateway already carrying verification codes
+(FR-NOT-05). Server-side search with trending terms (FR-CAT-12).
 Recommendations (FR-CAT-14). Support ticketing (FR-NOT-07). Paid D1/Workers tiers.
 
 ---

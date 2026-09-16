@@ -28,11 +28,17 @@ export interface ShopSettings {
   exchangeDays: number;
   guestCheckoutEnabled: boolean;
   maintenanceMode: boolean;
-  /** Echoes the one-time code back to the browser so checkout can be tested
-   * without an SMS gateway. Off by default: with it on, anyone can request a
-   * code for any number and read it out of the response, which is enough to
-   * sign in as that person. Only turn it on against a throwaway database. */
+  /** Echoes the one-time code back to the browser instead of sending it, so
+   * checkout can be tested without a gateway. Off by default: with it on,
+   * anyone can request a code for any number and read it out of the response,
+   * which is enough to order as that person. Only turn it on against a
+   * throwaway database. */
   otpDemoMode: boolean;
+  /** The sender mask the SMS gateway has approved for this shop, printed on
+   * every message that arrives. Null means the gateway's default route, which
+   * is what sms.net.bd uses for non-masked traffic. The API key behind it is a
+   * Worker secret and is never a setting. */
+  smsSenderId: string | null;
 }
 
 /** What the storefront falls back to. These match the values that used to be
@@ -54,6 +60,7 @@ export const DEFAULT_SETTINGS: ShopSettings = {
   guestCheckoutEnabled: true,
   maintenanceMode: false,
   otpDemoMode: false,
+  smsSenderId: null,
 };
 
 function readInt(raw: string | undefined, fallback: number): number {
@@ -107,6 +114,7 @@ async function querySettings(): Promise<ShopSettings> {
     ),
     maintenanceMode: readFlag(map.get("maintenance_mode"), DEFAULT_SETTINGS.maintenanceMode),
     otpDemoMode: readFlag(map.get("otp_demo_mode"), DEFAULT_SETTINGS.otpDemoMode),
+    smsSenderId: map.get("sms_sender_id")?.trim() || null,
   };
 }
 

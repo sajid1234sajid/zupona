@@ -115,6 +115,26 @@ new installs only need `db/schema.sql`.
   dev; in production set them with `wrangler secret put`. Until configured, the
   button shows a friendly "not set up yet" message instead of erroring.
   These are Worker secrets, so deploys never touch them.
+- **Checkout's phone verification needs an SMS gateway.** The one-time code is
+  sent by `src/lib/sms.ts`, which has adapters for sms.net.bd (the default),
+  BulkSMSBD, MiMSMS and any reseller that hands you a plain GET URL. Set the
+  key as a Worker secret — it is never a committed value and never a
+  `site_settings` row:
+
+  ```bash
+  npx wrangler secret put SMS_API_KEY      # and SMS_PROVIDER if not sms.net.bd
+  ```
+
+  See `.dev.vars.example` for every variable. The admin **Settings → Verification
+  & SMS** card says whether the gateway can send and, when it cannot, exactly
+  what is missing; **SMS Delivery** in the same page lists recent sends and the
+  gateway's own error for the failures. The sender mask is edited there rather
+  than deployed, so a newly approved mask needs no release.
+
+  With no gateway configured, no code can be sent and checkout cannot be
+  completed. The "Show verification codes on screen" toggle prints the code in
+  the page instead — enough to test the flow, and a way for anyone to order as
+  anyone else, so it stays off on a live shop.
 - After changing `wrangler.jsonc` bindings, run `npx wrangler types` to refresh
   `worker-configuration.d.ts`.
 

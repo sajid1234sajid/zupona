@@ -745,6 +745,23 @@ CREATE TABLE IF NOT EXISTS phone_verifications (
 
 CREATE INDEX IF NOT EXISTS idx_phone_verifications_phone ON phone_verifications (phone);
 
+-- Every SMS this shop has paid a gateway to send, and what came back. The
+-- message body is deliberately absent: a verification text *is* its one-time
+-- code, and this table is readable by every admin.
+CREATE TABLE IF NOT EXISTS sms_messages (
+  id TEXT PRIMARY KEY,
+  phone TEXT NOT NULL,                           -- +8801XXXXXXXXX
+  purpose TEXT NOT NULL DEFAULT 'otp',           -- otp|order|test
+  provider TEXT NOT NULL,                        -- smsnetbd|bulksmsbd|mimsms|custom
+  status TEXT NOT NULL,                          -- sent|failed
+  provider_ref TEXT,                             -- the gateway's own request id
+  error TEXT,                                    -- why it was refused, when it was
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_sms_messages_created ON sms_messages (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_sms_messages_phone ON sms_messages (phone, created_at DESC);
+
 -- ============================================================================
 -- 8. PAYMENTS & SELLER PAYOUTS
 -- ============================================================================

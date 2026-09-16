@@ -2,6 +2,8 @@ import { cookies } from "next/headers";
 import { getDB } from "@/lib/db";
 import { hashPassword, verifyPassword } from "@/lib/password";
 import { CODE_LENGTH } from "@/lib/checkout";
+import { getShopSettings } from "@/lib/shopSettings";
+import { gsmSafe, sendSms } from "@/lib/sms";
 
 const VERIFY_COOKIE = "zupona_verify";
 const CODE_TTL_MS = 5 * 60 * 1000;
@@ -33,17 +35,41 @@ async function readVerification(): Promise<VerificationRow | null> {
   return row ?? null;
 }
 
+/** The text that arrives on the handset. Kept to one 160-character GSM part:
+ * these gateways bill per part, and a unicode character in the store name
+ * would cut the limit to 70 and multiply the cost of every code sent. */
+function codeMessage(code: string, storeName: string): string {
+  const brand = gsmSafe(storeName).slice(0, 20).trim() || "Zupona";
+  const minutes = Math.round(CODE_TTL_MS / 60_000);
+  return `${code} is your ${brand} verification code. It expires in ${minutes} minutes. Do not share it with anyone.`;
+}
+
+export interface IssuedCode {
+  /** True when the gateway accepted the message. False means the shopper has
+   * no code and is being told so, rather than left staring at empty boxes. */
+  delivered: boolean;
+  expiresAt: string;
+  /** The code itself, and only when `otp_demo_mode` is on. In every other case
+   * this is null: a code returned to the browser is a code anyone can request
+   * for anyone else's number and read straight out of the response. */
+  demoCode: string | null;
+  /** Why nothing was sent, when nothing was. Safe to show a shopper. */
+  error: string | null;
+}
+
 /**
- * Issues a fresh 6-digit code for `phone`. Only the hash is stored, and the
- * browser only ever holds the row id - so the "verified" flag lives entirely
- * server-side and cannot be forged by editing cookies.
+ * Issues a fresh 6-digit code for `phone` and sends it by SMS. Only the hash is
+ * stored, and the browser only ever holds the row id - so the "verified" flag
+ * lives entirely server-side and cannot be forged by editing cookies.
  *
- * There is no SMS gateway wired up yet, so the code is returned to the caller
- * and surfaced in the UI as a demo hint. Swap this for a provider call (and
- * stop returning `code`) once one is available.
+ * A code that was never delivered is not left lying in the table: the row and
+ * the cookie are both removed, so the 30-second resend throttle does not
+ * punish a shopper for the gateway's failure, and no half-live verification
+ * survives to confuse the next attempt.
  */
-export async function issuePhoneCode(phone: string): Promise<{ code: string; expiresAt: string }> {
+export async function issuePhoneCode(phone: string): Promise<IssuedCode> {
   const db = await getDB();
+  const settings = await getShopSettings();
   const code = String(crypto.getRandomValues(new Uint32Array(1))[0] % 1_000_000).padStart(CODE_LENGTH, "0");
   const id = crypto.randomUUID();
   const expiresAt = new Date(Date.now() + CODE_TTL_MS).toISOString();
@@ -62,9 +88,38 @@ export async function issuePhoneCode(phone: string): Promise<{ code: string; exp
     expires: new Date(Date.now() + CODE_TTL_MS),
   });
 
-  await db.prepare("DELETE FROM phone_verifications WHERE expires_at < datetime('now')").run();
+  const sweep = () => db.prepare("DELETE FROM phone_verifications WHERE expires_at < datetime('now')").run();
 
-  return { code, expiresAt };
+  const sent = await sendSms(phone, codeMessage(code, settings.storeName), "otp");
+
+  /* Demo mode is what a shop with no gateway uses to test the flow: the code
+   * comes back to the browser and the checkout prints it. It deliberately does
+   * *not* survive a gateway being connected -- a live shop that left the
+   * toggle on would otherwise hand anyone the code for anyone's number, so a
+   * configured gateway wins over the setting rather than the other way round. */
+  if (!sent.ok && sent.unconfigured) {
+    console.error("sms gateway not configured", { problem: sent.error });
+    if (settings.otpDemoMode) {
+      await sweep();
+      return { delivered: false, expiresAt, demoCode: code, error: null };
+    }
+  }
+
+  if (!sent.ok) {
+    await db.prepare("DELETE FROM phone_verifications WHERE id = ?").bind(id).run();
+    cookieStore.delete(VERIFY_COOKIE);
+    // The gateway's own words stay in the log. A shopper gets a sentence they
+    // can act on, and learns nothing about the shop's credentials from it.
+    return {
+      delivered: false,
+      expiresAt,
+      demoCode: null,
+      error: "We couldn't send the code just now. Please check the number and try again in a moment.",
+    };
+  }
+
+  await sweep();
+  return { delivered: true, expiresAt, demoCode: null, error: null };
 }
 
 export type CodeCheck = { ok: true; phone: string } | { ok: false; error: string };

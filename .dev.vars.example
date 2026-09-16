@@ -8,3 +8,27 @@
 
 GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
+
+# --- SMS gateway -------------------------------------------------------------
+# Sends the one-time code that checkout uses to confirm a delivery number.
+# Without SMS_API_KEY no code can be sent and checkout cannot be completed
+# unless "Show verification codes on screen" is switched on in admin Settings.
+#
+# In production the key is a Worker secret, never a committed value:
+#   npx wrangler secret put SMS_API_KEY
+#
+# SMS_PROVIDER picks the adapter in src/lib/sms.ts:
+#   smsnetbd   sms.net.bd (default) — api key only, sender mask optional
+#   bulksmsbd  bulksmsbd.net        — api key + approved sender id
+#   mimsms     mimsms.com           — api key + username + sender name
+#   custom     any reseller's GET URL, set in SMS_ENDPOINT, e.g.
+#              https://example.com/send?key={api_key}&to={to}&text={message}
+
+SMS_PROVIDER=smsnetbd
+SMS_API_KEY=
+# Optional. Leave blank to send on the gateway's default (non-masked) route.
+SMS_SENDER_ID=
+# MiMSMS only.
+SMS_USERNAME=
+# Required only for SMS_PROVIDER=custom.
+SMS_ENDPOINT=

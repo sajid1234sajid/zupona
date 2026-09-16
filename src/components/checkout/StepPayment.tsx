@@ -45,6 +45,8 @@ interface StepPaymentProps {
   onCodeChange: (code: string) => void;
   onResend: () => void;
   resending: boolean;
+  /** Whether the gateway accepted the code that was issued. */
+  codeSent: boolean;
   demoCode: string | null;
   resendAt: number;
   lines: SummaryLine[];
@@ -64,6 +66,7 @@ export default function StepPayment({
   onCodeChange,
   onResend,
   resending,
+  codeSent,
   demoCode,
   resendAt,
   lines,
@@ -178,6 +181,7 @@ export default function StepPayment({
             onResend={onResend}
             resending={resending}
             verified={phoneVerified}
+            sent={codeSent}
             demoCode={demoCode}
           />
         </div>

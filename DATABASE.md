@@ -108,7 +108,7 @@ details) and `seller_documents` for KYC paperwork held in R2.
 **Money** — `payment_transactions`, `seller_payouts`, `payout_line_items`.
 
 **Service and platform** — `notifications`, `support_tickets`,
-`support_messages`, `admin_audit_log`, `site_settings`.
+`support_messages`, `admin_audit_log`, `site_settings`, `sms_messages`.
 
 ### Design decisions worth knowing
 
@@ -123,6 +123,14 @@ inherits the product price — read `effectivePrice`, not `price`.
 **Stock has a ledger.** `product_variants.stock_quantity` is the fast current
 value and `inventory_movements` is the append-only audit trail behind it.
 Always change stock through `src/lib/inventory.ts` so the two agree.
+
+**Verification codes are hashed, and the SMS is logged without its body.**
+`phone_verifications` stores a PBKDF2 hash, never the code, and the browser
+only ever holds the row id in an `httpOnly` cookie — so "verified" is a
+server-side fact a shopper cannot forge. `sms_messages` records every send the
+gateway was asked for (number, provider, status, the gateway's own error) but
+deliberately not the message text: a verification SMS *is* its one-time code,
+and the table is readable by every admin.
 
 **Reservations separate held stock from sold stock.**
 `available = stock_quantity - reserved_quantity`, so a checkout in flight can

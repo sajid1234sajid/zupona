@@ -1,6 +1,7 @@
-import { ScrollText } from "lucide-react";
+import { MessageSquare, ScrollText } from "lucide-react";
 import { listAuditLog } from "@/lib/admin";
 import { getShopSettings } from "@/lib/shopSettings";
+import { recentSmsSends, smsGatewayStatus } from "@/lib/sms";
 import { getCurrentUser } from "@/lib/session";
 import { formatDateTime } from "@/lib/format";
 import { PasswordForm, StoreSettingsForm } from "@/components/admin/SettingsForms";
@@ -9,10 +10,12 @@ import { Avatar, Card, CardHeader, PageHeader, StatusPill } from "@/components/a
 export const metadata = { title: "Settings" };
 
 export default async function SettingsPage() {
-  const [settings, audit, user] = await Promise.all([
+  const [settings, audit, user, smsStatus, smsLog] = await Promise.all([
     getShopSettings(),
     listAuditLog({ limit: 25 }),
     getCurrentUser(),
+    smsGatewayStatus(),
+    recentSmsSends(8),
   ]);
 
   return (
@@ -25,7 +28,7 @@ export default async function SettingsPage() {
 
       <div className="grid gap-5 xl:grid-cols-12">
         <div className="min-w-0 xl:col-span-8">
-          <StoreSettingsForm settings={settings} />
+          <StoreSettingsForm settings={settings} smsStatus={smsStatus} />
         </div>
 
         <div className="min-w-0 space-y-4 xl:col-span-4">
@@ -46,6 +49,46 @@ export default async function SettingsPage() {
           </Card>
 
           <PasswordForm />
+
+          <Card>
+            <CardHeader
+              title="SMS Delivery"
+              subtitle="The last codes this shop paid to send"
+            />
+            {smsLog.length === 0 ? (
+              <p className="flex items-center justify-center gap-2 py-8 text-center text-sm text-neutral-400">
+                <MessageSquare className="h-4 w-4 shrink-0" />
+                {smsStatus.configured
+                  ? "Nothing sent yet."
+                  : "No gateway connected, so nothing has been sent."}
+              </p>
+            ) : (
+              <ul className="space-y-2.5">
+                {smsLog.map((entry) => (
+                  <li key={entry.id} className="border-b border-neutral-50 pb-2.5 last:border-0">
+                    <p className="flex items-center justify-between gap-2 text-[12px] font-semibold text-neutral-800">
+                      <span className="truncate">{entry.phone}</span>
+                      <span
+                        className={
+                          entry.status === "sent"
+                            ? "shrink-0 text-[11px] font-semibold text-brand"
+                            : "shrink-0 text-[11px] font-semibold text-red-500"
+                        }
+                      >
+                        {entry.status === "sent" ? "Sent" : "Failed"}
+                      </span>
+                    </p>
+                    <p className="truncate text-[11px] text-neutral-400">
+                      {entry.purpose} · {entry.provider} · {formatDateTime(entry.createdAt)}
+                    </p>
+                    {entry.error && (
+                      <p className="mt-0.5 text-[11px] text-red-400">{entry.error}</p>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
 
           <Card>
             <CardHeader

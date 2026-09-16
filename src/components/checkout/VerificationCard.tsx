@@ -14,7 +14,12 @@ interface VerificationCardProps {
   resending?: boolean;
   /** Set once the number is confirmed - the inputs lock and turn green. */
   verified?: boolean;
-  /** No SMS gateway is wired up yet, so the issued code is shown here instead. */
+  /** Whether a code actually reached the gateway. The card says "we've sent
+   * you a code" only when one was sent: a shopper told to check their phone
+   * for a message the gateway refused will sit and wait for it. */
+  sent?: boolean;
+  /** Set only when the shop has demo mode on: the code is printed here
+   * instead of being sent, so checkout can be tested without a gateway. */
   demoCode?: string | null;
   bare?: boolean;
 }
@@ -46,6 +51,7 @@ export default function VerificationCard({
   onResend,
   resending = false,
   verified = false,
+  sent = false,
   demoCode,
   bare = false,
 }: VerificationCardProps) {
@@ -79,10 +85,21 @@ export default function VerificationCard({
           <p className="text-[10px] leading-tight text-ink-slate">
             {verified ? (
               <>{formatBdPhone(phone)} is confirmed for this order.</>
-            ) : (
+            ) : sent || demoCode ? (
               <>
                 We&apos;ve sent a {CODE_LENGTH}-digit code to your phone number{" "}
                 <span className="font-semibold text-ink-slate">{formatBdPhone(phone)}</span>
+              </>
+            ) : resending ? (
+              <>
+                Sending a {CODE_LENGTH}-digit code to{" "}
+                <span className="font-semibold text-ink-slate">{formatBdPhone(phone)}</span>…
+              </>
+            ) : (
+              <>
+                No code has reached{" "}
+                <span className="font-semibold text-ink-slate">{formatBdPhone(phone)}</span> yet —
+                tap Resend code to try again.
               </>
             )}
           </p>
@@ -149,7 +166,7 @@ export default function VerificationCard({
 
       {!verified && demoCode && (
         <p className="mt-2 rounded-lg bg-accent-orange/10 px-2.5 py-1.5 text-[10px] text-accent-orange-dark">
-          Demo mode — no SMS gateway is connected yet, so your code is{" "}
+          Demo mode — no SMS was sent, so your code is shown here:{" "}
           <span className="font-bold tracking-widest">{demoCode}</span>
         </p>
       )}

@@ -1,7 +1,9 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { getDB } from "@/lib/db";
+import { rateLimit } from "@/lib/cache";
 import { claimGuest, createSession, getShopper } from "@/lib/session";
 import { getCartItems } from "@/lib/cart";
 import { calcPointsEarned, generateOrderNumber } from "@/lib/orders";
@@ -24,6 +26,9 @@ export interface SendCodeState {
   error?: string;
   /** Normalized `+8801XXXXXXXXX` the code was sent to. */
   phone?: string;
+  /** True once the gateway has accepted the message, so the checkout can say
+   * the code is on its way rather than hoping it is. */
+  sent?: boolean;
   /** The issued code, echoed back so checkout can be exercised without an SMS
    * gateway. Only ever populated when the `otp_demo_mode` setting is on, which
    * is off by default -- returning it unconditionally let anyone sign in as any
@@ -31,11 +36,36 @@ export interface SendCodeState {
   demoCode?: string;
 }
 
-/** Step 3: issues the code for the delivery number. */
+/* Every code costs the shop a message at the gateway, and this action is a
+ * public POST with no session behind it -- so the ceiling is enforced here
+ * rather than left to the 30-second timer in the UI. The window is generous
+ * enough that a shopper who mistypes their number twice and resends is never
+ * stopped, and tight enough that the send button is not a way to spend the
+ * shop's SMS balance. */
+const CODES_PER_PHONE_PER_HOUR = 5;
+const CODES_PER_IP_PER_HOUR = 15;
+
+/** Throttles on KV, which may be unavailable. A cache that is down must not
+ * take checkout down with it: the per-phone 30-second rule below still stands
+ * and lives in D1. */
+async function overLimit(identifier: string, limit: number): Promise<boolean> {
+  try {
+    const { allowed } = await rateLimit(identifier, limit, 3600);
+    return !allowed;
+  } catch {
+    return false;
+  }
+}
+
+/** Step 3: issues the code for the delivery number and sends it by SMS. */
 export async function sendCodeAction(rawPhone: string): Promise<SendCodeState> {
   const phone = normalizeBdPhone(rawPhone);
   if (!phone) return { error: "Enter a valid Bangladeshi mobile number, e.g. 01712345678." };
 
+  /* The 30-second rule is checked before the hourly ones on purpose: a
+   * double-tapped resend is not an attempt on the shop's SMS balance, and
+   * counting it against the hourly ceiling would let a shopper lock themselves
+   * out by tapping a button that was never going to send anything. */
   const db = await getDB();
   const recent = await db
     .prepare(
@@ -46,13 +76,24 @@ export async function sendCodeAction(rawPhone: string): Promise<SendCodeState> {
 
   if (recent) return { error: "A code was just sent. Please wait a moment before asking for another." };
 
-  const { code } = await issuePhoneCode(phone);
+  if (await overLimit(`otp:phone:${phone}`, CODES_PER_PHONE_PER_HOUR)) {
+    return { error: "Too many codes have been sent to this number. Please try again in an hour." };
+  }
 
-  // The code goes back to the browser only in demo mode. With no SMS gateway
-  // connected and the setting off, the code is issued and simply not shown --
-  // which is the correct production behaviour, not a bug.
-  const { otpDemoMode } = await getShopSettings();
-  return otpDemoMode ? { phone, demoCode: code } : { phone };
+  const caller = (await headers()).get("cf-connecting-ip");
+  if (caller && (await overLimit(`otp:ip:${caller}`, CODES_PER_IP_PER_HOUR))) {
+    return { error: "Too many verification codes requested. Please try again in an hour." };
+  }
+
+  const issued = await issuePhoneCode(phone);
+
+  // Demo mode prints the code in the page instead of sending it. Every other
+  // failure means the shopper has nothing to type, so they are told plainly
+  // rather than left waiting for a message that is not coming.
+  if (issued.demoCode) return { phone, sent: false, demoCode: issued.demoCode };
+  if (!issued.delivered) return { error: issued.error ?? "We couldn't send the code just now." };
+
+  return { phone, sent: true };
 }
 
 export interface PlaceOrderState {

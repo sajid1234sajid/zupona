@@ -50,6 +50,8 @@ export default function CheckoutWizard({
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethodId>("cod");
   const [code, setCode] = useState("");
   const [demoCode, setDemoCode] = useState<string | null>(null);
+  /** True only once the gateway has taken a code for delivery. */
+  const [codeSent, setCodeSent] = useState(false);
   const [codeSentAt, setCodeSentAt] = useState(0);
   const [stepError, setStepError] = useState<string | undefined>();
   const [sending, startSending] = useTransition();
@@ -86,10 +88,12 @@ export default function CheckoutWizard({
     startSending(async () => {
       const result = await sendCodeAction(details.phone);
       if (result.error) {
+        setCodeSent(false);
         setStepError(result.error);
         return;
       }
       setDemoCode(result.demoCode ?? null);
+      setCodeSent(result.sent === true);
       setCodeSentAt(Date.now());
       if (isResend) setCode("");
     });
@@ -174,6 +178,7 @@ export default function CheckoutWizard({
               onCodeChange={setCode}
               onResend={() => sendCode(true)}
               resending={sending}
+              codeSent={codeSent}
               demoCode={demoCode}
               resendAt={codeSentAt + CODE_TTL_SECONDS * 1000}
               lines={lines}

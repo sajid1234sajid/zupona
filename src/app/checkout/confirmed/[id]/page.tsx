@@ -21,6 +21,7 @@ import { requireUser } from "@/lib/session";
 import { getOrder } from "@/lib/orders";
 import { formatBdPhone } from "@/lib/checkout";
 import { formatPrice } from "@/lib/format";
+import CheckoutStepper from "@/components/checkout/CheckoutStepper";
 import LeafBackdrop from "@/components/checkout/LeafBackdrop";
 import ZuponaMark from "@/components/brand/ZuponaMark";
 import SuccessBurst from "@/components/checkout/SuccessBurst";
@@ -100,6 +101,12 @@ export default async function OrderConfirmedPage({ params }: PageProps<"/checkou
             </div>
           </div>
         </header>
+
+        {/* The third and last step of checkout: delivery and payment are behind
+         * the shopper, and the order exists. */}
+        <div className="pb-2 pt-1">
+          <CheckoutStepper current={3} />
+        </div>
 
         {/* ---------------- the moment of success ---------------- */}
         <section className="flex flex-col items-center px-4 pb-6 pt-3 text-center">

@@ -44,8 +44,9 @@ export default function CheckoutWizard({
 }: CheckoutWizardProps) {
   const router = useRouter();
   // Nobody is asked to sign in, so checkout opens on delivery. The phone number
-  // entered there is confirmed with a code on the payment step.
-  const [step, setStep] = useState<2 | 3>(2);
+  // entered there is confirmed with a code on the payment step, and the order
+  // confirmation page is the third and last step.
+  const [step, setStep] = useState<1 | 2>(1);
   const [details, setDetails] = useState<DeliveryDetails>(initialDetails);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethodId>("cod");
   const [code, setCode] = useState("");
@@ -73,7 +74,7 @@ export default function CheckoutWizard({
     {}
   );
 
-  // A confirmation can lapse while the shopper is still on step 2, so an
+  // A confirmation can lapse while the shopper is still on the payment step, so an
   // expiry from the server drops the card back to an active code entry.
   const confirmationLapsed = /expired/i.test(orderState.error ?? "");
   const phoneVerified =
@@ -121,13 +122,13 @@ export default function CheckoutWizard({
     // Cash on Delivery orders are only accepted against a confirmed number, so
     // a code goes out now unless this browser already confirmed this one.
     if (!phoneVerified) sendCode();
-    setStep(3);
+    setStep(2);
   }
 
   function goBack() {
     setStepError(undefined);
-    if (step === 3) {
-      setStep(2);
+    if (step === 2) {
+      setStep(1);
       return;
     }
     router.push("/cart");
@@ -145,14 +146,14 @@ export default function CheckoutWizard({
       <div className="relative flex flex-1 flex-col">
         <CheckoutHeader
           onBack={goBack}
-          secureNote={step === 3 ? "Your information is safe" : undefined}
+          secureNote={step === 2 ? "Your information is safe" : undefined}
         />
 
         <div className="pb-5 pt-1">
           <CheckoutStepper current={step} />
         </div>
 
-        {step === 2 && (
+        {step === 1 && (
           <StepDelivery
             details={details}
             onChange={patchDetails}
@@ -166,7 +167,7 @@ export default function CheckoutWizard({
           />
         )}
 
-        {step === 3 && (
+        {step === 2 && (
           <form action={placeOrder}>
             <StepPayment
               paymentMethod={paymentMethod}

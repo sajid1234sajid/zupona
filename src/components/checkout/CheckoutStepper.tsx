@@ -3,9 +3,9 @@
 import { Check } from "lucide-react";
 
 const STEPS = [
-  { number: 1, label: "Details" },
-  { number: 2, label: "Delivery" },
-  { number: 3, label: "Payment" },
+  { number: 1, label: "Delivery" },
+  { number: 2, label: "Payment" },
+  { number: 3, label: "Order Confirm" },
 ] as const;
 
 export default function CheckoutStepper({ current }: { current: 1 | 2 | 3 }) {
@@ -38,9 +38,7 @@ export default function CheckoutStepper({ current }: { current: 1 | 2 | 3 }) {
                 >
                   {step.label}
                 </span>
-                {current !== 1 && (
-                  <span className="text-[10.5px] leading-none text-ink-slate">{caption}</span>
-                )}
+                <span className="text-[10.5px] leading-none text-ink-slate">{caption}</span>
               </div>
 
               {index < STEPS.length - 1 && (
@@ -54,12 +52,6 @@ export default function CheckoutStepper({ current }: { current: 1 | 2 | 3 }) {
           );
         })}
       </div>
-
-      {current === 1 && (
-        <span className="mt-1 shrink-0 rounded-full bg-brand-tint px-3 py-1 text-[11px] font-bold text-brand-dark">
-          1 of 3
-        </span>
-      )}
     </div>
   );
 }

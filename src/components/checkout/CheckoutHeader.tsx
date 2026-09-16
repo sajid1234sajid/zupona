@@ -6,7 +6,7 @@ import ZuponaMark from "@/components/brand/ZuponaMark";
 interface CheckoutHeaderProps {
   /** Omitted on the first step, where there is nothing to go back to in-flow. */
   onBack?: () => void;
-  /** Step 3 spells out the reassurance line under "Secure Checkout". */
+  /** The payment step spells out the reassurance line under "Secure Checkout". */
   secureNote?: string;
 }
 

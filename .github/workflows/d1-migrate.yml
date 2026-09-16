@@ -72,6 +72,25 @@ jobs:
             exit 1
           fi
 
+      # An account collects near-identical token names over the years, and
+      # nothing in the list says which one a workflow is holding -- the value
+      # is a secret, so you cannot compare it against anything. Its id is not a
+      # secret, though, and the dashboard's edit page for a token is that id in
+      # the URL. So the run names the token it actually used, and nobody has to
+      # guess which of six "build token" rows to change.
+      - name: Say which token this is
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          ID=$(curl -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+                 https://api.cloudflare.com/client/v4/user/tokens/verify \
+               | grep -o '"id":"[a-f0-9]\{32\}"' | head -1 | cut -d'"' -f4)
+          if [ -n "$ID" ]; then
+            echo "::notice::This run is using token $ID - open https://dash.cloudflare.com/profile/api-tokens/$ID to edit exactly this one."
+          else
+            echo "::notice::Could not read the token id (an account-owned token cannot be verified this way)."
+          fi
+
       # The token that deploys this Worker is not automatically allowed to
       # touch D1: Cloudflare's "Edit Cloudflare Workers" template predates D1
       # and does not include it, so a token that deploys perfectly well answers

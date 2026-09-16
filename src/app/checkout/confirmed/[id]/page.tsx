@@ -102,10 +102,12 @@ export default async function OrderConfirmedPage({ params }: PageProps<"/checkou
           </div>
         </header>
 
-        {/* The third and last step of checkout: delivery and payment are behind
-         * the shopper, and the order exists. */}
+        {/* Reaching this page means the order was written, so all three steps
+         * are behind the shopper. The page renders nothing at all for an order
+         * that does not exist, so "done" is never shown for an order that was
+         * not placed. */}
         <div className="pb-2 pt-1">
-          <CheckoutStepper current={3} />
+          <CheckoutStepper current="done" />
         </div>
 
         {/* ---------------- the moment of success ---------------- */}

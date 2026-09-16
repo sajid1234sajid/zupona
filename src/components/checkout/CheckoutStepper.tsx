@@ -8,12 +8,16 @@ const STEPS = [
   { number: 3, label: "Order Confirm" },
 ] as const;
 
-export default function CheckoutStepper({ current }: { current: 1 | 2 | 3 }) {
+/** Which step the shopper is on, or "done" once the order exists and all three
+ * are behind them. */
+export type CheckoutStep = 1 | 2 | 3 | "done";
+
+export default function CheckoutStepper({ current }: { current: CheckoutStep }) {
   return (
     <div className="flex items-start gap-2 px-4">
       <div className="flex flex-1 items-start">
         {STEPS.map((step, index) => {
-          const done = step.number < current;
+          const done = current === "done" || step.number < current;
           const active = step.number === current;
           const caption = done ? "Completed" : active ? `Step ${step.number} of 3` : "Pending";
 
@@ -44,7 +48,7 @@ export default function CheckoutStepper({ current }: { current: 1 | 2 | 3 }) {
               {index < STEPS.length - 1 && (
                 <span
                   className={`mt-[17px] h-[3px] flex-1 rounded-full ${
-                    step.number < current ? "bg-brand" : "bg-line"
+                    done ? "bg-brand" : "bg-line"
                   }`}
                 />
               )}

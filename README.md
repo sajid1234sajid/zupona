@@ -72,6 +72,12 @@ deploy that needs it:
 npx wrangler d1 execute zupona-v3-db --remote --file=./db/migrations/<file>.sql
 ```
 
+With no machine logged in to Cloudflare, the **Apply D1 migration** workflow
+does the same thing from a runner: Actions → Apply D1 migration → Run workflow,
+with the filename as the input. It is `workflow_dispatch` only — a person still
+chooses the file and the moment, which is the whole point of keeping migrations
+out of the deploy.
+
 ## Database & Cloudflare services
 
 Zupona runs on four Cloudflare bindings, declared in `wrangler.jsonc`:
@@ -137,6 +143,14 @@ new installs only need `db/schema.sql`.
   completed. The "Show verification codes on screen" toggle prints the code in
   the page instead — enough to test the flow, and a way for anyone to order as
   anyone else, so it stays off on a live shop.
+- Worker secrets can also be set without a local Cloudflare login. Add the
+  value under **Settings → Secrets and variables → Actions**, then run the
+  **Sync Worker secrets** workflow: it pipes each repository secret it
+  recognises (`SMS_API_KEY`, `SMS_PROVIDER`, `SMS_SENDER_ID`,
+  `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`) into `wrangler secret put`, so
+  the value goes from GitHub's secret store to Cloudflare without passing
+  through a terminal or a file. Secrets it finds unset are skipped, and
+  re-running it is how a rotated key is rolled out.
 - After changing `wrangler.jsonc` bindings, run `npx wrangler types` to refresh
   `worker-configuration.d.ts`.
 

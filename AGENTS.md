@@ -44,7 +44,10 @@ here, because the local D1 has the migration and the remote one does not:
 npx wrangler d1 execute zupona-v3-db --remote --file=./db/migrations/<file>.sql
 ```
 
-Apply to `--local` and `--remote` both, or the two drift.
+Apply to `--local` and `--remote` both, or the two drift. Without a machine
+logged in to Cloudflare, the manual **Apply D1 migration** workflow runs the
+same command from a GitHub runner; **Sync Worker secrets** does the same for
+`wrangler secret put`. Both are `workflow_dispatch` only.
 
 ## The GitHub remote is not the obvious account
 

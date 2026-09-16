@@ -1,0 +1,79 @@
+# Applies one migration file to the *remote* D1 database, by hand.
+#
+# CI deploys code only, on purpose: a migration that rode along with every
+# push would run against production the moment someone merged a branch, and
+# the order that keeps zupona.com working is migration first, deploy second --
+# a judgement call that belongs to a person, not to a push trigger.
+#
+# This is that person's lever. It never fires on its own; someone chooses the
+# file and presses the button. GitHub's runners can reach Cloudflare, which is
+# the whole reason it exists -- it needs no local machine and no wrangler login.
+name: Apply D1 migration
+
+on:
+  workflow_dispatch:
+    inputs:
+      file:
+        description: "Migration file in db/migrations (e.g. 0017_sms_gateway.sql)"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  # One migration at a time. Two running together against the same database is
+  # how you get half an ALTER.
+  group: d1-migrate
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      - run: npm ci
+
+      # The input names a file to run against production, so it is checked
+      # rather than trusted: the pattern rules out a path (no slashes, no `..`)
+      # and the existence test rules out a typo that would otherwise fail
+      # halfway through wrangler with a less obvious message.
+      # The input reaches the shell as an environment variable, never spliced
+      # into the script text: `${{ }}` is substituted before bash ever sees the
+      # line, so a value containing a quote would be running as script rather
+      # than being tested as data.
+      - name: Check the file
+        env:
+          INPUT_FILE: ${{ inputs.file }}
+        run: |
+          FILE="$INPUT_FILE"
+          if ! printf '%s' "$FILE" | grep -Eq '^[0-9]{4}_[a-z0-9_]+\.sql$'; then
+            echo "::error::'$FILE' is not a migration filename like 0017_sms_gateway.sql"
+            exit 1
+          fi
+          if [ ! -f "db/migrations/$FILE" ]; then
+            echo "::error::db/migrations/$FILE does not exist on this branch"
+            exit 1
+          fi
+          echo "FILE=$FILE" >> "$GITHUB_ENV"
+
+      - name: Fail early without credentials
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          if [ -z "${CLOUDFLARE_API_TOKEN:-}" ]; then
+            echo "::error::CLOUDFLARE_API_TOKEN is not set as a repository secret."
+            exit 1
+          fi
+
+      - name: Apply to the remote database
+        run: npx wrangler d1 execute zupona-v3-db --remote --file="./db/migrations/$FILE" --yes
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: 14743b3b6de704c99ed06b7b67c65903

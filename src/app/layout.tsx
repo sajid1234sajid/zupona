@@ -9,11 +9,16 @@ const poppins = Poppins({
 });
 
 /** Reserved for display copy -- the hero headline and little else. The UI
- * itself stays on Poppins so the serif keeps its impact. */
+ * itself stays on Poppins so the serif keeps its impact.
+ *
+ * One weight, because `font-serif` appears exactly once in the app and it is
+ * set in bold. The 600 that used to be requested alongside it was a second
+ * font file, preloaded and render-blocking, that nothing on the site ever
+ * drew a glyph with. */
 const playfair = Playfair_Display({
   variable: "--font-playfair",
   subsets: ["latin"],
-  weight: ["600", "700"],
+  weight: ["700"],
 });
 
 /** `manifest` is what makes the shop installable.

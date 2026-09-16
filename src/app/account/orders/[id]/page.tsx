@@ -1,6 +1,6 @@
 import Link from "next/link";
 import DesktopHeader from "@/components/layout/DesktopHeader";
-import Image from "next/image";
+import Image from "@/components/ui/StoreImage";
 import { notFound } from "next/navigation";
 import { ChevronLeft, MapPin, CreditCard, BadgeCheck, PenLine } from "lucide-react";
 import { requireUser } from "@/lib/session";

@@ -3,6 +3,7 @@
  *  - DB    (D1)  -- the relational store: accounts, catalog, orders, payments
  *  - MEDIA (R2)  -- product images, review photos, seller KYC documents
  *  - CACHE (KV)  -- hot-read cache, OTP throttling, rate limiting
+ *  - IMAGES      -- Cloudflare Images, used to resize media on the way out
  *
  * All three only exist inside the Workers runtime, so they are reached through
  * a dynamic `cloudflare:workers` import rather than a module-level one. */
@@ -32,4 +33,10 @@ export async function getMedia(): Promise<R2Bucket> {
 /** KV namespace used as an edge cache in front of D1. */
 export async function getCache(): Promise<KVNamespace> {
   return (await getEnv()).CACHE;
+}
+
+/** Cloudflare Images, used by the media route to resize an upload down to the
+ * size the page actually draws it at. */
+export async function getImages(): Promise<ImagesBinding> {
+  return (await getEnv()).IMAGES;
 }

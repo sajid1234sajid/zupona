@@ -1,6 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getMediaObject } from "@/lib/media";
 import { getCurrentUser } from "@/lib/session";
+import { getImages } from "@/lib/db";
+import { isAllowedWidth } from "@/lib/image";
 
 /** Serves objects out of the MEDIA R2 bucket.
  *
@@ -11,9 +13,32 @@ import { getCurrentUser } from "@/lib/session";
  * Range requests are honoured because product videos are served from here: a
  * browser scrubbing a <video> asks for byte ranges, and a server that only
  * ever answers 200 with the whole file leaves the timeline unseekable and
- * makes Safari refuse to play at all. */
+ * makes Safari refuse to play at all.
+ *
+ * `?w=<pixels>` resizes on the way out through the Cloudflare Images binding.
+ * This route is the *only* place an upload can be resized: `/_next/image`
+ * answers 404 for an `/api/media/` URL, so before this the shop served every
+ * admin upload at its original size -- half-megabyte phone photographs behind
+ * 170 px grid tiles. Without `w` the original is served exactly as before, so
+ * nothing that already links to one of these URLs changes. */
 
 const STAFF_ONLY_PREFIXES = ["kyc/"];
+
+/** Formats worth re-encoding. Anything else -- SVG, which has no pixels to
+ * resize, and GIF, whose animation the binding would flatten -- is served
+ * whole however small `w` asks for. */
+const RESIZABLE_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/avif"]);
+
+/** Reads `?w=`, rejecting anything not on the project's width list.
+ *
+ * The allow-list matters: each distinct width is its own transform and its own
+ * cache entry, so an open `w` would let a crawler walk `?w=1` upwards and bill
+ * a transform for every step. */
+function parseWidth(raw: string | null): number | null {
+  if (!raw || !/^[0-9]{1,4}$/.test(raw)) return null;
+  const width = Number(raw);
+  return isAllowedWidth(width) ? width : null;
+}
 
 /** Parses a single-range `bytes=` header into what R2 understands.
  *
@@ -127,6 +152,47 @@ export async function GET(
     headers.set("content-length", String(length));
 
     return new NextResponse(body, { status: 206, headers });
+  }
+
+  // Resize, when a width was asked for and the object is a still image.
+  //
+  // WebP unconditionally rather than negotiating AVIF from `Accept`: the
+  // response would then differ by request header, and a `Vary: Accept` on a
+  // hot, edge-cached path is how one visitor's AVIF ends up in front of a
+  // browser that cannot decode it. WebP is understood everywhere that matters
+  // and is already several times smaller than the PNGs being uploaded.
+  const width = parseWidth(request.nextUrl.searchParams.get("w"));
+  const contentType = headers.get("content-type") ?? "";
+
+  if (width && body && RESIZABLE_TYPES.has(contentType)) {
+    try {
+      const images = await getImages();
+      const resized = await images
+        .input(body)
+        // `scale-down` never enlarges: a thumbnail asked for at 1440 comes
+        // back at its own size rather than upscaled and blurry.
+        .transform({ width, fit: "scale-down" })
+        .output({ format: "image/webp", quality: 78 });
+
+      const resizedHeaders = new Headers(headers);
+      resizedHeaders.set("content-type", "image/webp");
+      // The object key is immutable and the width is part of the URL, so the
+      // result can be cached as hard as the original. Content-Length is gone
+      // because the transform streams.
+      resizedHeaders.delete("content-length");
+      resizedHeaders.delete("etag");
+
+      return new NextResponse(resized.image(), { headers: resizedHeaders });
+    } catch {
+      // A transform that fails must not lose the picture. Fall through and
+      // serve the original -- oversized, but visible.
+      const original = await getMediaObject(key);
+      if (original && "body" in original) {
+        headers.set("content-length", String(original.size));
+        return new NextResponse(original.body, { headers });
+      }
+      return new NextResponse("Not found", { status: 404 });
+    }
   }
 
   headers.set("content-length", String(object.size));

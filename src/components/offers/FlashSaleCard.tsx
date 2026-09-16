@@ -1,4 +1,4 @@
-import Image from "next/image";
+import Image from "@/components/ui/StoreImage";
 import Link from "next/link";
 import type { FlashSaleItem } from "@/types";
 import { formatPrice } from "@/lib/format";

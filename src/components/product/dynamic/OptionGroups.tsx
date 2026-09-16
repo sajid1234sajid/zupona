@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import Image from "@/components/ui/StoreImage";
 import type { StoreOptionGroup, StoreVariant } from "@/lib/storefront";
 import { isValueAvailable, type Selections } from "./variantMatching";
 

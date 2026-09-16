@@ -1,5 +1,5 @@
 import Link from "next/link";
-import Image from "next/image";
+import Image from "@/components/ui/StoreImage";
 import { Check, CreditCard, MapPin, Package } from "lucide-react";
 import type { Order } from "@/types";
 import { formatPrice } from "@/lib/format";

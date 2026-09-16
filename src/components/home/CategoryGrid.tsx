@@ -1,4 +1,4 @@
-import Image from "next/image";
+import Image from "@/components/ui/StoreImage";
 import Link from "next/link";
 import { ChevronRight, LayoutGrid } from "lucide-react";
 import type { StoreCategory } from "@/lib/storefront";

@@ -1,4 +1,4 @@
-import Image from "next/image";
+import Image from "@/components/ui/StoreImage";
 import { ReceiptText } from "lucide-react";
 import { formatPrice } from "@/lib/format";
 

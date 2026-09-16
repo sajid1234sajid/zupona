@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import Image from "@/components/ui/StoreImage";
 import { Crown, Play } from "lucide-react";
 import type { StoreMediaItem } from "@/lib/storefront";
 

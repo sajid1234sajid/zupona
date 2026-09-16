@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import Image from "next/image";
+import Image from "@/components/ui/StoreImage";
 import { Star, Play } from "lucide-react";
 import { formatPrice } from "@/lib/format";
 import { resolveIcon } from "./featureIcons";

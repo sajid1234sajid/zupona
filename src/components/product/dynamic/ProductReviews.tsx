@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useSyncExternalStore } from "react";
-import Image from "next/image";
+import Image from "@/components/ui/StoreImage";
 import { BadgeCheck, PenLine, Star } from "lucide-react";
 import type { Review } from "@/types";
 import type { RatingBreakdown, ReviewableLine } from "@/lib/reviews";

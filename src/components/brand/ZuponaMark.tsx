@@ -17,8 +17,13 @@ export default function ZuponaMark({ className = "" }: { className?: string }) {
       src="/logo.png"
       alt=""
       aria-hidden
-      width={256}
-      height={256}
+      // The mark is drawn between 22 px and 56 px, never larger. Declaring the
+      // artwork's own 256 made next/image ask the optimizer for 640 -- 16 KB
+      // of logo for a 22 px header icon, fetched at high priority on every
+      // page. 64 puts the top of the srcSet at 128, which still covers the
+      // largest use on a retina screen.
+      width={64}
+      height={64}
       className={className}
       priority
     />

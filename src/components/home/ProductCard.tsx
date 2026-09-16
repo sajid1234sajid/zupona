@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
+import Image from "@/components/ui/StoreImage";
 import { Star, Heart, LoaderCircle, Check } from "lucide-react";
 import type { ProductSummary } from "@/types";
 import { formatPrice } from "@/lib/format";

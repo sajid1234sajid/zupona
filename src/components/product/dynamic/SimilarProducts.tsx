@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import Image from "next/image";
+import Image from "@/components/ui/StoreImage";
 import { useRouter } from "next/navigation";
 import { Heart } from "lucide-react";
 import type { StoreProductCard } from "@/lib/storefront";

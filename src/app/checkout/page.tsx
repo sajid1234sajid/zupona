@@ -4,7 +4,7 @@ import { getCartItems, cartSubtotal } from "@/lib/cart";
 import { getBuyNowLine } from "@/lib/buyNow";
 import { getAddresses } from "@/lib/addresses";
 import { getVerifiedPhone } from "@/lib/verification";
-import { divisionNames } from "@/data/locations";
+import { isServedLocation } from "@/data/locations";
 import { deliveryMethodsWithFees, type DeliveryDetails } from "@/lib/checkout";
 import { availablePaymentMethods } from "@/lib/payments";
 import { getDeliveryFees } from "@/lib/shopSettings";
@@ -43,12 +43,27 @@ export default async function CheckoutPage({ searchParams }: PageProps<"/checkou
   // called "Guest" - neither is something to prefill as the recipient's name.
   const accountName = shopper.isGuest || shopper.name.startsWith("+") ? "" : shopper.name;
 
+  // An address saved before the picker existed holds a typed city and no
+  // district, which is not a place an order can be sent to. Prefill the three
+  // names only when together they name a real division -> district -> upazila;
+  // half of a path would leave the shopper correcting a form that looks filled.
+  const savedLocation = {
+    division: saved?.city ?? "",
+    district: saved?.district ?? "",
+    area: saved?.area ?? "",
+  };
+  const usableLocation = isServedLocation(
+    savedLocation.division,
+    savedLocation.district,
+    savedLocation.area
+  );
+
   const initialDetails: DeliveryDetails = {
     fullName: saved?.fullName ?? accountName,
     phone: saved?.phone ?? shopper.phone ?? "",
-    division: saved && divisionNames.includes(saved.city) ? saved.city : "",
-    district: saved?.district ?? "",
-    area: saved?.area ?? "",
+    division: usableLocation ? savedLocation.division : "",
+    district: usableLocation ? savedLocation.district : "",
+    area: usableLocation ? savedLocation.area : "",
     addressDetails: saved?.line1 ?? "",
     deliveryMethod: "standard",
   };

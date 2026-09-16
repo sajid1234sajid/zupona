@@ -2,6 +2,7 @@
 
 import { getDB } from "@/lib/db";
 import { requireUser } from "@/lib/session";
+import { isServedLocation } from "@/data/locations";
 
 export interface AddressActionState {
   error?: string;
@@ -14,15 +15,36 @@ function readAddressFields(formData: FormData) {
   const phone = String(formData.get("phone") ?? "").trim();
   const line1 = String(formData.get("line1") ?? "").trim();
   const area = String(formData.get("area") ?? "").trim();
+  const district = String(formData.get("district") ?? "").trim();
+  // `city` is the division: the column predates the division/district split and
+  // the name stayed. See the comment on `Address.city`.
   const city = String(formData.get("city") ?? "").trim();
   const postalCode = String(formData.get("postalCode") ?? "").trim();
   const isDefault = formData.get("isDefault") === "on";
 
-  if (!fullName || !phone || !line1 || !city) {
-    return { error: "Fill in name, phone, address, and city." } as const;
+  if (!fullName || !phone || !line1) {
+    return { error: "Fill in name, phone and address." } as const;
   }
 
-  return { label, fullName, phone, line1, area: area || null, city, postalCode: postalCode || null, isDefault } as const;
+  // The three location names are picked from the administrative list, never
+  // typed, so an address that does not form a real division -> district ->
+  // upazila path is one no order could be delivered against. Checked here as
+  // well as in the browser because a form post is not the only way in.
+  if (!isServedLocation(city, district, area)) {
+    return { error: "Pick a division, district and area we deliver to." } as const;
+  }
+
+  return {
+    label,
+    fullName,
+    phone,
+    line1,
+    area,
+    district,
+    city,
+    postalCode: postalCode || null,
+    isDefault,
+  } as const;
 }
 
 async function clearDefault(userId: string): Promise<void> {
@@ -50,8 +72,8 @@ export async function addAddressAction(
 
   await db
     .prepare(
-      `INSERT INTO addresses (id, user_id, label, full_name, phone, line1, area, city, postal_code, is_default)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO addresses (id, user_id, label, full_name, phone, line1, area, district, city, postal_code, is_default)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .bind(
       crypto.randomUUID(),
@@ -61,6 +83,7 @@ export async function addAddressAction(
       fields.phone,
       fields.line1,
       fields.area,
+      fields.district,
       fields.city,
       fields.postalCode,
       makeDefault ? 1 : 0
@@ -85,7 +108,7 @@ export async function updateAddressAction(
   await db
     .prepare(
       `UPDATE addresses
-       SET label = ?, full_name = ?, phone = ?, line1 = ?, area = ?, city = ?, postal_code = ?, is_default = ?
+       SET label = ?, full_name = ?, phone = ?, line1 = ?, area = ?, district = ?, city = ?, postal_code = ?, is_default = ?
        WHERE id = ? AND user_id = ?`
     )
     .bind(
@@ -94,6 +117,7 @@ export async function updateAddressAction(
       fields.phone,
       fields.line1,
       fields.area,
+      fields.district,
       fields.city,
       fields.postalCode,
       fields.isDefault ? 1 : 0,

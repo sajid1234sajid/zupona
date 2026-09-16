@@ -31,13 +31,13 @@ jobs:
   apk:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version-file: .node-version
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "17"
@@ -58,9 +58,6 @@ jobs:
           echo "::error::zupona.com is not serving /icon-512.png, so the APK would be built from a missing icon."
           exit 1
 
-      - name: Accept the Android SDK licences
-        run: yes | sdkmanager --licenses > /dev/null 2>&1 || true
-
       - name: Point Bubblewrap at the runner's JDK and Android SDK
         run: |
           mkdir -p ~/.bubblewrap
@@ -69,6 +66,44 @@ jobs:
 
       - name: Install Bubblewrap
         run: npm install -g @bubblewrap/cli@latest
+
+      # Bubblewrap can install the build-tools itself, but it looks for
+      # sdkmanager under `tools/bin` or `bin`, and the runner's SDK keeps it in
+      # `cmdline-tools/latest/bin` -- so left alone it fails before Gradle ever
+      # starts. Installing the exact version it asks for means the check it
+      # runs first passes and it never goes looking.
+      - name: Install the Android build tools Bubblewrap expects
+        run: |
+          set -e
+          build_tools=$(node -e '
+            const { execSync } = require("child_process");
+            const root = execSync("npm root -g").toString().trim();
+            const candidates = [
+              root + "/@bubblewrap/cli/node_modules/@bubblewrap/core",
+              root + "/@bubblewrap/core",
+            ];
+            for (const candidate of candidates) {
+              try {
+                const sdk = require(candidate + "/dist/lib/androidSdk/AndroidSdkTools.js");
+                console.log(sdk.BUILD_TOOLS_VERSION);
+                process.exit(0);
+              } catch {}
+            }
+            process.exit(1);
+          ')
+          platform="${build_tools%%.*}"
+          echo "Bubblewrap wants build-tools;$build_tools, so platforms;android-$platform too."
+
+          sdk="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
+          sdkmanager="$sdk/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$sdkmanager" ]; then
+            sdkmanager=$(find "$sdk/cmdline-tools" -name sdkmanager -type f | head -1)
+          fi
+          echo "Using $sdkmanager"
+
+          yes | "$sdkmanager" --licenses > /dev/null
+          "$sdkmanager" "platform-tools" "platforms;android-$platform" "build-tools;$build_tools"
+          ls "$sdk/build-tools"
 
       # A keystore in the repository secrets keeps one identity across builds,
       # which is what lets an installed app be updated in place and what makes
@@ -123,11 +158,24 @@ jobs:
             console.log("Building version", manifest.appVersionName);
           '
 
+      # The output is captured so that a failure can be put into an annotation.
+      # A runner's logs need an authenticated session to read; annotations do
+      # not, which is the difference between diagnosing a broken build and
+      # guessing at it.
       - name: Build the APK
         run: |
           cd android
-          bubblewrap update --skipVersionUpgrade < /dev/null || bubblewrap update < /dev/null
-          bubblewrap build --skipPwaValidation < /dev/null
+          status=0
+          {
+            bubblewrap update --skipVersionUpgrade < /dev/null
+            bubblewrap build --skipPwaValidation < /dev/null
+          } > build.log 2>&1 || status=$?
+          cat build.log
+          if [ "$status" -ne 0 ]; then
+            printf '::error title=Bubblewrap build failed::%s\n' \
+              "$(tail -n 60 build.log | sed 's/%/%25/g; s/\r//g' | awk '{printf "%s%%0A", $0}')"
+            exit "$status"
+          fi
           ls -l ./*.apk
 
       - name: Report the signing fingerprint
@@ -172,7 +220,7 @@ jobs:
             --title "Zupona app 1.0.${{ github.run_number }}" \
             --notes-file notes.md
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         if: always()
         with:
           name: zupona-apk

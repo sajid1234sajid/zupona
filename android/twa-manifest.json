@@ -1,0 +1,43 @@
+{
+  "packageId": "com.zupona.app",
+  "host": "zupona.com",
+  "name": "Zupona — Trusted Online Shop",
+  "launcherName": "Zupona",
+  "display": "standalone",
+  "orientation": "default",
+  "themeColor": "#037e5b",
+  "themeColorDark": "#01634a",
+  "navigationColor": "#037e5b",
+  "navigationColorDark": "#01634a",
+  "navigationDividerColor": "#037e5b",
+  "navigationDividerColorDark": "#01634a",
+  "backgroundColor": "#ffffff",
+  "enableNotifications": false,
+  "startUrl": "/",
+  "iconUrl": "https://zupona.com/icon-512.png",
+  "maskableIconUrl": "https://zupona.com/icon-maskable-512.png",
+  "splashScreenFadeOutDuration": 300,
+  "signingKey": {
+    "path": "./android.keystore",
+    "alias": "zupona"
+  },
+  "appVersionName": "1.0.0",
+  "appVersionCode": 1,
+  "shortcuts": [],
+  "generatorApp": "bubblewrap-cli",
+  "webManifestUrl": "https://zupona.com/manifest.webmanifest",
+  "fallbackType": "customtabs",
+  "features": {},
+  "alphaDependencies": {
+    "enabled": false
+  },
+  "enableSiteSettingsShortcut": true,
+  "isChromeOSOnly": false,
+  "isMetaQuest": false,
+  "fullScopeUrl": "https://zupona.com/",
+  "minSdkVersion": 21,
+  "fingerprints": [],
+  "additionalTrustedOrigins": [],
+  "retainedBundles": [],
+  "appVersion": "1.0.0"
+}

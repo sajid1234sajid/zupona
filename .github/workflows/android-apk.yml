@@ -1,0 +1,180 @@
+# Builds the installable Android app on a GitHub runner and publishes it as a
+# release asset, so the newest APK always sits at
+#
+#   https://github.com/<owner>/<repo>/releases/latest/download/zupona.apk
+#
+# The app is a Trusted Web Activity around zupona.com -- see android/README.md.
+# Nothing here needs an Android SDK on a laptop; the runner has one.
+name: Build Android app
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    # Only the things the APK is actually made of. Ordinary site changes reach
+    # the app the moment they deploy, so rebuilding for them would publish a
+    # release nobody needs to install.
+    paths:
+      - android/twa-manifest.json
+      - .github/workflows/android-apk.yml
+      - public/manifest.webmanifest
+      - public/icon-*.png
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android-apk
+  cancel-in-progress: false
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      # Bubblewrap downloads the launcher icon and the splash screen from the
+      # live site, so a push that changes them has to reach Cloudflare first.
+      - name: Wait for the site to serve the app icons
+        run: |
+          for attempt in $(seq 1 24); do
+            if curl -fsS -o /dev/null https://zupona.com/icon-512.png \
+               && curl -fsS -o /dev/null https://zupona.com/icon-maskable-512.png; then
+              echo "Icons are live."
+              exit 0
+            fi
+            echo "Attempt $attempt: the icons are not published yet."
+            sleep 15
+          done
+          echo "::error::zupona.com is not serving /icon-512.png, so the APK would be built from a missing icon."
+          exit 1
+
+      - name: Accept the Android SDK licences
+        run: yes | sdkmanager --licenses > /dev/null 2>&1 || true
+
+      - name: Point Bubblewrap at the runner's JDK and Android SDK
+        run: |
+          mkdir -p ~/.bubblewrap
+          printf '{"jdkPath":"%s","androidSdkPath":"%s"}\n' "$JAVA_HOME" "${ANDROID_SDK_ROOT:-$ANDROID_HOME}" > ~/.bubblewrap/config.json
+          cat ~/.bubblewrap/config.json
+
+      - name: Install Bubblewrap
+        run: npm install -g @bubblewrap/cli@latest
+
+      # A keystore in the repository secrets keeps one identity across builds,
+      # which is what lets an installed app be updated in place and what makes
+      # a fingerprint worth publishing in assetlinks.json. Without it the build
+      # still produces a working APK, signed by a key that lives for one run.
+      - name: Prepare the signing key
+        id: signing
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          cd android
+          alias_name="${KEY_ALIAS:-zupona}"
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 -d > android.keystore
+            store_password="$KEYSTORE_PASSWORD"
+            key_password="${KEY_PASSWORD:-$KEYSTORE_PASSWORD}"
+            echo "stable=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::No ANDROID_KEYSTORE_BASE64 secret - signing with a throwaway key. See android/README.md."
+            store_password="zupona-throwaway"
+            key_password="zupona-throwaway"
+            keytool -genkeypair -noprompt \
+              -keystore android.keystore -alias "$alias_name" \
+              -storepass "$store_password" -keypass "$key_password" \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -dname "CN=Zupona, O=Zupona, L=Dhaka, C=BD"
+            echo "stable=false" >> "$GITHUB_OUTPUT"
+          fi
+          echo "alias_name=$alias_name" >> "$GITHUB_OUTPUT"
+          # Bubblewrap reads both of these instead of prompting, which it
+          # cannot do on a runner with no terminal attached.
+          echo "BUBBLEWRAP_KEYSTORE_PASSWORD=$store_password" >> "$GITHUB_ENV"
+          echo "BUBBLEWRAP_KEY_PASSWORD=$key_password" >> "$GITHUB_ENV"
+
+      - name: Stamp the version
+        env:
+          KEY_ALIAS: ${{ steps.signing.outputs.alias_name }}
+        run: |
+          node -e '
+            const fs = require("fs");
+            const file = "android/twa-manifest.json";
+            const manifest = JSON.parse(fs.readFileSync(file, "utf8"));
+            const build = Number(process.env.GITHUB_RUN_NUMBER);
+            manifest.appVersionCode = build;
+            manifest.appVersionName = "1.0." + build;
+            manifest.appVersion = manifest.appVersionName;
+            manifest.signingKey.alias = process.env.KEY_ALIAS;
+            fs.writeFileSync(file, JSON.stringify(manifest, null, 2));
+            console.log("Building version", manifest.appVersionName);
+          '
+
+      - name: Build the APK
+        run: |
+          cd android
+          bubblewrap update --skipVersionUpgrade < /dev/null || bubblewrap update < /dev/null
+          bubblewrap build --skipPwaValidation < /dev/null
+          ls -l ./*.apk
+
+      - name: Report the signing fingerprint
+        id: fingerprint
+        run: |
+          cd android
+          sha256=$(keytool -list -v -keystore android.keystore -alias "${{ steps.signing.outputs.alias_name }}" -storepass "$BUBBLEWRAP_KEYSTORE_PASSWORD" | grep -m1 "SHA256:" | sed 's/.*SHA256: //' | tr -d '[:space:]')
+          echo "sha256=$sha256" >> "$GITHUB_OUTPUT"
+          {
+            echo "### Zupona app 1.0.${{ github.run_number }}"
+            echo
+            echo "Signing certificate SHA-256: \`$sha256\`"
+            echo
+            if [ "${{ steps.signing.outputs.stable }}" = "true" ]; then
+              echo "Put it in CERT_FINGERPRINTS in src/app/api/assetlinks/route.ts to drop the address bar."
+            else
+              echo "This key was generated for this run only, so it is not worth publishing - see android/README.md."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          apk=$(ls android/*.apk | head -1)
+          cp "$apk" zupona.apk
+          {
+            echo "The Zupona shop as an installable Android app."
+            echo
+            echo "**Install:** download zupona.apk below on an Android phone and open it."
+            echo "Android asks permission to install from this source the first time."
+            echo
+            echo "The app opens zupona.com full-screen, so it keeps up with the site by itself."
+            echo
+            echo "Signing certificate SHA-256: \`${{ steps.fingerprint.outputs.sha256 }}\`"
+            if [ "${{ steps.signing.outputs.stable }}" != "true" ]; then
+              echo
+              echo "> Signed with a per-build key. To move to a later version, uninstall this one first."
+            fi
+          } > notes.md
+          gh release create "app-v1.0.${{ github.run_number }}" zupona.apk \
+            --title "Zupona app 1.0.${{ github.run_number }}" \
+            --notes-file notes.md
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: zupona-apk
+          path: android/*.apk
+          if-no-files-found: ignore

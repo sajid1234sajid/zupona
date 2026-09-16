@@ -16,10 +16,27 @@ const playfair = Playfair_Display({
   weight: ["600", "700"],
 });
 
+/** `manifest` is what makes the shop installable.
+ *
+ * On a phone it turns zupona.com into a home-screen app, and the Android APK
+ * built by `.github/workflows/android-apk.yml` is a wrapper around this same
+ * manifest -- its name, colours and icons all come from here, so the installed
+ * app and the site can never describe themselves differently. */
 export const metadata: Metadata = {
   title: "Zupona — Trusted Online Shop",
   description:
     "Zupona | Bangladesh's trusted online shopping platform for fashion, electronics, beauty and more.",
+  applicationName: "Zupona",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: { capable: true, title: "Zupona", statusBarStyle: "default" },
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/icon-192.png", type: "image/png", sizes: "192x192" },
+      { url: "/icon-512.png", type: "image/png", sizes: "512x512" },
+    ],
+    apple: "/apple-touch-icon.png",
+  },
 };
 
 /** The shop is designed mobile-first and must scale from a 320px phone up.

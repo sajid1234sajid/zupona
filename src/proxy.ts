@@ -20,7 +20,23 @@ const ADMIN_HOST_PREFIX = "admin.";
 
 /** Assets, server-action payloads and the media route must reach their real
  * paths untouched on every host. */
-const PASS_THROUGH = ["/_next", "/api", "/__vinext", "/favicon.ico", "/robots.txt"];
+const PASS_THROUGH = [
+  "/_next",
+  "/api",
+  "/__vinext",
+  "/favicon.ico",
+  "/robots.txt",
+  // The installable-app files. Bouncing these to the apex from the admin host
+  // would only turn them into cross-origin requests the browser then ignores.
+  "/manifest.webmanifest",
+  "/apple-touch-icon.png",
+  "/icon-192.png",
+  "/icon-512.png",
+  "/icon-maskable-512.png",
+];
+
+/** Android insists on this exact path; the handler lives under `/api`. */
+const ASSET_LINKS_PATH = "/.well-known/assetlinks.json";
 
 /** The panel's own top-level sections.
  *
@@ -64,6 +80,12 @@ export function proxy(request: NextRequest) {
 
   if (PASS_THROUGH.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))) {
     return NextResponse.next();
+  }
+
+  if (pathname === ASSET_LINKS_PATH) {
+    const target = request.nextUrl.clone();
+    target.pathname = "/api/assetlinks";
+    return NextResponse.rewrite(target);
   }
 
   const host = hostOf(request);

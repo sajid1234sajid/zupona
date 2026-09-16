@@ -43,3 +43,17 @@ next-env.d.ts
 /dist/
 .vinext/
 .wrangler/
+
+# The Android build is generated; only twa-manifest.json is source.
+android/android.keystore
+android/app/
+android/build/
+android/.gradle/
+android/gradle*
+android/*.apk
+android/*.aab
+android/*.keystore
+android/store_icon.png
+android/*.iml
+android/local.properties
+android/settings.gradle

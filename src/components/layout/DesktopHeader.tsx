@@ -33,7 +33,7 @@ export default async function DesktopHeader({ search }: { search?: React.ReactNo
   return (
     <>
       <header className="sticky top-0 z-40 hidden h-16 border-b border-line-soft bg-white tab:block">
-        <div className="mx-auto flex h-full w-full max-w-[1180px] items-center gap-6 px-6">
+        <div className="mx-auto flex h-full w-full max-w-shell items-center gap-6 px-6">
           <Link
             href="/"
             className="flex shrink-0 items-center gap-2 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"

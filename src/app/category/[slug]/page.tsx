@@ -73,7 +73,7 @@ export default async function CategoryPage({
       </div>
       <DesktopHeader />
 
-      <main className="flex-1 px-4 pt-3 tab:mx-auto tab:w-full tab:max-w-[1180px] tab:px-6 tab:pt-6">
+      <main className="flex-1 px-4 pt-3 tab:mx-auto tab:w-full tab:max-w-shell tab:px-6 tab:pt-6">
         <div className="flex items-center gap-2 tab:gap-3">
           <Link
             href="/categories"
@@ -151,7 +151,7 @@ export default async function CategoryPage({
             </Link>
           </div>
         ) : (
-          <div className="mt-2.5 grid grid-cols-2 gap-2 tab:mt-4 tab:grid-cols-3 tab:gap-3 lg:grid-cols-4 xl:grid-cols-5">
+          <div className="mt-2.5 grid grid-cols-2 gap-2 tab:mt-4 tab:grid-cols-3 tab:gap-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
             {matches.map((product) => (
               <ProductCard
                 key={product.id}

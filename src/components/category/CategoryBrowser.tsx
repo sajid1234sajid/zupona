@@ -40,7 +40,7 @@ export default function CategoryBrowser({
   return (
     // From the `tab` breakpoint up the two panes become cards side by side
     // inside the page's measure; below it this is the phone layout unchanged.
-    <div className="flex flex-1 overflow-hidden tab:mx-auto tab:w-full tab:max-w-[1180px] tab:gap-5 tab:px-6 tab:py-5">
+    <div className="flex flex-1 overflow-hidden tab:mx-auto tab:w-full tab:max-w-shell tab:gap-5 tab:px-6 tab:py-5">
       {/* Department rail */}
       <nav
         aria-label="Categories"

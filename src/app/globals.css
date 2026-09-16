@@ -118,6 +118,13 @@
    * stock Tailwind breakpoint because that is where the product layout stops
    * being a phone screen and the mobile tab bar is no longer wanted. */
   --breakpoint-tab: 700px;
+
+  /* The storefront's measure, set once so every page agrees. 1180px left a
+   * wide band of empty white down both sides of a 1366px laptop, which read
+   * as a broken layout rather than a margin; 1440px fills an ordinary laptop
+   * edge to edge and still stops a 4K monitor from stretching a product row
+   * into a ribbon. Tailwind turns this into `max-w-shell`. */
+  --container-shell: 1440px;
 }
 
 body {

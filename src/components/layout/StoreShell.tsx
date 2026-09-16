@@ -52,6 +52,6 @@ export function StoreContainer({
   className?: string;
 }) {
   return (
-    <div className={`mx-auto w-full max-w-[1180px] px-3 tab:px-6 ${className}`}>{children}</div>
+    <div className={`mx-auto w-full max-w-shell px-3 tab:px-6 ${className}`}>{children}</div>
   );
 }

@@ -65,7 +65,7 @@ export default async function OffersPage({ searchParams }: PageProps<"/offers">)
       </div>
       <DesktopHeader />
 
-      <main className="flex-1 tab:mx-auto tab:w-full tab:max-w-[1180px] tab:px-2 tab:pt-3">
+      <main className="flex-1 tab:mx-auto tab:w-full tab:max-w-shell tab:px-2 tab:pt-3">
         {/* Savings meter. Every other deals page states a discount percentage;
             this states the number shoppers actually care about — the Taka on
             the table right now — computed from the live catalog, not typed in. */}
@@ -170,7 +170,7 @@ export default async function OffersPage({ searchParams }: PageProps<"/offers">)
               No deals in this selection right now.
             </p>
           ) : (
-            <div className="mt-2.5 grid grid-cols-2 gap-2 pb-4 tab:mt-4 tab:grid-cols-3 tab:gap-3 lg:grid-cols-4 xl:grid-cols-5">
+            <div className="mt-2.5 grid grid-cols-2 gap-2 pb-4 tab:mt-4 tab:grid-cols-3 tab:gap-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
               {deals.map((product) => (
                 <ProductCard
                   key={product.id}

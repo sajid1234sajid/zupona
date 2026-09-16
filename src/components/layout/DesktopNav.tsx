@@ -30,7 +30,7 @@ export default function DesktopNav() {
   return (
     <nav
       aria-label="Primary"
-      className="mx-auto flex h-11 w-full max-w-[1180px] items-center gap-1 px-6"
+      className="mx-auto flex h-11 w-full max-w-shell items-center gap-1 px-6"
     >
       {LINKS.map(({ label, href, alsoMatches }) => {
         const matchesExtra = alsoMatches?.some((prefix) => pathname.startsWith(prefix)) ?? false;

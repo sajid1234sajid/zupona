@@ -26,7 +26,7 @@ export default async function CartPage() {
         <ProductHeader />
       </div>
       <DesktopHeader />
-      <main className="flex-1 px-4 pt-4 tab:mx-auto tab:w-full tab:max-w-[1180px] tab:px-6 tab:pt-6">
+      <main className="flex-1 px-4 pt-4 tab:mx-auto tab:w-full tab:max-w-shell tab:px-6 tab:pt-6">
         <h1 className="text-lg font-bold text-heading tab:text-2xl">My Cart</h1>
 
         {items.length === 0 ? (

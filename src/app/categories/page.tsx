@@ -27,7 +27,7 @@ export default async function CategoriesPage() {
         <ProductHeader />
       </div>
       <DesktopHeader />
-      <div className="shrink-0 border-b border-line-soft px-4 py-2.5 tab:mx-auto tab:w-full tab:max-w-[1180px] tab:border-0 tab:px-6 tab:pb-0 tab:pt-5">
+      <div className="shrink-0 border-b border-line-soft px-4 py-2.5 tab:mx-auto tab:w-full tab:max-w-shell tab:border-0 tab:px-6 tab:pb-0 tab:pt-5">
         <h1 className="text-base font-bold text-heading tab:text-2xl">All Categories</h1>
         <p className="text-[10px] text-ink-slate tab:text-sm">
           {categories.length} departments ·{" "}

@@ -177,7 +177,7 @@ export default function FeaturedProducts({
             {search ? `No products match “${query.trim()}”.` : "Nothing in this filter yet."}
           </p>
         ) : (
-          <div className="mt-2 grid grid-cols-2 gap-1.5 tab:mt-4 tab:grid-cols-3 tab:gap-3 lg:grid-cols-4 xl:grid-cols-5">
+          <div className="mt-2 grid grid-cols-2 gap-1.5 tab:mt-4 tab:grid-cols-3 tab:gap-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
             {visible.map((product) => (
               <ProductCard
                 key={product.id}

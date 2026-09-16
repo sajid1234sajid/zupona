@@ -15,6 +15,7 @@ import {
   ShoppingBag,
 } from "lucide-react";
 import AccountHeader from "@/components/layout/AccountHeader";
+import DesktopHeader from "@/components/layout/DesktopHeader";
 import BottomNav from "@/components/layout/BottomNav";
 import BotanicalBackdrop from "@/components/home/BotanicalBackdrop";
 import OrderCard from "@/components/order/OrderCard";
@@ -81,10 +82,11 @@ export default function AccountProfile({
   const contact = user.phone ?? user.email ?? "";
 
   return (
-    <div className="relative mx-auto flex min-h-screen w-full max-w-md flex-col bg-brand-mist pb-[calc(66px+env(safe-area-inset-bottom))]">
+    <div className="relative mx-auto flex min-h-screen w-full max-w-md flex-col bg-brand-mist pb-[calc(66px+env(safe-area-inset-bottom))] tab:max-w-none tab:pb-12">
       <AccountHeader unreadCount={unreadNotificationCount} />
+      <DesktopHeader />
 
-      <main className="relative flex-1 px-3.5 pt-3.5 sm:px-4">
+      <main className="relative flex-1 px-3.5 pt-3.5 sm:px-4 tab:mx-auto tab:w-full tab:max-w-3xl tab:px-6 tab:pt-8">
         {/* ---------------- Profile ---------------- */}
         <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-brand-darkest via-brand-dark to-brand p-4 text-white shadow-[0_12px_26px_-14px_rgba(0,85,61,0.7)]">
           <BotanicalBackdrop

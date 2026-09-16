@@ -63,7 +63,8 @@ export default function StickyHeader({ wishlistCount }: { wishlistCount: number 
   }, []);
 
   return (
-    <header className="sticky top-0 z-40 bg-brand-dark px-3.5 pb-2.5 pt-2 text-white">
+    // Phones only; `DesktopHeader` takes over from the `tab` breakpoint up.
+    <header className="sticky top-0 z-40 bg-brand-dark px-3.5 pb-2.5 pt-2 text-white tab:hidden">
       {/* A 0fr/1fr grid row rather than a max-height: the row animates to its
           own natural height, so nothing has to hard-code how tall the brand
           block is. */}

@@ -13,7 +13,8 @@ import { Search, Bell, Leaf } from "lucide-react";
  * instead of pretending to be a second search box that goes nowhere. */
 export default function AccountHeader({ unreadCount }: { unreadCount: number }) {
   return (
-    <header className="sticky top-0 z-30 border-b border-brand-tint bg-white">
+    // Phones only; `DesktopHeader` takes over from the `tab` breakpoint up.
+    <header className="sticky top-0 z-30 border-b border-brand-tint bg-white tab:hidden">
       <div className="flex items-center gap-2 px-3.5 py-2.5 sm:gap-3 sm:px-4">
         <Link
           href="/"

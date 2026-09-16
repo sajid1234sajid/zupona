@@ -116,31 +116,32 @@ export default function FeaturedProducts({
     : byCategory;
 
   return (
-    <section className="pt-2.5">
-      <div className="flex items-center justify-between gap-2 px-3.5">
-        <h2 className="flex shrink-0 items-center gap-1 text-[11px] font-bold text-ink">
-          <Flame className="h-3 w-3 fill-accent-amber text-accent-amber" />
+    <section className="pt-2.5 tab:pt-8">
+      <div className="flex items-center justify-between gap-2 px-3.5 tab:px-0">
+        <h2 className="flex shrink-0 items-center gap-1 text-[11px] font-bold text-ink tab:gap-2 tab:text-xl">
+          <Flame className="h-3 w-3 fill-accent-amber text-accent-amber tab:h-5 tab:w-5" />
           Featured Products
         </h2>
 
         <Link
           href="/offers"
-          className="flex shrink-0 items-center gap-0.5 text-[10px] font-semibold text-brand"
+          className="flex shrink-0 items-center gap-0.5 text-[10px] font-semibold text-brand tab:text-sm"
         >
           View All
-          <ChevronRight className="h-2.5 w-2.5" strokeWidth={3} />
+          <ChevronRight className="h-2.5 w-2.5 tab:h-4 tab:w-4" strokeWidth={3} />
         </Link>
       </div>
 
       {/* Pinned right below the folded header. The offset is the header's own
-          collapsed height, so the two bars meet with no gap and no overlap. */}
+          collapsed height, so the two bars meet with no gap and no overlap. On
+          a laptop the pinned header is `DesktopHeader`'s 64px row instead. */}
       <div
-        style={{ top: COLLAPSED_HEIGHT }}
-        className="sticky z-30 mt-1.5 border-b border-brand-tint bg-white/95 backdrop-blur-sm"
+        style={{ "--chip-top": `${COLLAPSED_HEIGHT}px` } as React.CSSProperties}
+        className="sticky top-[var(--chip-top)] z-30 mt-1.5 border-b border-brand-tint bg-white/95 backdrop-blur-sm tab:top-16 tab:mt-3"
       >
         <div
           ref={tabsRef}
-          className="no-scrollbar flex items-center gap-1.5 overflow-x-auto px-3.5 py-2"
+          className="no-scrollbar flex items-center gap-1.5 overflow-x-auto px-3.5 py-2 tab:gap-2 tab:px-0 tab:py-3"
         >
           {productFilters.map((filter) => {
             const isActive = filter.id === activeFilter;
@@ -151,7 +152,7 @@ export default function FeaturedProducts({
                 data-filter={filter.id}
                 onClick={() => setActiveFilter(filter.id)}
                 aria-pressed={isActive}
-                className={`shrink-0 rounded-full px-3 py-[5px] text-[10px] font-semibold transition-colors duration-150 ${
+                className={`shrink-0 rounded-full px-3 py-[5px] text-[10px] font-semibold transition-colors duration-150 tab:px-4 tab:py-1.5 tab:text-[13px] ${
                   isActive
                     ? "bg-brand text-white shadow-sm"
                     : "bg-brand-mist text-ink-muted"
@@ -165,18 +166,18 @@ export default function FeaturedProducts({
       </div>
 
       <div
-        className="px-3.5"
+        className="px-3.5 tab:px-0"
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
         onTouchCancel={onTouchEnd}
       >
         {visible.length === 0 ? (
-          <p className="py-5 text-center text-[10px] text-ink-muted">
+          <p className="py-5 text-center text-[10px] text-ink-muted tab:py-10 tab:text-sm">
             {search ? `No products match “${query.trim()}”.` : "Nothing in this filter yet."}
           </p>
         ) : (
-          <div className="mt-2 grid grid-cols-2 gap-1.5">
+          <div className="mt-2 grid grid-cols-2 gap-1.5 tab:mt-4 tab:grid-cols-3 tab:gap-3 lg:grid-cols-4 xl:grid-cols-5">
             {visible.map((product) => (
               <ProductCard
                 key={product.id}

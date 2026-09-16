@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import ProductHeader from "@/components/layout/ProductHeader";
+import DesktopHeader from "@/components/layout/DesktopHeader";
 import BottomNav from "@/components/layout/BottomNav";
 import StoreShell, { StoreContainer } from "@/components/layout/StoreShell";
 import ProductView from "@/components/product/dynamic/ProductView";
@@ -109,7 +110,10 @@ export default async function DynamicProductPage({ params }: PageProps<"/product
 
   return (
     <StoreShell withStickyActions>
-      <ProductHeader />
+      <div className="tab:hidden">
+        <ProductHeader />
+      </div>
+      <DesktopHeader />
       <main className="flex-1">
         <StoreContainer className="py-4">
           <ProductView

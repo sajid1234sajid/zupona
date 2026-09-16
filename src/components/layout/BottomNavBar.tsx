@@ -42,6 +42,9 @@ const navItems: NavItem[] = [
  * Labels are 11px on 21px icons, measured off the reference; the 7.5px they
  * replaced was the clearest legibility miss on the screen.
  *
+ * Phones only: from the `tab` breakpoint up, `DesktopHeader` carries the same
+ * destinations and this bar is hidden.
+ *
  * The markup lives here rather than in `BottomNav` because the active tab is
  * decided from the browser's path; the count arrives as a prop so the badge
  * is right on first paint instead of appearing a moment after hydration. */
@@ -51,7 +54,7 @@ export default function BottomNavBar({ cartCount }: { cartCount: number }) {
   return (
     <nav
       aria-label="Primary"
-      className="fixed inset-x-0 bottom-0 z-40 mx-auto flex max-w-md items-stretch border-t border-brand-tint bg-white pb-[env(safe-area-inset-bottom)] shadow-[0_-2px_12px_rgba(0,60,40,0.07)]"
+      className="fixed inset-x-0 bottom-0 z-40 mx-auto flex max-w-md items-stretch border-t border-brand-tint bg-white pb-[env(safe-area-inset-bottom)] shadow-[0_-2px_12px_rgba(0,60,40,0.07)] tab:hidden"
     >
       {navItems.map(({ label, icon: Icon, href, alsoMatches, badge, raised }) => {
         const matchesExtra = alsoMatches?.some((prefix) => pathname.startsWith(prefix)) ?? false;

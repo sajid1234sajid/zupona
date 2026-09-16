@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Heart, PiggyBank, TrendingDown, Flame } from "lucide-react";
 import Link from "next/link";
 import ProductHeader from "@/components/layout/ProductHeader";
+import DesktopHeader from "@/components/layout/DesktopHeader";
 import BottomNav from "@/components/layout/BottomNav";
 import WishlistClient from "@/components/wishlist/WishlistClient";
 import { getCurrentUser } from "@/lib/session";
@@ -31,13 +32,16 @@ export default async function WishlistPage({ searchParams }: PageProps<"/wishlis
   const total = wishlistTotal(entries);
 
   return (
-    <div className="mx-auto flex min-h-screen w-full max-w-md flex-col bg-brand-mist pb-20">
-      <ProductHeader />
-      <main className="flex-1 px-4 pt-4">
+    <div className="mx-auto flex min-h-screen w-full max-w-md flex-col bg-brand-mist pb-20 tab:max-w-none tab:pb-12">
+      <div className="tab:hidden">
+        <ProductHeader />
+      </div>
+      <DesktopHeader />
+      <main className="flex-1 px-4 pt-4 tab:mx-auto tab:w-full tab:max-w-[1180px] tab:px-6 tab:pt-6">
         <div className="flex items-baseline justify-between">
-          <h1 className="text-lg font-bold text-heading">My Wishlist</h1>
+          <h1 className="text-lg font-bold text-heading tab:text-2xl">My Wishlist</h1>
           {entries.length > 0 && (
-            <span className="text-[10px] text-ink-slate">
+            <span className="text-[10px] text-ink-slate tab:text-sm">
               {entries.length} {entries.length === 1 ? "item" : "items"} ·{" "}
               {formatPrice(total)}
             </span>

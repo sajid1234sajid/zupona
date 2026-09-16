@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChevronLeft, PackageSearch } from "lucide-react";
 import ProductHeader from "@/components/layout/ProductHeader";
+import DesktopHeader from "@/components/layout/DesktopHeader";
 import BottomNav from "@/components/layout/BottomNav";
 import ProductCard from "@/components/home/ProductCard";
 import CategoryToolbar from "@/components/category/CategoryToolbar";
@@ -66,33 +67,38 @@ export default async function CategoryPage({
   const subcategories = category.subcategories ?? [];
 
   return (
-    <div className="mx-auto flex min-h-screen w-full max-w-md flex-col bg-brand-mist pb-20">
-      <ProductHeader />
+    <div className="mx-auto flex min-h-screen w-full max-w-md flex-col bg-brand-mist pb-20 tab:max-w-none tab:pb-12">
+      <div className="tab:hidden">
+        <ProductHeader />
+      </div>
+      <DesktopHeader />
 
-      <main className="flex-1 px-4 pt-3">
-        <div className="flex items-center gap-2">
+      <main className="flex-1 px-4 pt-3 tab:mx-auto tab:w-full tab:max-w-[1180px] tab:px-6 tab:pt-6">
+        <div className="flex items-center gap-2 tab:gap-3">
           <Link
             href="/categories"
             aria-label="Back to categories"
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white shadow-card"
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white shadow-card tab:h-9 tab:w-9"
           >
             <ChevronLeft className="h-4 w-4 text-ink-slate" />
           </Link>
           <div className="min-w-0">
-            <h1 className="truncate text-base font-bold text-heading">
+            <h1 className="truncate text-base font-bold text-heading tab:text-2xl">
               {subcategory ? subcategory.name : category.name}
             </h1>
-            <p className="truncate text-[10px] text-ink-slate">
+            <p className="truncate text-[10px] text-ink-slate tab:text-sm">
               {subcategory ? category.name : category.subtitle}
             </p>
           </div>
         </div>
 
         {subcategories.length > 0 && (
-          <div className="mt-2.5 flex gap-1.5 overflow-x-auto pb-0.5 no-scrollbar">
+          // Wraps on a laptop: a sideways-scrolling row with no scrollbar
+          // cannot be scrolled with a mouse.
+          <div className="mt-2.5 flex gap-1.5 overflow-x-auto pb-0.5 no-scrollbar tab:mt-4 tab:flex-wrap tab:gap-2 tab:overflow-visible">
             <Link
               href={basePath}
-              className={`shrink-0 rounded-full px-3 py-1 text-[10px] font-semibold transition-colors ${
+              className={`shrink-0 rounded-full px-3 py-1 text-[10px] font-semibold transition-colors tab:px-4 tab:py-1.5 tab:text-[13px] ${
                 subcategoryId === null
                   ? "bg-brand text-white"
                   : "border border-line bg-white text-ink-slate"
@@ -104,7 +110,7 @@ export default async function CategoryPage({
               <Link
                 key={sub.id}
                 href={`${basePath}?sub=${sub.id}`}
-                className={`shrink-0 rounded-full px-3 py-1 text-[10px] font-semibold transition-colors ${
+                className={`shrink-0 rounded-full px-3 py-1 text-[10px] font-semibold transition-colors tab:px-4 tab:py-1.5 tab:text-[13px] ${
                   subcategoryId === sub.id
                     ? "bg-brand text-white"
                     : "border border-line bg-white text-ink-slate"
@@ -116,7 +122,7 @@ export default async function CategoryPage({
           </div>
         )}
 
-        <div className="mt-2">
+        <div className="mt-2 tab:mt-4">
           <CategoryToolbar
             basePath={basePath}
             sort={sort}
@@ -145,7 +151,7 @@ export default async function CategoryPage({
             </Link>
           </div>
         ) : (
-          <div className="mt-2.5 grid grid-cols-2 gap-2">
+          <div className="mt-2.5 grid grid-cols-2 gap-2 tab:mt-4 tab:grid-cols-3 tab:gap-3 lg:grid-cols-4 xl:grid-cols-5">
             {matches.map((product) => (
               <ProductCard
                 key={product.id}

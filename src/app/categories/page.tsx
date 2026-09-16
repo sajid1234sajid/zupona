@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import ProductHeader from "@/components/layout/ProductHeader";
+import DesktopHeader from "@/components/layout/DesktopHeader";
 import BottomNav from "@/components/layout/BottomNav";
 import CategoryBrowser from "@/components/category/CategoryBrowser";
 import { categoryOverviews } from "@/lib/categories";
@@ -21,11 +22,14 @@ export default async function CategoriesPage() {
   return (
     // h-screen (not min-h-screen): the two panes scroll independently inside
     // the shell, which is the whole point of the rail staying put.
-    <div className="mx-auto flex h-screen w-full max-w-md flex-col overflow-hidden bg-white pb-16">
-      <ProductHeader />
-      <div className="shrink-0 border-b border-line-soft px-4 py-2.5">
-        <h1 className="text-base font-bold text-heading">All Categories</h1>
-        <p className="text-[10px] text-ink-slate">
+    <div className="mx-auto flex h-screen w-full max-w-md flex-col overflow-hidden bg-white pb-16 tab:max-w-none tab:bg-brand-mist tab:pb-0">
+      <div className="tab:hidden">
+        <ProductHeader />
+      </div>
+      <DesktopHeader />
+      <div className="shrink-0 border-b border-line-soft px-4 py-2.5 tab:mx-auto tab:w-full tab:max-w-[1180px] tab:border-0 tab:px-6 tab:pb-0 tab:pt-5">
+        <h1 className="text-base font-bold text-heading tab:text-2xl">All Categories</h1>
+        <p className="text-[10px] text-ink-slate tab:text-sm">
           {categories.length} departments ·{" "}
           {categories.reduce((total, category) => total + category.productCount, 0)} products
         </p>

@@ -75,7 +75,7 @@ export default async function OrderConfirmedPage({ params }: PageProps<"/checkou
   ];
 
   return (
-    <div className="relative mx-auto flex min-h-screen w-full max-w-md flex-col overflow-hidden bg-brand-mist">
+    <div className="relative mx-auto flex min-h-screen w-full max-w-md flex-col overflow-hidden bg-brand-mist tab:max-w-2xl">
       <LeafBackdrop />
 
       <div className="relative flex flex-1 flex-col pb-8">

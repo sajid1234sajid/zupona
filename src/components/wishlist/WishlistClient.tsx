@@ -179,7 +179,7 @@ export default function WishlistClient({
       )}
 
       {/* Rows */}
-      <div className="mt-2.5 flex flex-col gap-2">
+      <div className="mt-2.5 flex flex-col gap-2 tab:grid tab:grid-cols-2 tab:gap-3 lg:grid-cols-3">
         {visible.map((entry) => {
           const { product } = entry;
           const sellingPrice = entry.flashPrice ?? product.price;
@@ -339,7 +339,7 @@ export default function WishlistClient({
       {notice && (
         <div
           role="status"
-          className="pointer-events-none fixed inset-x-0 bottom-20 z-30 mx-auto flex max-w-md justify-center px-4"
+          className="pointer-events-none fixed inset-x-0 bottom-20 z-30 mx-auto flex max-w-md justify-center px-4 tab:bottom-8"
         >
           <div className="pointer-events-auto flex items-center gap-2 rounded-full bg-heading/90 px-4 py-2 text-[11px] font-semibold text-white shadow-lg">
             <Check className="h-3.5 w-3.5 text-brand-light" />

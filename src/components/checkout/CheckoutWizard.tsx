@@ -139,7 +139,7 @@ export default function CheckoutWizard({
        left edge as at the centre. So: white lifting into the wash, and nothing
        after that. The old three-stop gradient put a teal cast top and bottom
        that the design does not have. */
-      className="relative mx-auto flex min-h-screen w-full max-w-md flex-col overflow-hidden bg-gradient-to-b from-white via-brand-mist via-[18%] to-brand-mist">
+      className="relative mx-auto flex min-h-screen w-full max-w-md flex-col overflow-hidden bg-gradient-to-b from-white via-brand-mist via-[18%] to-brand-mist tab:max-w-2xl">
       <LeafBackdrop />
 
       <div className="relative flex flex-1 flex-col">

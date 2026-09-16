@@ -1,4 +1,5 @@
 import Link from "next/link";
+import DesktopHeader from "@/components/layout/DesktopHeader";
 import Image from "next/image";
 import { notFound } from "next/navigation";
 import { ChevronLeft, MapPin, CreditCard, BadgeCheck, PenLine } from "lucide-react";
@@ -18,8 +19,9 @@ export default async function OrderDetailPage({ params }: PageProps<"/account/or
   const reviewStates = await getOrderReviewStates(user.id, order.id);
 
   return (
-    <div className="mx-auto flex min-h-screen w-full max-w-md flex-col bg-brand-mist pb-10">
-      <header className="flex items-center gap-3 border-b border-line-soft bg-white px-4 py-3">
+    <div className="mx-auto flex min-h-screen w-full max-w-md flex-col bg-brand-mist pb-10 tab:max-w-none tab:pb-12">
+      <DesktopHeader />
+      <header className="flex items-center gap-3 border-b border-line-soft bg-white px-4 py-3 tab:mx-auto tab:mt-6 tab:w-full tab:max-w-2xl tab:rounded-2xl tab:border">
         <Link href="/account/orders" aria-label="Back to orders">
           <ChevronLeft className="h-5 w-5 text-ink" />
         </Link>
@@ -29,7 +31,7 @@ export default async function OrderDetailPage({ params }: PageProps<"/account/or
         </div>
       </header>
 
-      <main className="flex-1 px-4 pt-4">
+      <main className="flex-1 px-4 pt-4 tab:mx-auto tab:w-full tab:max-w-2xl tab:px-0">
         <section className="rounded-2xl bg-white p-4 shadow-card">
           <h2 className="mb-3 text-sm font-bold text-heading">Order Tracking</h2>
           <OrderTracker steps={order.steps} />

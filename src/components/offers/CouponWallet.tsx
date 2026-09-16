@@ -44,7 +44,9 @@ export default function CouponWallet({ coupons }: { coupons: OfferCoupon[] }) {
   }
 
   return (
-    <div className="flex gap-2 overflow-x-auto px-4 pb-1 no-scrollbar">
+    // Wraps on a laptop, where a sideways row with no scrollbar cannot be
+    // scrolled with a mouse.
+    <div className="flex gap-2 overflow-x-auto px-4 pb-1 no-scrollbar tab:flex-wrap tab:gap-3 tab:overflow-visible">
       {coupons.map((coupon) => {
         const copied = copiedCode === coupon.code;
         const failed = failedCode === coupon.code;
@@ -52,7 +54,7 @@ export default function CouponWallet({ coupons }: { coupons: OfferCoupon[] }) {
         return (
           <div
             key={coupon.code}
-            className="flex w-[210px] shrink-0 overflow-hidden rounded-xl bg-white shadow-card"
+            className="flex w-[210px] shrink-0 overflow-hidden rounded-xl bg-white shadow-card tab:w-[270px]"
           >
             <div className="flex w-[62px] shrink-0 flex-col items-center justify-center bg-brand-tint px-1 py-2 text-center">
               <Ticket className="h-3.5 w-3.5 text-brand" />

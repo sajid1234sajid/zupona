@@ -1,4 +1,5 @@
 import Link from "next/link";
+import DesktopHeader from "@/components/layout/DesktopHeader";
 import { ChevronLeft, ShieldCheck, Calendar } from "lucide-react";
 import { requireUser } from "@/lib/session";
 import { getDB } from "@/lib/db";
@@ -19,14 +20,15 @@ export default async function SecurityPage() {
   });
 
   return (
-    <div className="mx-auto flex min-h-screen w-full max-w-md flex-col bg-brand-mist pb-10">
-      <header className="flex items-center gap-3 border-b border-line-soft bg-white px-4 py-3">
+    <div className="mx-auto flex min-h-screen w-full max-w-md flex-col bg-brand-mist pb-10 tab:max-w-none tab:pb-12">
+      <DesktopHeader />
+      <header className="flex items-center gap-3 border-b border-line-soft bg-white px-4 py-3 tab:mx-auto tab:mt-6 tab:w-full tab:max-w-2xl tab:rounded-2xl tab:border">
         <Link href="/account" aria-label="Back to account">
           <ChevronLeft className="h-5 w-5 text-ink" />
         </Link>
         <h1 className="text-base font-bold text-heading">Profile &amp; Security</h1>
       </header>
-      <main className="flex-1 px-4 pt-4">
+      <main className="flex-1 px-4 pt-4 tab:mx-auto tab:w-full tab:max-w-2xl tab:px-0">
         <div className="mb-3 flex items-center gap-3 rounded-2xl bg-white p-4 shadow-card">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-tint text-brand">
             <ShieldCheck className="h-5 w-5" />

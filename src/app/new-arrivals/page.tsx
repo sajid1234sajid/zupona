@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Sparkles } from "lucide-react";
 import ProductHeader from "@/components/layout/ProductHeader";
+import DesktopHeader from "@/components/layout/DesktopHeader";
 import BottomNav from "@/components/layout/BottomNav";
 import ProductCard from "@/components/home/ProductCard";
 import { listStoreProducts } from "@/lib/storefront";
@@ -27,16 +28,19 @@ export default async function NewArrivalsPage() {
   ]);
 
   return (
-    <div className="mx-auto flex min-h-screen w-full max-w-md flex-col bg-white pb-[68px]">
-      <ProductHeader />
-      <main className="flex-1 px-3.5 pt-3.5">
-        <div className="flex items-center gap-2">
-          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-brand-tint text-brand">
+    <div className="mx-auto flex min-h-screen w-full max-w-md flex-col bg-white pb-[68px] tab:max-w-none tab:pb-12">
+      <div className="tab:hidden">
+        <ProductHeader />
+      </div>
+      <DesktopHeader />
+      <main className="flex-1 px-3.5 pt-3.5 tab:mx-auto tab:w-full tab:max-w-[1180px] tab:px-6 tab:pt-6">
+        <div className="flex items-center gap-2 tab:gap-3">
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-brand-tint text-brand tab:h-11 tab:w-11">
             <Sparkles className="h-[18px] w-[18px]" strokeWidth={2.25} />
           </span>
           <span className="leading-tight">
-            <h1 className="text-base font-bold text-brand-darkest">New Arrivals</h1>
-            <p className="text-[10px] text-ink-muted">
+            <h1 className="text-base font-bold text-brand-darkest tab:text-2xl">New Arrivals</h1>
+            <p className="text-[10px] text-ink-muted tab:text-sm">
               {products.length} {products.length === 1 ? "product" : "products"}, newest first
             </p>
           </span>
@@ -57,7 +61,7 @@ export default async function NewArrivalsPage() {
             </Link>
           </div>
         ) : (
-          <div className="mt-3 grid grid-cols-2 gap-1.5">
+          <div className="mt-3 grid grid-cols-2 gap-1.5 tab:mt-5 tab:grid-cols-3 tab:gap-3 lg:grid-cols-4 xl:grid-cols-5">
             {products.map((product) => (
               <ProductCard
                 key={product.id}

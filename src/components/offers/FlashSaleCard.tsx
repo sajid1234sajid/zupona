@@ -17,14 +17,14 @@ export default function FlashSaleCard({ item }: { item: FlashSaleItem }) {
   return (
     <Link
       href={`/product/${product.id}`}
-      className="w-[112px] shrink-0 rounded-lg bg-white p-1.5 shadow-card"
+      className="w-[112px] shrink-0 rounded-lg bg-white p-1.5 shadow-card tab:w-[150px]"
     >
-      <div className="relative h-[92px] overflow-hidden rounded-md bg-brand-mist">
+      <div className="relative h-[92px] overflow-hidden rounded-md bg-brand-mist tab:h-[124px]">
         <Image
           src={product.image}
           alt={product.name}
           fill
-          sizes="112px"
+          sizes="(min-width: 700px) 150px, 112px"
           className={`object-cover ${soldOut ? "opacity-45 grayscale" : ""}`}
         />
         {soldOut ? (

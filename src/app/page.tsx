@@ -32,9 +32,9 @@ export default async function Home() {
     <SearchProvider>
       {/* The bottom padding clears the fixed tab bar, so the last row of
           product cards can always be scrolled clear of it. */}
-      <div className="mx-auto flex min-h-screen w-full max-w-md flex-col bg-white pb-[68px]">
+      <div className="mx-auto flex min-h-screen w-full max-w-md flex-col bg-white pb-[68px] tab:max-w-none tab:pb-12">
         <Header />
-        <main className="flex-1">
+        <main className="flex-1 tab:mx-auto tab:w-full tab:max-w-[1180px] tab:px-6 tab:pt-5">
           <HeroBanner />
           <CategoryGrid categories={categories} />
           <PromoBanners />

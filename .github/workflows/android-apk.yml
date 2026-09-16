@@ -105,6 +105,16 @@ jobs:
           "$sdkmanager" "platform-tools" "platforms;android-$platform" "build-tools;$build_tools"
           ls "$sdk/build-tools"
 
+          # Bubblewrap calls an SDK without a `tools` or a `bin` directory
+          # invalid and refuses to start, and a modern SDK has neither -- its
+          # command line tools live under `cmdline-tools/latest/bin`. Pointing
+          # `bin` at them satisfies the check with the real tools.
+          if [ ! -e "$sdk/bin" ] && [ ! -e "$sdk/tools" ]; then
+            tools_bin=$(dirname "$sdkmanager")
+            ln -s "$tools_bin" "$sdk/bin" 2>/dev/null || sudo ln -s "$tools_bin" "$sdk/bin"
+            echo "Linked $sdk/bin -> $tools_bin"
+          fi
+
       # A keystore in the repository secrets keeps one identity across builds,
       # which is what lets an installed app be updated in place and what makes
       # a fingerprint worth publishing in assetlinks.json. Without it the build

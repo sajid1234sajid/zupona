@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
 import { Home, LayoutGrid, ShoppingCart, Tag, User } from "lucide-react";
@@ -140,10 +140,14 @@ export default function BottomNavBar({ cartCount }: { cartCount: number }) {
   const [pressed, setPressed] = useState<string | null>(null);
 
   // The path moving is the navigation landing, which is when the path becomes
-  // the truth again. This also clears a press the router abandoned.
-  useEffect(() => {
+  // the truth again; this also clears a press the router abandoned. Adjusted
+  // during the render that first sees the new path rather than in an effect,
+  // so the bar is never painted once with the stale press and again without it.
+  const [lastPath, setLastPath] = useState(pathname);
+  if (lastPath !== pathname) {
+    setLastPath(pathname);
     setPressed(null);
-  }, [pathname]);
+  }
 
   return (
     <nav

@@ -100,36 +100,35 @@ export default async function PromoBanners() {
 }
 
 /** One admin-published promo tile, built to the same height as the pair above
- * it so an odd number of them still leaves a tidy grid. */
+ * it so an odd number of them still leaves a tidy grid.
+ *
+ * As in the hero, an uploaded picture is left to speak for itself: these
+ * banners arrive as finished artwork with their own wording, and a headline
+ * drawn on top would sit across it. Only a tile published without a picture
+ * is given the copy to show. */
 function PromoTile({ banner }: { banner: StoreBanner }) {
-  const body = (
+  const body = banner.image ? (
+    <Image
+      src={banner.image}
+      alt={banner.title}
+      fill
+      sizes="(min-width: 700px) 720px, 50vw"
+      style={{ objectFit: "cover", objectPosition: "50% 50%" }}
+    />
+  ) : (
     <>
-      {banner.image ? (
-        <Image
-          src={banner.image}
-          alt={banner.title}
-          fill
-          sizes="(min-width: 700px) 720px, 50vw"
-          style={{ objectFit: "cover", objectPosition: "50% 50%" }}
-        />
-      ) : (
-        <BotanicalBackdrop
-          className="absolute inset-0 h-full w-full"
-          tone="#7fe0c6"
-          opacity={0.24}
-          blossoms={false}
-        />
-      )}
+      <BotanicalBackdrop
+        className="absolute inset-0 h-full w-full"
+        tone="#7fe0c6"
+        opacity={0.24}
+        blossoms={false}
+      />
 
-      {banner.image ? (
-        <span className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(0,38,27,0.8)_0%,rgba(0,38,27,0.45)_70%,rgba(0,38,27,0.1)_100%)]" />
-      ) : null}
-
-      <span className="relative z-10 block text-[10.5px] font-bold leading-tight text-white drop-shadow-[0_1px_5px_rgba(0,30,20,0.45)] tab:text-xl">
+      <span className="relative z-10 block text-[10.5px] font-bold leading-tight text-white tab:text-xl">
         {banner.title}
       </span>
       {banner.subtitle ? (
-        <span className="relative z-10 mt-[3px] block text-[10px] leading-[1.3] text-white/85 tab:mt-2 tab:text-sm">
+        <span className="relative z-10 mt-[3px] block text-[10px] leading-[1.3] text-brand-tint tab:mt-2 tab:text-sm">
           {banner.subtitle}
         </span>
       ) : null}

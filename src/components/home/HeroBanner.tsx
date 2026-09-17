@@ -27,11 +27,16 @@ const SHELL =
 
 /** An admin-published banner.
  *
- * The uploaded picture fills the whole shell rather than sitting beside the
- * copy, because a banner image is chosen as the banner -- it is not a cutout
- * to composite. The copy is laid over it behind a scrim that fades out to the
- * right, which keeps the headline legible on a dark photograph and a pale one
- * both, and leaves the right-hand side of the picture visible. */
+ * An uploaded picture is shown on its own, with nothing written over it. The
+ * banners this shop publishes are finished artwork -- headline, price and all,
+ * laid out in whatever the admin designed them in -- so a second headline
+ * drawn on top only lands across the words already in the picture. The
+ * headline typed into the form is still what names the banner in the admin
+ * panel, and it becomes the image's alt text here.
+ *
+ * A banner published without a picture is the other case: there the headline,
+ * subtitle and button are all there is to draw, so they are set on the brand
+ * green instead. */
 function PublishedHero({ banner }: { banner: StoreBanner }) {
   const body = (
     <div className={`${SHELL} bg-[linear-gradient(105deg,#00553d_0%,#007553_100%)]`}>
@@ -45,31 +50,31 @@ function PublishedHero({ banner }: { banner: StoreBanner }) {
           style={{ objectFit: "cover", objectPosition: "50% 50%" }}
         />
       ) : (
-        <BotanicalBackdrop className="absolute inset-0 h-full w-full" tone="#7fe0c6" opacity={0.26} />
+        <>
+          <BotanicalBackdrop
+            className="absolute inset-0 h-full w-full"
+            tone="#7fe0c6"
+            opacity={0.26}
+          />
+
+          <div className="relative z-10 flex h-full max-w-[72%] flex-col justify-center px-3.5 tab:max-w-[58%] tab:px-10 lg:px-14">
+            <h1 className="font-serif text-[20px] font-bold leading-[1.1] text-white tab:text-[40px] lg:text-[48px]">
+              {banner.title}
+            </h1>
+            {banner.subtitle ? (
+              <p className="mt-1 text-[10px] leading-[1.35] text-white/85 tab:mt-3 tab:text-base">
+                {banner.subtitle}
+              </p>
+            ) : null}
+            {banner.href ? (
+              <span className="mt-2 inline-flex w-fit items-center gap-1 rounded-full bg-white px-3 py-[5px] text-[9.5px] font-semibold text-brand-dark shadow-[0_2px_6px_rgba(0,40,28,0.35)] tab:mt-5 tab:gap-2 tab:px-6 tab:py-2.5 tab:text-sm">
+                Shop Now
+                <ArrowRight className="h-3 w-3 tab:h-4 tab:w-4" strokeWidth={2.5} />
+              </span>
+            ) : null}
+          </div>
+        </>
       )}
-
-      {/* Only drawn over a photograph: on the plain green fallback the copy is
-          already on a flat colour and a second wash would only dull it. */}
-      {banner.image ? (
-        <span className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(0,38,27,0.82)_0%,rgba(0,38,27,0.58)_46%,rgba(0,38,27,0.06)_100%)]" />
-      ) : null}
-
-      <div className="relative z-10 flex h-full max-w-[72%] flex-col justify-center px-3.5 tab:max-w-[58%] tab:px-10 lg:px-14">
-        <h1 className="font-serif text-[20px] font-bold leading-[1.1] text-white drop-shadow-[0_1px_6px_rgba(0,30,20,0.45)] tab:text-[40px] lg:text-[48px]">
-          {banner.title}
-        </h1>
-        {banner.subtitle ? (
-          <p className="mt-1 text-[10px] leading-[1.35] text-white/85 tab:mt-3 tab:text-base">
-            {banner.subtitle}
-          </p>
-        ) : null}
-        {banner.href ? (
-          <span className="mt-2 inline-flex w-fit items-center gap-1 rounded-full bg-white px-3 py-[5px] text-[9.5px] font-semibold text-brand-dark shadow-[0_2px_6px_rgba(0,40,28,0.35)] tab:mt-5 tab:gap-2 tab:px-6 tab:py-2.5 tab:text-sm">
-            Shop Now
-            <ArrowRight className="h-3 w-3 tab:h-4 tab:w-4" strokeWidth={2.5} />
-          </span>
-        ) : null}
-      </div>
     </div>
   );
 

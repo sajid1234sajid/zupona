@@ -6,15 +6,15 @@ import BotanicalBackdrop from "./BotanicalBackdrop";
 
 /** The two promotional banners, in the shop's own artwork.
  *
- * They are drawn from two shapes of the same picture, because the two places
- * they sit are nothing like each other. On a phone the pair shares a row, half
- * a screen each, so each one gets the tile cut of its artwork -- the headline
- * over the illustration, in a frame three units wide to four tall. On a laptop
- * they stand in a column beside the hero, where the wide cut belongs.
- *
- * `<picture>` rather than two images with one hidden: the browser downloads
- * only the source whose media query it matches, so a phone never pays for the
- * wide file and a laptop never pays for the tile.
+ * The artwork is the shop's, finished and untouched: one file each, shown
+ * whole, never cropped, re-cut or drawn over. The card is what changes shape
+ * around it. On a phone the pair shares a row half a screen each, in the
+ * compact card the shop owner measured out -- and because that card is far
+ * squarer than a banner better than four to one, the picture is fitted inside
+ * it rather than filling it, with the card carrying the artwork's own colour
+ * so the fit reads as the picture's background rather than as a gap. On a
+ * laptop the pair stands in a column beside the hero, where each card takes
+ * its picture's exact ratio and the artwork fills it edge to edge.
  *
  * Banners published under the "promo" placement join them, taking the same
  * shape, which is what makes that choice in the admin panel mean something on
@@ -27,21 +27,23 @@ export default async function PromoBanners() {
   return (
     <section className="grid grid-cols-2 gap-1.5 px-3.5 pt-2.5 tab:flex tab:h-full tab:flex-col tab:justify-between tab:gap-3 tab:px-0 tab:pt-0">
       <ArtworkBanner
-        tile="/promo-mega-deals-tile.webp"
-        wide="/promo-mega-deals.webp"
+        src="/promo-mega-deals.webp"
         alt="Mega Deals -- top picks, best value and limited stock, up to 50% off"
-        shape="aspect-[4/3] tab:aspect-[1075/249]"
+        shape="aspect-[327/191] tab:aspect-[1075/249]"
+        // Sampled from the artwork's own edge, so the card reads as the
+        // picture's background continuing rather than as a box around it.
+        surface="bg-[#076827]"
         pill="bg-white text-brand-dark"
       />
 
       <ArtworkBanner
-        tile="/promo-free-delivery-tile.webp"
-        wide="/promo-free-delivery.webp"
+        src="/promo-free-delivery.webp"
         alt="Free delivery on orders over ৳1,000"
-        shape="aspect-[4/3] tab:aspect-[1563/275]"
+        shape="aspect-[327/191] tab:aspect-[1563/275]"
+        surface="bg-[#ecf4ef]"
         pill="bg-brand text-white"
         // This artwork's own background is very nearly white, so without an
-        // edge the tile dissolves into the page it sits on.
+        // edge the card dissolves into the page it sits on.
         frame="border border-brand-tint"
       />
 
@@ -54,27 +56,26 @@ export default async function PromoBanners() {
 
 /** One of the shop's two standing banners.
  *
- * The frame takes the ratio of whichever cut is showing rather than a fixed
- * height, so the artwork is drawn whole at every width: these are single
- * pictures with their wording baked in, and a crop would cut a word in half.
+ * The phone card's ratio is measured off the shop owner's own screen -- 327
+ * by 191 of their 719px-wide screenshot, which is 163 by 95 css pixels beside
+ * the margins and gap this row already had.
  *
- * The Shop Now pill sits bottom left, which is the corner both tiles were
- * composed to leave empty, and moves to the right on the wide cut where that
- * is the quiet corner instead. */
+ * The Shop Now pill sits bottom left on a phone, inside the band the fitted
+ * picture leaves rather than on top of the artwork, and moves to the bottom
+ * right on a laptop where the picture fills the card. */
 function ArtworkBanner({
-  tile,
-  wide,
+  src,
   alt,
   shape,
+  surface,
   pill,
   frame = "",
 }: {
-  /** Three-to-four cut, drawn on a phone. */
-  tile: string;
-  /** Wide cut, drawn from the `tab` breakpoint up. */
-  wide: string;
+  src: string;
   alt: string;
   shape: string;
+  /** The card's own colour, taken from the artwork's edge. */
+  surface: string;
   /** Colours for the Shop Now pill, picked to sit on that artwork. */
   pill: string;
   /** An edge, for artwork too pale to show one of its own. */
@@ -83,21 +84,19 @@ function ArtworkBanner({
   return (
     <Link
       href="/offers"
-      className={`relative block w-full overflow-hidden rounded-xl tab:rounded-2xl ${shape} ${frame}`}
+      className={`relative block w-full overflow-hidden rounded-xl tab:rounded-2xl ${shape} ${surface} ${frame}`}
     >
-      <picture>
-        <source media="(min-width: 700px)" srcSet={wide} />
-        {/* Plain <img>: these are two fixed files, each already cut and sized
-            for the one place it is drawn, so there is nothing for the image
-            optimiser to do and `<picture>` is what picks between them. */}
-        <img
-          src={tile}
-          alt={alt}
-          loading="lazy"
-          decoding="async"
-          className="absolute inset-0 h-full w-full object-cover"
-        />
-      </picture>
+      <Image
+        src={src}
+        alt={alt}
+        fill
+        sizes="(min-width: 700px) 620px, 50vw"
+        // `contain`, never `cover`: the card on a phone is far squarer than
+        // the picture, and these banners carry their own wording, so a crop
+        // would take a word with it. The whole picture is drawn at the
+        // largest size that fits and the card's colour fills the rest.
+        style={{ objectFit: "contain", objectPosition: "50% 50%" }}
+      />
 
       <span
         className={`absolute bottom-1 left-1 z-10 inline-flex items-center gap-0.5 rounded-full px-1.5 py-[2px] text-[9px] font-bold shadow-[0_1px_5px_rgba(0,40,28,0.28)] tab:bottom-2 tab:left-auto tab:right-2 tab:gap-1 tab:px-2.5 tab:py-1 tab:text-[11px] ${pill}`}
@@ -152,7 +151,7 @@ function PromoTile({ banner }: { banner: StoreBanner }) {
   );
 
   const shell =
-    "relative flex aspect-[4/3] flex-col justify-center overflow-hidden rounded-xl bg-[linear-gradient(135deg,#00553d_0%,#007553_100%)] px-3 tab:aspect-[1075/249] tab:rounded-2xl tab:px-8";
+    "relative flex aspect-[327/191] flex-col justify-center overflow-hidden rounded-xl bg-[linear-gradient(135deg,#00553d_0%,#007553_100%)] px-3 tab:aspect-[1075/249] tab:rounded-2xl tab:px-8";
 
   return banner.href ? (
     <Link href={banner.href} className={shell}>

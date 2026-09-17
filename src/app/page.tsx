@@ -35,9 +35,24 @@ export default async function Home() {
       <div className="mx-auto flex min-h-screen w-full max-w-md flex-col bg-white pb-[68px] tab:max-w-none tab:pb-12">
         <Header />
         <main className="flex-1 tab:mx-auto tab:w-full tab:max-w-shell tab:px-6 tab:pt-5">
-          <HeroBanner />
-          <CategoryGrid categories={categories} />
-          <PromoBanners />
+          {/* One grid so the top of the page can be read in two different
+              orders without drawing anything twice. A phone takes the DOM
+              order -- hero, then departments, then the promo pair. From the
+              `tab` breakpoint up the promos move beside the hero and the
+              departments run full width underneath, which is the laptop
+              design. Only the columns are given a gap: each section already
+              carries its own top padding. */}
+          <div className="tab:grid tab:grid-cols-[1.36fr_1fr] tab:gap-x-3">
+            <div className="tab:col-start-1 tab:row-start-1">
+              <HeroBanner />
+            </div>
+            <div className="tab:col-span-2 tab:row-start-2">
+              <CategoryGrid categories={categories} />
+            </div>
+            <div className="tab:col-start-2 tab:row-start-1">
+              <PromoBanners />
+            </div>
+          </div>
           <FeaturedProducts
             featured={featured}
             catalog={catalog}

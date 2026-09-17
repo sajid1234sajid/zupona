@@ -31,7 +31,7 @@ export default async function HeroBanner() {
 /** The shell both versions sit in: one height on a phone, another on a laptop,
  * so swapping which banner is drawn never moves the page around it. */
 const SHELL =
-  "relative h-[118px] overflow-hidden rounded-[18px] tab:h-[300px] tab:rounded-3xl";
+  "relative h-[118px] overflow-hidden rounded-[18px] tab:h-[250px] tab:rounded-3xl";
 
 /** An admin-published banner.
  *
@@ -53,7 +53,7 @@ function PublishedHero({ banner }: { banner: StoreBanner }) {
           src={banner.image}
           alt={banner.title}
           fill
-          sizes="(min-width: 700px) 1440px, 100vw"
+          sizes="(min-width: 700px) 820px, 100vw"
           preload
           style={{ objectFit: "cover", objectPosition: "50% 50%" }}
         />
@@ -121,7 +121,7 @@ function SeasonBanner() {
             which turned the wide photo into a square crop. A sized wrapper
             plus `fill` frames it instead. The gradient mask feathers the
             photo's left edge into the green so it reads as composited. */}
-        <span className="pointer-events-none absolute bottom-0 right-0 block h-[106px] w-[176px] [mask-image:linear-gradient(to_right,transparent_0%,#000_30%)] tab:h-[282px] tab:w-[46%]">
+        <span className="pointer-events-none absolute bottom-0 right-0 block h-[106px] w-[176px] [mask-image:linear-gradient(to_right,transparent_0%,#000_30%)] tab:h-[236px] tab:w-[46%]">
           <Image
             src="https://images.unsplash.com/photo-1594223274512-ad4803739b7c?auto=format&fit=crop&w=1200&q=85"
             alt="Green leather handbag from the new season collection"
@@ -148,7 +148,7 @@ function SeasonBanner() {
           </span>
         </div>
 
-        <div className="relative z-10 max-w-[57%] px-3.5 pt-2.5 tab:max-w-[54%] tab:px-10 tab:pt-12 lg:px-14">
+        <div className="relative z-10 max-w-[57%] px-3.5 pt-2.5 tab:max-w-[54%] tab:px-10 tab:pt-8 lg:px-14">
           <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-brand tab:text-[13px]">
             New Season
           </p>

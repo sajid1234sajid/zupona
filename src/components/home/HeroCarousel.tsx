@@ -61,7 +61,7 @@ export default function HeroCarousel({ banners }: { banners: StoreBanner[] }) {
 
   return (
     <section aria-label="Homepage banners" className="px-3.5 pt-2.5 tab:px-0 tab:pt-0">
-      <div className="relative h-[118px] overflow-hidden rounded-[18px] bg-[linear-gradient(105deg,#00553d_0%,#007553_100%)] tab:h-[300px] tab:rounded-3xl">
+      <div className="relative h-[118px] overflow-hidden rounded-[18px] bg-[linear-gradient(105deg,#00553d_0%,#007553_100%)] tab:h-[250px] tab:rounded-3xl">
         <div
           ref={trackRef}
           onScroll={handleScroll}
@@ -115,7 +115,7 @@ function Slide({ banner, eager }: { banner: StoreBanner; eager: boolean }) {
       src={banner.image}
       alt={banner.title}
       fill
-      sizes="(min-width: 700px) 1440px, 100vw"
+      sizes="(min-width: 700px) 820px, 100vw"
       preload={eager}
       style={{ objectFit: "cover", objectPosition: "50% 50%" }}
     />

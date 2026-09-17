@@ -4,42 +4,45 @@ import { ArrowRight } from "lucide-react";
 import { listStoreBanners, type StoreBanner } from "@/lib/storefront";
 import BotanicalBackdrop from "./BotanicalBackdrop";
 
-/** The promotional banners under the departments.
+/** The two promotional banners, in the shop's own artwork.
  *
- * Mega Deals and free delivery used to be drawn here in CSS -- a gradient, a
- * lucide icon and a line of type each, side by side. They are now the shop's
- * own artwork, which arrives already carrying its headline, its badges and
- * its illustration, so the pair is drawn full width instead: at roughly four
- * to one, half a phone's width would have cropped away most of each picture.
+ * They are drawn from two shapes of the same picture, because the two places
+ * they sit are nothing like each other. On a phone the pair shares a row, half
+ * a screen each, so each one gets the tile cut of its artwork -- the headline
+ * over the illustration, in a frame three units wide to four tall. On a laptop
+ * they stand in a column beside the hero, where the wide cut belongs.
  *
- * Each still carries the Shop Now pill it had, set into the corner over the
- * artwork rather than beside it, so the tile is as tappable-looking as it was
- * and no wording is drawn across the wording already in the picture.
+ * `<picture>` rather than two images with one hidden: the browser downloads
+ * only the source whose media query it matches, so a phone never pays for the
+ * wide file and a laptop never pays for the tile.
  *
- * Banners published under the "promo" placement join them below, in the same
- * single column, which is what makes that choice in the admin panel mean
- * something on the shop.
+ * Banners published under the "promo" placement join them, taking the same
+ * shape, which is what makes that choice in the admin panel mean something on
+ * the shop.
  *
  * The `tab:` classes are the laptop sizes; the phone design is the rest. */
 export default async function PromoBanners() {
   const promos = await listStoreBanners("promo");
 
   return (
-    <section className="flex flex-col gap-1.5 px-3.5 pt-2.5 tab:gap-3 tab:px-0 tab:pt-3">
+    <section className="grid grid-cols-2 gap-1.5 px-3.5 pt-2.5 tab:flex tab:h-full tab:flex-col tab:justify-between tab:gap-3 tab:px-0 tab:pt-0">
       <ArtworkBanner
-        src="/promo-mega-deals.webp"
-        alt="Mega Deals -- top picks, best value, limited stock, up to 50% off"
-        width={1075}
-        height={249}
+        tile="/promo-mega-deals-tile.webp"
+        wide="/promo-mega-deals.webp"
+        alt="Mega Deals -- top picks, best value and limited stock, up to 50% off"
+        shape="aspect-[4/3] tab:aspect-[1075/249]"
         pill="bg-white text-brand-dark"
       />
 
       <ArtworkBanner
-        src="/promo-free-delivery.webp"
+        tile="/promo-free-delivery-tile.webp"
+        wide="/promo-free-delivery.webp"
         alt="Free delivery on orders over ৳1,000"
-        width={1563}
-        height={275}
+        shape="aspect-[4/3] tab:aspect-[1563/275]"
         pill="bg-brand text-white"
+        // This artwork's own background is very nearly white, so without an
+        // edge the tile dissolves into the page it sits on.
+        frame="border border-brand-tint"
       />
 
       {promos.map((promo) => (
@@ -51,40 +54,53 @@ export default async function PromoBanners() {
 
 /** One of the shop's two standing banners.
  *
- * The frame is given the picture's own ratio rather than a fixed height, so
- * the artwork is shown whole at every width and nothing of it is cropped --
- * these are single images with their text baked in, and a crop would cut a
- * word in half. `sizes` is what keeps a phone off the full-width file. */
+ * The frame takes the ratio of whichever cut is showing rather than a fixed
+ * height, so the artwork is drawn whole at every width: these are single
+ * pictures with their wording baked in, and a crop would cut a word in half.
+ *
+ * The Shop Now pill sits bottom left, which is the corner both tiles were
+ * composed to leave empty, and moves to the right on the wide cut where that
+ * is the quiet corner instead. */
 function ArtworkBanner({
-  src,
+  tile,
+  wide,
   alt,
-  width,
-  height,
+  shape,
   pill,
+  frame = "",
 }: {
-  src: string;
+  /** Three-to-four cut, drawn on a phone. */
+  tile: string;
+  /** Wide cut, drawn from the `tab` breakpoint up. */
+  wide: string;
   alt: string;
-  width: number;
-  height: number;
+  shape: string;
   /** Colours for the Shop Now pill, picked to sit on that artwork. */
   pill: string;
+  /** An edge, for artwork too pale to show one of its own. */
+  frame?: string;
 }) {
   return (
     <Link
       href="/offers"
-      className="relative block w-full overflow-hidden rounded-xl tab:rounded-2xl"
-      style={{ aspectRatio: `${width} / ${height}` }}
+      className={`relative block w-full overflow-hidden rounded-xl tab:rounded-2xl ${shape} ${frame}`}
     >
-      <Image
-        src={src}
-        alt={alt}
-        fill
-        sizes="(min-width: 700px) 1392px, 100vw"
-        style={{ objectFit: "cover", objectPosition: "50% 50%" }}
-      />
+      <picture>
+        <source media="(min-width: 700px)" srcSet={wide} />
+        {/* Plain <img>: these are two fixed files, each already cut and sized
+            for the one place it is drawn, so there is nothing for the image
+            optimiser to do and `<picture>` is what picks between them. */}
+        <img
+          src={tile}
+          alt={alt}
+          loading="lazy"
+          decoding="async"
+          className="absolute inset-0 h-full w-full object-cover"
+        />
+      </picture>
 
       <span
-        className={`absolute bottom-1 right-1 z-10 inline-flex items-center gap-0.5 rounded-full px-1.5 py-[2px] text-[9px] font-bold shadow-[0_1px_5px_rgba(0,40,28,0.28)] tab:bottom-5 tab:right-6 tab:gap-1.5 tab:px-4 tab:py-1.5 tab:text-[13px] ${pill}`}
+        className={`absolute bottom-1 left-1 z-10 inline-flex items-center gap-0.5 rounded-full px-1.5 py-[2px] text-[9px] font-bold shadow-[0_1px_5px_rgba(0,40,28,0.28)] tab:bottom-2 tab:left-auto tab:right-2 tab:gap-1 tab:px-2.5 tab:py-1 tab:text-[11px] ${pill}`}
       >
         Shop Now
         <ArrowRight className="h-2.5 w-2.5 tab:h-3.5 tab:w-3.5" strokeWidth={3} />
@@ -93,8 +109,8 @@ function ArtworkBanner({
   );
 }
 
-/** One admin-published promo banner, drawn in the same single column as the
- * pair above it.
+/** One admin-published promo banner, taking the same shape as the pair above
+ * it so a published tile sits in the row rather than beside it.
  *
  * As in the hero, an uploaded picture is left to speak for itself: these
  * banners arrive as finished artwork with their own wording, and a headline
@@ -106,7 +122,7 @@ function PromoTile({ banner }: { banner: StoreBanner }) {
       src={banner.image}
       alt={banner.title}
       fill
-      sizes="(min-width: 700px) 1392px, 100vw"
+      sizes="(min-width: 700px) 600px, 50vw"
       style={{ objectFit: "cover", objectPosition: "50% 50%" }}
     />
   ) : (
@@ -136,7 +152,7 @@ function PromoTile({ banner }: { banner: StoreBanner }) {
   );
 
   const shell =
-    "relative flex h-[92px] flex-col justify-center overflow-hidden rounded-xl bg-[linear-gradient(135deg,#00553d_0%,#007553_100%)] px-3 tab:h-[150px] tab:rounded-2xl tab:px-8";
+    "relative flex aspect-[4/3] flex-col justify-center overflow-hidden rounded-xl bg-[linear-gradient(135deg,#00553d_0%,#007553_100%)] px-3 tab:aspect-[1075/249] tab:rounded-2xl tab:px-8";
 
   return banner.href ? (
     <Link href={banner.href} className={shell}>

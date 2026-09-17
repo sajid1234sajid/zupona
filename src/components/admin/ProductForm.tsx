@@ -100,8 +100,12 @@ export default function ProductForm({
 
   const matrix = useMemo(() => buildMatrix(groups), [groups]);
   // Only the create form spreads a single entered total across the rows; the
-  // edit form shows each combination's real stock instead.
-  const defaultStock = showStockFields ? Math.max(0, Number(stock) || 0) : undefined;
+  // edit form shows each combination's real stock instead. The total is
+  // optional: a blank box spreads nothing, the rows stay empty, and the new
+  // variants start at zero the way an untouched row already does -- stock can
+  // be filled in per combination later.
+  const defaultStock =
+    showStockFields && stock.trim() !== "" ? Math.max(0, Number(stock) || 0) : undefined;
   const defaultThreshold = showStockFields ? Math.max(0, Number(lowStockAlert) || 0) : undefined;
   const optionsPayload = useMemo(
     () => buildOptionsPayload({ groups, cells, matrix, defaultStock, defaultThreshold }),
@@ -221,15 +225,14 @@ export default function ProductForm({
 
               {showStockFields ? (
                 <>
-                  <Field label="Stock Quantity" required hint="Spread across the combinations below">
+                  <Field label="Stock Quantity" hint="Optional — spread across the combinations">
                     <input
                       name="stock"
                       type="number"
                       min={0}
-                      required
                       value={stock}
                       onChange={(event) => setStock(event.target.value)}
-                      placeholder="Enter stock quantity"
+                      placeholder="Optional"
                       className={fieldStyles}
                     />
                   </Field>

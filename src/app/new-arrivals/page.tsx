@@ -4,7 +4,7 @@ import { Sparkles } from "lucide-react";
 import ProductHeader from "@/components/layout/ProductHeader";
 import DesktopHeader from "@/components/layout/DesktopHeader";
 import BottomNav from "@/components/layout/BottomNav";
-import ProductCard from "@/components/home/ProductCard";
+import PagedProductGrid from "@/components/product/PagedProductGrid";
 import { listStoreProducts } from "@/lib/storefront";
 import { getCurrentUser } from "@/lib/session";
 import { getWishlistProductIds } from "@/lib/wishlist";
@@ -61,16 +61,11 @@ export default async function NewArrivalsPage() {
             </Link>
           </div>
         ) : (
-          <div className="mt-3 grid grid-cols-2 gap-1.5 tab:mt-5 tab:grid-cols-3 tab:gap-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
-            {products.map((product) => (
-              <ProductCard
-                key={product.id}
-                product={product}
-                isWishlisted={wishlistIds.has(product.id)}
-                isSignedIn={Boolean(user)}
-              />
-            ))}
-          </div>
+          <PagedProductGrid
+            products={products}
+            wishlistIds={[...wishlistIds]}
+            isSignedIn={Boolean(user)}
+          />
         )}
       </main>
       <BottomNav />

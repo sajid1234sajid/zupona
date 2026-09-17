@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
 import { Home, LayoutGrid, ShoppingCart, Tag, User } from "lucide-react";
+import { usePendingCartAdds } from "@/lib/cartSignal";
 import type { LucideIcon } from "lucide-react";
 
 interface NavItem {
@@ -134,6 +135,10 @@ function TabContents({
 export default function BottomNavBar({ cartCount }: { cartCount: number }) {
   const pathname = usePathname();
 
+  // What the server said, plus anything added since it said it.
+  const pendingAdds = usePendingCartAdds(cartCount);
+  const shownCartCount = cartCount + pendingAdds;
+
   // Which tab was last pressed, until the router catches up. Without it the
   // pressed tab lights up while the old one is still lit off the path, and two
   // tabs look current at once for as long as the fetch takes.
@@ -169,13 +174,13 @@ export default function BottomNavBar({ cartCount }: { cartCount: number }) {
             onClick={() => setPressed(href)}
             aria-current={isActive ? "page" : undefined}
             aria-label={
-              raised && cartCount > 0
-                ? `${label}, ${cartCount} ${cartCount === 1 ? "item" : "items"}`
+              raised && shownCartCount > 0
+                ? `${label}, ${shownCartCount} ${shownCartCount === 1 ? "item" : "items"}`
                 : undefined
             }
             className="relative flex flex-1 flex-col items-center justify-center gap-1 py-2.5"
           >
-            <TabContents item={item} active={isActive} cartCount={cartCount} />
+            <TabContents item={item} active={isActive} cartCount={shownCartCount} />
           </Link>
         );
       })}

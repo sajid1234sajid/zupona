@@ -55,10 +55,15 @@ function parseWidth(raw: string | null): number | null {
  * key rather than overwriting this one. */
 const EDGE_TTL_SECONDS = 31536000;
 
-/** The colo cache, or null where there isn't one (the Node dev server). */
+/** The colo cache, or null where there isn't one (the Node dev server).
+ *
+ * `caches.default` is workerd's, not the browser's, and TypeScript resolves
+ * `CacheStorage` to the DOM one here -- hence the cast rather than a type that
+ * would claim the DOM has a property it does not. */
 function edgeCache(): Cache | null {
   try {
-    return typeof caches !== "undefined" ? caches.default : null;
+    if (typeof caches === "undefined") return null;
+    return (caches as CacheStorage & { default?: Cache }).default ?? null;
   } catch {
     return null;
   }

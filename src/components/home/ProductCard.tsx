@@ -9,6 +9,7 @@ import type { ProductSummary } from "@/types";
 import { formatPrice } from "@/lib/format";
 import { toggleWishlistAction } from "@/app/wishlist/actions";
 import { addToCartAction } from "@/app/cart/actions";
+import { signalCartAdd } from "@/lib/cartSignal";
 
 /** A product tile.
  *
@@ -52,6 +53,14 @@ export default function ProductCard({
   }
 
   function handleAddToCart() {
+    // Announced before the action rather than after it, the same way the
+    // wishlist heart flips before its action: the server is what decides, but
+    // waiting for it to answer left the badge still on the old number for
+    // about two seconds, which is long enough for a shopper to think the tap
+    // was ignored and press again. If the add is refused -- an unpublished
+    // product -- `router.refresh()` brings the real count and the guess is
+    // dropped, so nothing can stay wrong.
+    signalCartAdd(1);
     startCartTransition(async () => {
       await addToCartAction(product.id);
       setJustAdded(true);

@@ -91,6 +91,51 @@ as broken thumbnails. Pass `unoptimized` for those; see
 **After changing `wrangler.jsonc` bindings,** run `npx wrangler types` to
 refresh `worker-configuration.d.ts`.
 
+## Speed is a constraint on every change, not a task
+
+The shop is served to phones on mobile data in Bangladesh, and the speed it has
+was won by measuring rather than guessing. Treat a regression here the way you
+would treat a broken build: it applies to every change, not only to work whose
+stated purpose is performance. Four things quietly undo it, and each has a
+place it is already solved:
+
+**Every picture goes through `StoreImage`** (`src/components/ui/StoreImage.tsx`),
+never `next/image` directly. Handed a remote URL with `fill`, `next/image` on
+this stack emits a bare `<img>` with no `srcSet` at all, and `/_next/image`
+refuses an `/api/media/` path outright -- so an upload went down the wire at its
+full size, half a megabyte behind a 170px tile. `StoreImage` asks the source
+itself for the width the layout draws, and the media route resizes through the
+Images binding when given `?w=`. Local files under `public/` are the exception
+and stay on `next/image`, which handles them properly.
+
+**A grid mounts a page at a time.** Every `ProductCard` is a client component
+with its own state, so a grid that renders the whole catalog blocks the main
+thread while it hydrates and the tab bar will not answer a tap. See
+`FeaturedProducts` for the shape: the full catalog still crosses to the client
+so search and the chips filter instantly, and only the number on screen grows.
+
+**A link inside a long list does not prefetch.** `prefetch={false}` on product
+tiles. Dozens of them each cost an RSC round trip for a page nobody asked for,
+and they compete with the navigation the shopper actually wants.
+
+**Independent reads start together.** D1 lives in Singapore, so every `await`
+that could have run alongside another is a whole round trip spent. Read the
+session and anything that does not depend on it in one `Promise.all`.
+
+Media responses are kept in the colo cache (`caches.default`) because
+Cloudflare does not cache a Worker's response on its own; without it every
+thumbnail re-ran the R2 read and the transform.
+
+### Measure it, do not reason about it
+
+Claims about speed made from reasoning have been wrong here before, in both
+directions -- a change predicted to save hundreds of milliseconds saved about a
+hundred, and a page assumed to be slow turned out to be fast. Render the page
+with Playwright and read real numbers: FCP, load, transferred bytes, request
+count, and for anything about responsiveness the long-task total under CPU
+throttling (`Emulation.setCPUThrottlingRate`), which is what a mid-range
+Android actually feels.
+
 ## Before claiming the UI looks right
 
 Render the page and look at it — Playwright is a devDependency for exactly

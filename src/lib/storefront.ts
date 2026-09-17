@@ -777,6 +777,23 @@ export interface StoreCategoryOverview extends StoreCategory {
 export async function listCategoryOverviews(
   highlightCount = 6
 ): Promise<StoreCategoryOverview[]> {
+  return cached(
+    CacheKeys.categoryOverviews(highlightCount),
+    () => queryCategoryOverviews(highlightCount),
+    CATALOG_TTL_SECONDS
+  );
+}
+
+/** Builds the overview from scratch.
+ *
+ * Cached as one entry above rather than left to the per-list caching inside,
+ * because the highlights are read a department at a time: eight departments
+ * meant eight cache round trips before the page could render, and eight
+ * separate queries to a database in Singapore whenever one of them missed.
+ * The key lives under `catalog:`, so an admin edit clears it with the rest. */
+async function queryCategoryOverviews(
+  highlightCount: number
+): Promise<StoreCategoryOverview[]> {
   const db = await getDB();
   const categories = await listStoreCategories();
 

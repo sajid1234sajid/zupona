@@ -16,6 +16,7 @@ export const CacheKeys = {
   featuredProducts: (limit: number) => `catalog:featured:${limit}`,
   product: (id: string) => `catalog:product:${id}`,
   productList: (fingerprint: string) => `catalog:list:${fingerprint}`,
+  categoryOverviews: (highlightCount: number) => `catalog:overviews:${highlightCount}`,
   banners: (placement: string) => `catalog:banners:${placement}`,
   siteSettings: () => "settings:all",
 } as const;

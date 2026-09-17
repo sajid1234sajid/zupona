@@ -107,7 +107,6 @@ export interface CheckoutDetails {
   district: string;
   area: string;
   addressDetails: string;
-  deliveryMethod: string;
   paymentMethod: string;
   code: string;
   /** Whether the cart is being bought, or a single Buy Now line. */
@@ -251,13 +250,10 @@ export async function placeOrderAction(
   // threshold is applied here so the amount recorded on the order is the
   // amount the shopper was shown.
   const settings = await getShopSettings();
-  const delivery = getDeliveryMethod(details.deliveryMethod, {
-    standard: settings.standardShippingFee,
-    express: settings.expressShippingFee,
-  });
+  const delivery = getDeliveryMethod("standard");
   const payment = getPaymentOption(details.paymentMethod);
   const subtotal = lines.reduce((sum, line) => sum + line.price * line.quantity, 0);
-  const shippingFee = shippingFeeFor(subtotal, delivery.id, settings);
+  const shippingFee = shippingFeeFor(subtotal, settings);
   const total = subtotal + shippingFee;
   const pointsEarned = calcPointsEarned(total);
 

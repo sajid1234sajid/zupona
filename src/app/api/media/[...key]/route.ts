@@ -15,6 +15,13 @@ import { isAllowedWidth } from "@/lib/image";
  * ever answers 200 with the whole file leaves the timeline unseekable and
  * makes Safari refuse to play at all.
  *
+ * Answers are kept in the colo's own cache, because Cloudflare does not cache
+ * a Worker's response on its own -- every request here was arriving as a
+ * `CF-Cache-Status: BYPASS`, re-reading R2 and re-running the transform for a
+ * picture that had not changed since it was uploaded. Object keys are random
+ * and never reused and the width is part of the URL, so a stored answer can
+ * never be the wrong one.
+ *
  * `?w=<pixels>` resizes on the way out through the Cloudflare Images binding.
  * This route is the *only* place an upload can be resized: `/_next/image`
  * answers 404 for an `/api/media/` URL, so before this the shop served every
@@ -38,6 +45,23 @@ function parseWidth(raw: string | null): number | null {
   if (!raw || !/^[0-9]{1,4}$/.test(raw)) return null;
   const width = Number(raw);
   return isAllowedWidth(width) ? width : null;
+}
+
+/** How long the edge may keep a rendered answer.
+ *
+ * A year, matching the `immutable` the response already carries: the key names
+ * one exact object and `?w=` names one exact size, so there is nothing for a
+ * stored copy to go stale against. Replacing a product photograph writes a new
+ * key rather than overwriting this one. */
+const EDGE_TTL_SECONDS = 31536000;
+
+/** The colo cache, or null where there isn't one (the Node dev server). */
+function edgeCache(): Cache | null {
+  try {
+    return typeof caches !== "undefined" ? caches.default : null;
+  } catch {
+    return null;
+  }
 }
 
 /** Parses a single-range `bytes=` header into what R2 understands.
@@ -84,6 +108,40 @@ export async function GET(
     if (!user || (user.role !== "admin" && user.role !== "support")) {
       return new NextResponse("Not found", { status: 404 });
     }
+  }
+
+  // A stored answer, if this colo already rendered this exact URL. Skipped for
+  // a range request, whose 206 belongs to one player's byte window and must
+  // never be handed to the next caller asking for the whole file, and for
+  // private documents, which are not for a shared cache to hold.
+  const cache = isPrivate ? null : edgeCache();
+  const cacheKey = new Request(request.url, { method: "GET" });
+  const isRangeRequest = request.headers.has("range");
+
+  if (cache && !isRangeRequest) {
+    const hit = await cache.match(cacheKey);
+    if (hit) return hit;
+  }
+
+  /** Stores `response` for next time and hands back the copy to serve. */
+  async function store(response: Response): Promise<Response> {
+    if (!cache || isRangeRequest || response.status !== 200) return response;
+
+    const stored = new Response(response.body, response);
+    stored.headers.set("cache-control", `public, max-age=${EDGE_TTL_SECONDS}, immutable`);
+
+    // One copy is given to the cache and the other to the caller; a body can
+    // only be read once. The put is not awaited -- `waitUntil` keeps the
+    // Worker alive for it after the picture has already gone out.
+    const forCache = stored.clone();
+    try {
+      const { waitUntil } = await import("cloudflare:workers");
+      waitUntil(cache.put(cacheKey, forCache));
+    } catch {
+      // No runtime to defer the write to; filling the cache is best-effort.
+    }
+
+    return stored;
   }
 
   const range = parseRange(request.headers.get("range"));
@@ -182,7 +240,7 @@ export async function GET(
       resizedHeaders.delete("content-length");
       resizedHeaders.delete("etag");
 
-      return new NextResponse(resized.image(), { headers: resizedHeaders });
+      return await store(new NextResponse(resized.image(), { headers: resizedHeaders }));
     } catch {
       // A transform that fails must not lose the picture. Fall through and
       // serve the original -- oversized, but visible.
@@ -196,5 +254,5 @@ export async function GET(
   }
 
   headers.set("content-length", String(object.size));
-  return new NextResponse(body, { headers });
+  return await store(new NextResponse(body, { headers }));
 }

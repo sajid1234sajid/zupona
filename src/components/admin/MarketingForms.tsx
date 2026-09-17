@@ -47,8 +47,7 @@ export function BannerForm() {
           <Field label="Placement" required>
             <select name="placement" defaultValue="hero" className={fieldStyles}>
               <option value="hero">Hero — top of homepage</option>
-              <option value="promo">Promo strip</option>
-              <option value="discover">Discover row</option>
+              <option value="promo">Promo strip — under the departments</option>
             </select>
           </Field>
           <Field label="Sort order" hint="Lower shows first">

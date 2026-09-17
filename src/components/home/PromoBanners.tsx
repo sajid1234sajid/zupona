@@ -1,18 +1,24 @@
+import Image from "@/components/ui/StoreImage";
 import Link from "next/link";
 import { Zap, Truck, ArrowRight } from "lucide-react";
 import { getShopSettings } from "@/lib/shopSettings";
 import { formatPrice } from "@/lib/format";
+import { listStoreBanners, type StoreBanner } from "@/lib/storefront";
 import BotanicalBackdrop from "./BotanicalBackdrop";
 
-/** The two promotional tiles under the departments.
+/** The promotional tiles under the departments.
  *
  * The delivery threshold is read from shop settings rather than typed in, so
  * raising free delivery in the admin panel updates the promise a customer is
  * shown here at the same moment it starts being honoured at checkout.
  *
+ * Banners published under the "promo" placement join the two standing tiles
+ * as further tiles in the same grid, which is what makes that choice in the
+ * admin panel mean something on the shop.
+ *
  * The `tab:` classes are the laptop sizes; the phone design is the rest. */
 export default async function PromoBanners() {
-  const settings = await getShopSettings();
+  const [settings, promos] = await Promise.all([getShopSettings(), listStoreBanners("promo")]);
 
   return (
     <section className="grid grid-cols-2 gap-1.5 px-3.5 pt-2.5 tab:gap-3 tab:px-0 tab:pt-3">
@@ -85,6 +91,65 @@ export default async function PromoBanners() {
           strokeWidth={1.3}
         />
       </Link>
+
+      {promos.map((promo) => (
+        <PromoTile key={promo.id} banner={promo} />
+      ))}
     </section>
+  );
+}
+
+/** One admin-published promo tile, built to the same height as the pair above
+ * it so an odd number of them still leaves a tidy grid. */
+function PromoTile({ banner }: { banner: StoreBanner }) {
+  const body = (
+    <>
+      {banner.image ? (
+        <Image
+          src={banner.image}
+          alt={banner.title}
+          fill
+          sizes="(min-width: 700px) 720px, 50vw"
+          style={{ objectFit: "cover", objectPosition: "50% 50%" }}
+        />
+      ) : (
+        <BotanicalBackdrop
+          className="absolute inset-0 h-full w-full"
+          tone="#7fe0c6"
+          opacity={0.24}
+          blossoms={false}
+        />
+      )}
+
+      {banner.image ? (
+        <span className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(0,38,27,0.8)_0%,rgba(0,38,27,0.45)_70%,rgba(0,38,27,0.1)_100%)]" />
+      ) : null}
+
+      <span className="relative z-10 block text-[10.5px] font-bold leading-tight text-white drop-shadow-[0_1px_5px_rgba(0,30,20,0.45)] tab:text-xl">
+        {banner.title}
+      </span>
+      {banner.subtitle ? (
+        <span className="relative z-10 mt-[3px] block text-[10px] leading-[1.3] text-white/85 tab:mt-2 tab:text-sm">
+          {banner.subtitle}
+        </span>
+      ) : null}
+      {banner.href ? (
+        <span className="relative z-10 mt-1.5 inline-flex w-fit items-center gap-0.5 rounded-full bg-white px-2 py-[3px] text-[10px] font-bold text-brand-dark tab:mt-4 tab:gap-1.5 tab:px-4 tab:py-1.5 tab:text-[13px]">
+          Shop Now
+          <ArrowRight className="h-2.5 w-2.5 tab:h-3.5 tab:w-3.5" strokeWidth={3} />
+        </span>
+      ) : null}
+    </>
+  );
+
+  const shell =
+    "relative flex h-[92px] flex-col justify-center overflow-hidden rounded-xl bg-[linear-gradient(135deg,#00553d_0%,#007553_100%)] px-3 tab:h-[150px] tab:rounded-2xl tab:px-8";
+
+  return banner.href ? (
+    <Link href={banner.href} className={shell}>
+      {body}
+    </Link>
+  ) : (
+    <div className={shell}>{body}</div>
   );
 }

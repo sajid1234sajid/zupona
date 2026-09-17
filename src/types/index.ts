@@ -136,6 +136,8 @@ export interface CartItem {
   product: ProductSummary;
 }
 
+/** The shop offers one delivery option. `express` only ever appears on orders
+ * placed before the two-tier delivery was retired. */
 export type DeliveryMethodId = "standard" | "express";
 
 export type OrderStatus =

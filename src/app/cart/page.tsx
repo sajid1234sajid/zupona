@@ -6,8 +6,7 @@ import BottomNav from "@/components/layout/BottomNav";
 import CartItemRow from "@/components/cart/CartItemRow";
 import { getShopper } from "@/lib/session";
 import { getCartItems, cartSubtotal } from "@/lib/cart";
-import { getDeliveryMethod } from "@/lib/checkout";
-import { getDeliveryFees } from "@/lib/shopSettings";
+import { getShopSettings, shippingFeeFor } from "@/lib/shopSettings";
 import { formatPrice } from "@/lib/format";
 
 export default async function CartPage() {
@@ -16,8 +15,10 @@ export default async function CartPage() {
   const shopper = await getShopper();
   const items = shopper ? await getCartItems(shopper.id) : [];
   const subtotal = cartSubtotal(items);
-  const fees = await getDeliveryFees();
-  const shippingFee = items.length > 0 ? getDeliveryMethod("standard", fees).fee : 0;
+  // Priced exactly as checkout will price it, threshold included, so the two
+  // screens cannot quote different delivery charges.
+  const settings = await getShopSettings();
+  const shippingFee = items.length > 0 ? shippingFeeFor(subtotal, settings) : 0;
   const total = subtotal + shippingFee;
 
   return (

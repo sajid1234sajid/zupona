@@ -113,21 +113,12 @@ export function StoreSettingsForm({
       <Card>
         <CardHeader title="Shipping & Pricing" subtitle="Whole Taka — no decimals anywhere" />
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Field label="Standard delivery">
+          <Field label="Delivery charge" hint="The shop's only delivery fee">
             <input
-              name="standard_shipping_fee"
+              name="delivery_fee"
               type="number"
               min={0}
-              defaultValue={settings.standardShippingFee}
-              className={fieldStyles}
-            />
-          </Field>
-          <Field label="Express delivery">
-            <input
-              name="express_shipping_fee"
-              type="number"
-              min={0}
-              defaultValue={settings.expressShippingFee}
+              defaultValue={settings.deliveryFee}
               className={fieldStyles}
             />
           </Field>

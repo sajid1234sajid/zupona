@@ -2,8 +2,93 @@ import Image from "@/components/ui/StoreImage";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import BotanicalBackdrop from "./BotanicalBackdrop";
+import { listStoreBanners, type StoreBanner } from "@/lib/storefront";
 
-/** The season banner.
+/** The top slot of the homepage.
+ *
+ * A banner published under Marketing > Homepage Banners with the "hero"
+ * placement is what a shopper sees here. Publishing one used to change
+ * nothing at all on the shop, because this slot was the hardcoded season
+ * artwork below and never read the `banners` table; that is the whole reason
+ * this component takes a trip to the database.
+ *
+ * With no banner published -- a fresh shop, or every one of them hidden --
+ * the season artwork is still the fallback, so the homepage is never headed
+ * by an empty box. */
+export default async function HeroBanner() {
+  const [banner] = await listStoreBanners("hero");
+  return banner ? <PublishedHero banner={banner} /> : <SeasonBanner />;
+}
+
+/** The shell both versions sit in: one height on a phone, another on a laptop,
+ * so swapping which banner is drawn never moves the page around it. */
+const SHELL =
+  "relative h-[118px] overflow-hidden rounded-[18px] tab:h-[300px] tab:rounded-3xl";
+
+/** An admin-published banner.
+ *
+ * The uploaded picture fills the whole shell rather than sitting beside the
+ * copy, because a banner image is chosen as the banner -- it is not a cutout
+ * to composite. The copy is laid over it behind a scrim that fades out to the
+ * right, which keeps the headline legible on a dark photograph and a pale one
+ * both, and leaves the right-hand side of the picture visible. */
+function PublishedHero({ banner }: { banner: StoreBanner }) {
+  const body = (
+    <div className={`${SHELL} bg-[linear-gradient(105deg,#00553d_0%,#007553_100%)]`}>
+      {banner.image ? (
+        <Image
+          src={banner.image}
+          alt={banner.title}
+          fill
+          sizes="(min-width: 700px) 1440px, 100vw"
+          preload
+          style={{ objectFit: "cover", objectPosition: "50% 50%" }}
+        />
+      ) : (
+        <BotanicalBackdrop className="absolute inset-0 h-full w-full" tone="#7fe0c6" opacity={0.26} />
+      )}
+
+      {/* Only drawn over a photograph: on the plain green fallback the copy is
+          already on a flat colour and a second wash would only dull it. */}
+      {banner.image ? (
+        <span className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(0,38,27,0.82)_0%,rgba(0,38,27,0.58)_46%,rgba(0,38,27,0.06)_100%)]" />
+      ) : null}
+
+      <div className="relative z-10 flex h-full max-w-[72%] flex-col justify-center px-3.5 tab:max-w-[58%] tab:px-10 lg:px-14">
+        <h1 className="font-serif text-[20px] font-bold leading-[1.1] text-white drop-shadow-[0_1px_6px_rgba(0,30,20,0.45)] tab:text-[40px] lg:text-[48px]">
+          {banner.title}
+        </h1>
+        {banner.subtitle ? (
+          <p className="mt-1 text-[10px] leading-[1.35] text-white/85 tab:mt-3 tab:text-base">
+            {banner.subtitle}
+          </p>
+        ) : null}
+        {banner.href ? (
+          <span className="mt-2 inline-flex w-fit items-center gap-1 rounded-full bg-white px-3 py-[5px] text-[9.5px] font-semibold text-brand-dark shadow-[0_2px_6px_rgba(0,40,28,0.35)] tab:mt-5 tab:gap-2 tab:px-6 tab:py-2.5 tab:text-sm">
+            Shop Now
+            <ArrowRight className="h-3 w-3 tab:h-4 tab:w-4" strokeWidth={2.5} />
+          </span>
+        ) : null}
+      </div>
+    </div>
+  );
+
+  return (
+    <section className="px-3.5 pt-2.5 tab:px-0 tab:pt-0">
+      {/* Wrapped rather than given a link inside, so the whole banner is the
+          target on a phone. A banner with no link is not a dead tap. */}
+      {banner.href ? (
+        <Link href={banner.href} className="block">
+          {body}
+        </Link>
+      ) : (
+        body
+      )}
+    </section>
+  );
+}
+
+/** The season banner, shown when nothing is published.
  *
  * The bag is a photograph on a botanical drawing rather than one flat image,
  * so the artwork keeps its proportions on every phone width while the leaves
@@ -12,10 +97,10 @@ import BotanicalBackdrop from "./BotanicalBackdrop";
  *
  * Every `tab:` class is the laptop version of the same banner; below that
  * breakpoint the phone design is untouched. */
-export default function HeroBanner() {
+function SeasonBanner() {
   return (
     <section className="px-3.5 pt-2.5 tab:px-0 tab:pt-0">
-      <div className="relative h-[118px] overflow-hidden rounded-[18px] bg-[linear-gradient(105deg,#e3f2ee_0%,#f4fbf9_46%,#d8ece6_100%)] tab:h-[300px] tab:rounded-3xl">
+      <div className={`${SHELL} bg-[linear-gradient(105deg,#e3f2ee_0%,#f4fbf9_46%,#d8ece6_100%)]`}>
         <BotanicalBackdrop className="absolute inset-0 h-full w-full" tone="#0a936a" opacity={0.26} />
 
         {/* `fill` rather than width/height: given explicit dimensions this

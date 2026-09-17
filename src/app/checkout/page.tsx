@@ -5,9 +5,9 @@ import { getBuyNowLine } from "@/lib/buyNow";
 import { getAddresses } from "@/lib/addresses";
 import { getVerifiedPhone } from "@/lib/verification";
 import { isServedLocation } from "@/data/locations";
-import { deliveryMethodsWithFees, type DeliveryDetails } from "@/lib/checkout";
+import { getDeliveryMethod, type DeliveryDetails } from "@/lib/checkout";
 import { availablePaymentMethods } from "@/lib/payments";
-import { getDeliveryFees } from "@/lib/shopSettings";
+import { getDeliveryFee } from "@/lib/shopSettings";
 import CheckoutWizard from "@/components/checkout/CheckoutWizard";
 
 export default async function CheckoutPage({ searchParams }: PageProps<"/checkout">) {
@@ -17,8 +17,8 @@ export default async function CheckoutPage({ searchParams }: PageProps<"/checkou
   const shopper = await getShopper();
   if (!shopper) redirect("/cart");
 
-  const [verifiedPhone, fees] = await Promise.all([getVerifiedPhone(), getDeliveryFees()]);
-  const pricedDelivery = deliveryMethodsWithFees(fees);
+  const [verifiedPhone, deliveryFee] = await Promise.all([getVerifiedPhone(), getDeliveryFee()]);
+  const delivery = getDeliveryMethod("standard", deliveryFee);
   const payableWith = await availablePaymentMethods();
 
   // Buy Now checks out one line held in its own session; the cart is not read
@@ -65,7 +65,6 @@ export default async function CheckoutPage({ searchParams }: PageProps<"/checkou
     district: usableLocation ? savedLocation.district : "",
     area: usableLocation ? savedLocation.area : "",
     addressDetails: saved?.line1 ?? "",
-    deliveryMethod: "standard",
   };
 
   return (
@@ -98,7 +97,7 @@ export default async function CheckoutPage({ searchParams }: PageProps<"/checkou
             }))
       }
       subtotal={buyNow ? buyNow.price * buyNow.quantity : cartSubtotal(items)}
-      deliveryMethods={pricedDelivery}
+      delivery={delivery}
       payableWith={payableWith}
     />
   );

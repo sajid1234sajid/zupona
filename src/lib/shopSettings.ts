@@ -9,6 +9,7 @@
 
 import { getDB } from "@/lib/db";
 import { cached } from "@/lib/cache";
+import { DEFAULT_DELIVERY_FEE } from "@/lib/checkout";
 
 export interface ShopSettings {
   storeName: string;
@@ -16,8 +17,8 @@ export interface ShopSettings {
   supportEmail: string | null;
   supportPhone: string | null;
   currencySymbol: string;
-  standardShippingFee: number;
-  expressShippingFee: number;
+  /** What delivery costs. One fee: the shop does not offer delivery tiers. */
+  deliveryFee: number;
   /** 0 disables free shipping entirely. */
   freeShippingThreshold: number;
   lowStockThreshold: number;
@@ -49,8 +50,7 @@ export const DEFAULT_SETTINGS: ShopSettings = {
   supportEmail: null,
   supportPhone: null,
   currencySymbol: "৳",
-  standardShippingFee: 80,
-  expressShippingFee: 120,
+  deliveryFee: DEFAULT_DELIVERY_FEE,
   freeShippingThreshold: 999,
   lowStockThreshold: 5,
   reviewsNeedApproval: false,
@@ -89,14 +89,7 @@ async function querySettings(): Promise<ShopSettings> {
     supportEmail: map.get("support_email")?.trim() || null,
     supportPhone: map.get("support_phone")?.trim() || null,
     currencySymbol: text("currency_symbol", DEFAULT_SETTINGS.currencySymbol),
-    standardShippingFee: readInt(
-      map.get("standard_shipping_fee"),
-      DEFAULT_SETTINGS.standardShippingFee
-    ),
-    expressShippingFee: readInt(
-      map.get("express_shipping_fee"),
-      DEFAULT_SETTINGS.expressShippingFee
-    ),
+    deliveryFee: readInt(map.get("delivery_fee"), DEFAULT_SETTINGS.deliveryFee),
     freeShippingThreshold: readInt(
       map.get("free_shipping_threshold"),
       DEFAULT_SETTINGS.freeShippingThreshold
@@ -128,14 +121,9 @@ export async function getShopSettings(): Promise<ShopSettings> {
 /* Derived helpers                                                            */
 /* -------------------------------------------------------------------------- */
 
-export interface DeliveryFees {
-  standard: number;
-  express: number;
-}
-
-export async function getDeliveryFees(): Promise<DeliveryFees> {
+export async function getDeliveryFee(): Promise<number> {
   const settings = await getShopSettings();
-  return { standard: settings.standardShippingFee, express: settings.expressShippingFee };
+  return settings.deliveryFee;
 }
 
 /** The delivery charge for an order, after the free-shipping threshold.
@@ -144,18 +132,11 @@ export async function getDeliveryFees(): Promise<DeliveryFees> {
  * total can never quote three different numbers. */
 export function shippingFeeFor(
   subtotal: number,
-  method: "standard" | "express",
-  settings: Pick<
-    ShopSettings,
-    "standardShippingFee" | "expressShippingFee" | "freeShippingThreshold"
-  >
+  settings: Pick<ShopSettings, "deliveryFee" | "freeShippingThreshold">
 ): number {
-  const base =
-    method === "express" ? settings.expressShippingFee : settings.standardShippingFee;
-
   // A threshold of 0 means the shop is not offering free delivery at all.
   if (settings.freeShippingThreshold > 0 && subtotal >= settings.freeShippingThreshold) {
     return 0;
   }
-  return base;
+  return settings.deliveryFee;
 }

@@ -28,7 +28,7 @@ interface StepDeliveryProps {
   lines: SummaryLine[];
   subtotal: number;
   /** Priced from the shop's settings rather than a built-in constant. */
-  deliveryMethods: DeliveryMethod[];
+  delivery: DeliveryMethod;
   /** Set when this browser already confirmed the delivery number. */
   phoneVerified: boolean;
   onContinue: () => void;
@@ -47,7 +47,7 @@ export default function StepDelivery({
   onChange,
   lines,
   subtotal,
-  deliveryMethods,
+  delivery,
   phoneVerified,
   onContinue,
   pending = false,
@@ -56,7 +56,7 @@ export default function StepDelivery({
   // Open the contact editor when either required field is still missing,
   // so nothing needed to continue is hidden behind the collapsed row.
   const [editingContact, setEditingContact] = useState(!details.fullName || !details.phone);
-  const fee = deliveryMethods.find((method) => method.id === details.deliveryMethod)?.fee ?? 0;
+  const fee = delivery.fee;
   const normalized = normalizeBdPhone(details.phone);
   const displayPhone = normalized ? formatBdPhone(normalized) : details.phone;
 
@@ -180,58 +180,27 @@ export default function StepDelivery({
         </p>
       </section>
 
+      {/* One delivery option, so this states the charge rather than asking the
+          shopper to choose between tiers that no longer exist. */}
       <section className="rounded-2xl border border-line bg-white p-4 shadow-card">
-        <div className="mb-3 flex items-center gap-2">
+        <div className="flex items-center gap-2.5">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand">
             <Truck className="h-[22px] w-[22px] text-white" strokeWidth={2} />
           </span>
-          <div>
-            <h2 className="text-[16px] font-bold leading-tight text-ink-strong">Delivery method</h2>
-            <p className="text-[12px] text-ink-slate">
-              Choose how you&apos;d like to receive your order
-            </p>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5">
+              <h2 className="truncate text-[16px] font-bold leading-tight text-ink-strong">
+                {delivery.name}
+              </h2>
+              <span className="shrink-0 rounded-md bg-brand-tint px-1.5 py-0.5 text-[9px] font-semibold text-brand-dark">
+                {delivery.eta}
+              </span>
+            </div>
+            <p className="truncate text-[12px] text-ink-slate">{delivery.tagline}</p>
           </div>
-        </div>
-
-        <div className="flex flex-col gap-2">
-          {deliveryMethods.map((method) => {
-            const selected = details.deliveryMethod === method.id;
-            return (
-              <label
-                key={method.id}
-                className={`flex cursor-pointer items-center gap-2.5 rounded-xl border p-3 transition-colors ${
-                  selected ? "border-brand bg-brand-tint/50" : "border-line bg-white"
-                }`}
-              >
-                <span
-                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
-                    selected ? "bg-brand text-white" : "bg-brand-mist text-ink-slate"
-                  }`}
-                >
-                  <Truck className="h-4 w-4" />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="flex items-center gap-1.5">
-                    <span className="truncate text-xs font-bold text-ink-strong">{method.name}</span>
-                    <span className="shrink-0 rounded-md bg-brand-tint px-1.5 py-0.5 text-[9px] font-semibold text-brand-dark">
-                      {method.eta}
-                    </span>
-                  </span>
-                  <span className="block truncate text-[10px] text-ink-slate">{method.tagline}</span>
-                </span>
-                <span className="shrink-0 text-sm font-bold text-brand-darkest">
-                  {formatPrice(method.fee)}
-                </span>
-                <input
-                  type="radio"
-                  name="deliveryMethod"
-                  checked={selected}
-                  onChange={() => onChange({ deliveryMethod: method.id })}
-                  className="h-4 w-4 shrink-0 accent-brand"
-                />
-              </label>
-            );
-          })}
+          <span className="shrink-0 text-sm font-bold text-brand-darkest">
+            {formatPrice(delivery.fee)}
+          </span>
         </div>
       </section>
 

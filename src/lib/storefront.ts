@@ -875,3 +875,68 @@ export async function getStoreProductCard(id: string): Promise<StoreProductCard 
   const map = await getStoreProductsByIds([id]);
   return map.get(id) ?? null;
 }
+
+/* -------------------------------------------------------------------------- */
+/* Banners                                                                    */
+/* -------------------------------------------------------------------------- */
+
+/** A merchandising banner as the storefront needs it.
+ *
+ * The admin panel's own `Banner` type in `src/lib/adminData.ts` carries the
+ * scheduling and visibility columns because the panel has to show them. By the
+ * time a banner reaches a shopper those questions are already settled, so this
+ * shape is only what gets drawn. */
+export interface StoreBanner {
+  id: string;
+  title: string;
+  subtitle: string | null;
+  image: string | null;
+  href: string | null;
+}
+
+async function queryBanners(placement: string): Promise<StoreBanner[]> {
+  const db = await getDB();
+
+  // The schedule is applied here rather than in the component: a banner whose
+  // window has closed should stop being drawn on its own, without an admin
+  // remembering to switch it off. A NULL bound means "no limit that side".
+  const { results } = await db
+    .prepare(
+      `SELECT id, title, subtitle, image_url, link_url
+         FROM banners
+        WHERE placement = ?
+          AND is_active = 1
+          AND (starts_at IS NULL OR starts_at <= datetime('now'))
+          AND (ends_at IS NULL OR ends_at >= datetime('now'))
+        ORDER BY sort_order ASC, created_at DESC`
+    )
+    .bind(placement)
+    .all<{
+      id: string;
+      title: string;
+      subtitle: string | null;
+      image_url: string | null;
+      link_url: string | null;
+    }>();
+
+  return results.map((row) => ({
+    id: row.id,
+    title: row.title,
+    subtitle: row.subtitle,
+    image: row.image_url,
+    href: row.link_url,
+  }));
+}
+
+/** Banners published for one storefront slot, soonest in sort order first.
+ *
+ * Cached under the `catalog:` prefix so publishing, hiding or deleting a
+ * banner in the admin panel clears it through the same `invalidateCatalog()`
+ * every other merchandising write already calls. */
+export async function listStoreBanners(placement: string): Promise<StoreBanner[]> {
+  return cached(
+    CacheKeys.banners(placement),
+    () => queryBanners(placement),
+    CATALOG_TTL_SECONDS
+  );
+}

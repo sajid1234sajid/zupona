@@ -288,9 +288,7 @@ export default async function OrderDetailPage(props: PageProps<"/admin/orders/[i
                 <dd className="font-medium">{formatPrice(order.subtotal)}</dd>
               </div>
               <div className="flex justify-between">
-                <dt className="text-neutral-500">
-                  Delivery ({order.deliveryMethod === "express" ? "Express" : "Standard"})
-                </dt>
+                <dt className="text-neutral-500">Delivery</dt>
                 <dd className="font-medium">{formatPrice(order.shippingFee)}</dd>
               </div>
               {order.discountTotal > 0 ? (

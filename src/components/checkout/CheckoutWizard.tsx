@@ -29,8 +29,8 @@ interface CheckoutWizardProps {
   verifiedPhone: string | null;
   lines: SummaryLine[];
   subtotal: number;
-  /** Delivery options priced from the admin Settings page. */
-  deliveryMethods: DeliveryMethod[];
+  /** The shop's delivery option, priced from the admin Settings page. */
+  delivery: DeliveryMethod;
 }
 
 export default function CheckoutWizard({
@@ -40,7 +40,7 @@ export default function CheckoutWizard({
   verifiedPhone,
   lines,
   subtotal,
-  deliveryMethods,
+  delivery,
 }: CheckoutWizardProps) {
   const router = useRouter();
   // Nobody is asked to sign in, so checkout opens on delivery. The phone number
@@ -66,7 +66,7 @@ export default function CheckoutWizard({
   );
 
   const normalizedPhone = normalizeBdPhone(details.phone);
-  const fee = deliveryMethods.find((method) => method.id === details.deliveryMethod)?.fee ?? 0;
+  const fee = delivery.fee;
 
   const [orderState, placeOrder, placing] = useActionState<PlaceOrderState, FormData>(
     placeOrderAction.bind(null, { ...details, paymentMethod, code, source, idempotencyKey }),
@@ -158,7 +158,7 @@ export default function CheckoutWizard({
             onChange={patchDetails}
             lines={lines}
             subtotal={subtotal}
-            deliveryMethods={deliveryMethods}
+            delivery={delivery}
             phoneVerified={phoneVerified}
             onContinue={goToPayment}
             pending={sending}

@@ -45,46 +45,44 @@ export interface DeliveryMethod {
   fee: number;
 }
 
-/** Standard delivery's window as numbers, so the product page can promise
- * actual dates. The ETA text below is built from it so the two cannot differ. */
-export const STANDARD_DELIVERY_DAYS = { min: 2, max: 3 } as const;
+/** The delivery window as numbers, so the product page can promise actual
+ * dates. The ETA text below is built from it so the two cannot differ. */
+export const DELIVERY_DAYS = { min: 2, max: 3 } as const;
 
-export const deliveryMethods: DeliveryMethod[] = [
-  {
-    id: "standard",
-    name: "Standard Delivery",
-    tagline: "Safe & reliable delivery",
-    eta: `${STANDARD_DELIVERY_DAYS.min}-${STANDARD_DELIVERY_DAYS.max} days`,
-    fee: 80,
-  },
-  {
-    id: "express",
-    name: "Express Delivery",
-    tagline: "Faster delivery for urgent orders",
-    eta: "24 hours",
-    fee: 120,
-  },
-];
+/** What delivery costs before the shop configures its own fee. */
+export const DEFAULT_DELIVERY_FEE = 130;
 
-export function getDeliveryMethod(id: string, fees?: { standard: number; express: number }): DeliveryMethod {
-  const method = deliveryMethods.find((entry) => entry.id === id) ?? deliveryMethods[0];
-  if (!fees) return method;
+/** The shop's one delivery option.
+ *
+ * There used to be a Standard/Express choice. The shop charges a single
+ * delivery fee now, so there is nothing for the shopper to pick and the
+ * option is shown rather than chosen. */
+export const deliveryOption: DeliveryMethod = {
+  id: "standard",
+  name: "Home Delivery",
+  tagline: "Safe & reliable delivery",
+  eta: `${DELIVERY_DAYS.min}-${DELIVERY_DAYS.max} days`,
+  fee: DEFAULT_DELIVERY_FEE,
+};
 
-  // The shop's configured fee wins over the built-in default. Applied here
-  // rather than at each call site so cart, checkout and the order record can
-  // never disagree about what delivery costs.
-  return { ...method, fee: method.id === "express" ? fees.express : fees.standard };
-}
+/** Orders placed while Express still existed keep `express` in their record.
+ * They are never re-priced -- the fee charged is stored on the order itself --
+ * but their own label is kept so an old order does not read as something the
+ * shopper did not choose. */
+const legacyExpress: DeliveryMethod = {
+  id: "express",
+  name: "Express Delivery",
+  tagline: "Faster delivery for urgent orders",
+  eta: "24 hours",
+  fee: 120,
+};
 
-/** The delivery options as the shopper sees them, priced from settings. */
-export function deliveryMethodsWithFees(fees: {
-  standard: number;
-  express: number;
-}): DeliveryMethod[] {
-  return deliveryMethods.map((method) => ({
-    ...method,
-    fee: method.id === "express" ? fees.express : fees.standard,
-  }));
+/** The delivery option behind a stored `delivery_method`, optionally priced
+ * with the shop's configured fee. Applied here rather than at each call site
+ * so cart, checkout and the order record can never disagree. */
+export function getDeliveryMethod(id: string, fee?: number): DeliveryMethod {
+  const method = id === "express" ? legacyExpress : deliveryOption;
+  return fee === undefined ? method : { ...method, fee };
 }
 
 /** The shape the wizard carries from the address step into placing the order. */
@@ -98,7 +96,6 @@ export interface DeliveryDetails {
   /** The upazila or thana inside the district. */
   area: string;
   addressDetails: string;
-  deliveryMethod: DeliveryMethodId;
 }
 
 export type PaymentMethodId = "cod" | "online" | "bank";

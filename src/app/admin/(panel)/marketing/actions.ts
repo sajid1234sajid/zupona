@@ -10,7 +10,10 @@ export interface MarketingFormState {
   success?: string;
 }
 
-const PLACEMENTS = ["hero", "promo", "discover"];
+/** The slots the storefront actually draws. "discover" was offered here and
+ * rendered nowhere, so a banner published into it simply vanished; old rows
+ * still carrying it are left alone and just stay hidden. */
+const PLACEMENTS = ["hero", "promo"];
 
 function refresh(): void {
   revalidatePath("/admin/marketing");

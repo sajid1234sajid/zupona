@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { Search, Bell } from "lucide-react";
+import { Bell } from "lucide-react";
 import ZuponaMark from "@/components/brand/ZuponaMark";
+import SearchLauncher from "@/components/search/SearchLauncher";
 
 /** The Account section's own header.
  *
@@ -8,10 +9,10 @@ import ZuponaMark from "@/components/brand/ZuponaMark";
  * is the one control a shopper reaches for mid-page. It stays below the tab
  * bar's layer so the two never fight.
  *
- * The search pill is a link to the home page rather than an input: the
- * storefront's only product search is the live filter that lives in the home
- * header (`SearchProvider` + the product grid), so this takes you to it
- * instead of pretending to be a second search box that goes nowhere. */
+ * The search pill opens the search sheet over the account page. It used to be
+ * a link to the home page, back when the only product search was the live
+ * filter in the home header -- which meant tapping search here abandoned the
+ * page you were on and left you to find the box yourself. */
 export default function AccountHeader({ unreadCount }: { unreadCount: number }) {
   return (
     // Phones only; `DesktopHeader` takes over from the `tab` breakpoint up.
@@ -30,15 +31,7 @@ export default function AccountHeader({ unreadCount }: { unreadCount: number }) 
           </span>
         </Link>
 
-        {/* Fluid: this is what gives way first when the viewport narrows. */}
-        <Link
-          href="/"
-          aria-label="Search products on the Zupona home page"
-          className="flex h-10 min-w-0 flex-1 items-center gap-1.5 rounded-full bg-brand-mist px-3 text-ink-muted ring-1 ring-brand-tint focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-        >
-          <Search className="h-4 w-4 shrink-0" strokeWidth={2.25} />
-          <span className="truncate text-[11px]">Search products</span>
-        </Link>
+        <SearchLauncher variant="pill" />
 
         <Link
           href="/account/notifications"

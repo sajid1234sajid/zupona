@@ -1,10 +1,16 @@
 import Link from "next/link";
-import { Search, Heart, ShoppingCart } from "lucide-react";
+import { Heart, ShoppingCart } from "lucide-react";
 import ZuponaMark from "@/components/brand/ZuponaMark";
+import SearchLauncher from "@/components/search/SearchLauncher";
 import { getCurrentUser, getShopper } from "@/lib/session";
 import { getWishlistCount } from "@/lib/wishlist";
 import { getCartCount } from "@/lib/cart";
 
+/** The header every page outside the home page and the account section wears.
+ *
+ * The search control opens the search sheet over the current page rather than
+ * navigating anywhere: it used to be a button with no handler at all, so
+ * tapping it on offers, categories, the cart or a product page did nothing. */
 export default async function ProductHeader() {
   const [user, shopper] = await Promise.all([getCurrentUser(), getShopper()]);
   const [wishlistCount, cartCount] = await Promise.all([
@@ -23,9 +29,7 @@ export default async function ProductHeader() {
       </Link>
 
       <div className="flex items-center gap-4">
-        <button aria-label="Search">
-          <Search className="h-5 w-5 text-ink" />
-        </button>
+        <SearchLauncher />
         <Link href="/wishlist" aria-label="Wishlist" className="relative">
           <Heart className="h-5 w-5 text-ink" />
           {wishlistCount > 0 && (

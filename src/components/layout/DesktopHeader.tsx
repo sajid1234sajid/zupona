@@ -1,11 +1,12 @@
 import Link from "next/link";
-import { Heart, Search, ShoppingCart, User } from "lucide-react";
+import { Heart, ShoppingCart, User } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import ZuponaMark from "@/components/brand/ZuponaMark";
 import { getCurrentUser, getShopper } from "@/lib/session";
 import { getWishlistCount } from "@/lib/wishlist";
 import { getCartCount } from "@/lib/cart";
 import DesktopNav from "./DesktopNav";
+import SearchLauncher from "@/components/search/SearchLauncher";
 
 /** The laptop header, shown from the `tab` breakpoint (700px) up.
  *
@@ -18,9 +19,10 @@ import DesktopNav from "./DesktopNav";
  * the link row underneath scrolls away. The pinned row is `h-16`, and the home
  * page's filter chips stick at `tab:top-16` directly beneath it.
  *
- * `search` is the home page's live search box. Everywhere else the product
- * search lives only on the home page, so the slot is a link to it -- the same
- * choice the account header makes on a phone. */
+ * `search` is the home page's live search box, which filters the grid below
+ * it as you type. Everywhere else there is no grid to filter, so the slot
+ * carries the launcher for the search sheet instead -- the same search the
+ * phone headers open. */
 export default async function DesktopHeader({ search }: { search?: React.ReactNode }) {
   const [user, shopper] = await Promise.all([getCurrentUser(), getShopper()]);
   const [wishlistCount, cartCount] = await Promise.all([
@@ -51,16 +53,7 @@ export default async function DesktopHeader({ search }: { search?: React.ReactNo
 
           <div className="flex min-w-0 flex-1 justify-center">
             <div className="flex w-full max-w-[560px]">
-              {search ?? (
-                <Link
-                  href="/"
-                  aria-label="Search products on the Zupona home page"
-                  className="flex h-11 w-full min-w-0 items-center gap-2 rounded-full bg-brand-mist px-4 text-sm text-ink-faint ring-1 ring-line transition-colors hover:ring-brand/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-                >
-                  <Search className="h-4 w-4 shrink-0 text-ink-muted" strokeWidth={2.25} />
-                  <span className="truncate">Search for products, brands and more...</span>
-                </Link>
-              )}
+              {search ?? <SearchLauncher variant="wide" />}
             </div>
           </div>
 

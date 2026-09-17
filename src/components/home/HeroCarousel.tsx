@@ -7,9 +7,9 @@ import { ArrowRight } from "lucide-react";
 import type { StoreBanner } from "@/lib/storefront";
 
 /** How long one banner holds the top of the homepage before the next slides
- * in. Long enough to read a headline and decide, short enough that a shopper
- * who scrolls past in a few seconds still sees more than one. */
-const DWELL_MS = 5000;
+ * in. Short on purpose, at the shop owner's asking: a shopper who is on the
+ * page for only a few seconds still gets to see every banner published. */
+const DWELL_MS = 2500;
 
 /** The published hero banners, rotating.
  *
@@ -60,7 +60,7 @@ export default function HeroCarousel({ banners }: { banners: StoreBanner[] }) {
   const stopAutoplay = () => setAutoplay(false);
 
   return (
-    <section className="px-3.5 pt-2.5 tab:px-0 tab:pt-0">
+    <section aria-label="Homepage banners" className="px-3.5 pt-2.5 tab:px-0 tab:pt-0">
       <div className="relative h-[118px] overflow-hidden rounded-[18px] bg-[linear-gradient(105deg,#00553d_0%,#007553_100%)] tab:h-[300px] tab:rounded-3xl">
         <div
           ref={trackRef}

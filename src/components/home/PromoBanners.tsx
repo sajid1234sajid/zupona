@@ -28,7 +28,7 @@ export default async function PromoBanners() {
         card="/promo-mega-deals-card.webp"
         wide="/promo-mega-deals.webp"
         alt="Mega Deals -- top picks, special deals"
-        shape="aspect-[327/191] tab:aspect-[1075/249]"
+        shape="aspect-[330/187] tab:aspect-[1075/249]"
         // Sampled from the artwork's own edge, so the card is the picture's
         // colour for the moment before the picture itself arrives.
         surface="bg-[#0b7d3f]"
@@ -39,12 +39,14 @@ export default async function PromoBanners() {
         card="/promo-free-delivery-card.webp"
         wide="/promo-free-delivery.webp"
         alt="Free delivery on orders over ৳1,000"
-        shape="aspect-[327/191] tab:aspect-[1563/275]"
-        surface="bg-[#e6f8ec]"
+        shape="aspect-[330/187] tab:aspect-[1563/275]"
+        // The card artwork is drawn with its own card and its own margin
+        // around it, so on a phone the surface behind it is the page's white
+        // and it needs no border. The wide cut on a laptop is pale to its
+        // edges and still does, so the border stays there.
+        surface="bg-white"
         pill="bg-brand text-white"
-        // This artwork's own background is very nearly white, so without an
-        // edge the card dissolves into the page it sits on.
-        frame="border border-brand-tint"
+        frame="tab:border tab:border-brand-tint"
       />
 
       {promos.map((promo) => (
@@ -56,10 +58,14 @@ export default async function PromoBanners() {
 
 /** One of the shop's two standing banners.
  *
- * The phone card's ratio is measured off the shop owner's own screen -- 327
- * by 191 of their 719px-wide screenshot, which is 163 by 95 css pixels beside
- * the margins and gap this row already had. That size is settled; what
- * changes here is only which of the owner's two files is drawn in it. */
+ * The phone card's ratio is the owner's own figure, 330 by 187 of their
+ * 720px-wide screenshot, which comes out at 163 by 92 css pixels beside the
+ * margins and gap this row already had. That size is settled; what changes
+ * here is only which of the owner's files is drawn in it.
+ *
+ * `contain` rather than `cover`, at the owner's instruction: their artwork is
+ * cut to this ratio already, so nothing is left over either way, but a file
+ * that is a hair off is then letterboxed rather than shaved. */
 function ArtworkBanner({
   card,
   wide,
@@ -89,16 +95,17 @@ function ArtworkBanner({
     >
       <picture>
         <source media="(min-width: 700px)" srcSet={wide} />
-        {/* Each file is already the ratio of the card it is drawn in, so
-            `cover` cannot crop anything; `<picture>` is what gives a phone
-            the card-shaped artwork and a laptop the wide one, and it fetches
-            only the one it will draw. */}
+        {/* `<picture>` gives a phone the card-shaped artwork and a laptop the
+            wide one, and fetches only the one it will draw. Each file is cut
+            to the ratio of the card it lands in, so `contain` has nothing to
+            letterbox -- and if a later file is a hair off, it is shown short
+            rather than shaved. */}
         <img
           src={card}
           alt={alt}
           loading="lazy"
           decoding="async"
-          className="absolute inset-0 h-full w-full object-cover"
+          className="absolute inset-0 h-full w-full object-contain"
         />
       </picture>
 
@@ -157,7 +164,7 @@ function PromoTile({ banner }: { banner: StoreBanner }) {
   );
 
   const shell =
-    "relative flex aspect-[327/191] flex-col justify-center overflow-hidden rounded-xl bg-[linear-gradient(135deg,#00553d_0%,#007553_100%)] px-3 tab:aspect-[1075/249] tab:rounded-2xl tab:px-8";
+    "relative flex aspect-[330/187] flex-col justify-center overflow-hidden rounded-xl bg-[linear-gradient(135deg,#00553d_0%,#007553_100%)] px-3 tab:aspect-[1075/249] tab:rounded-2xl tab:px-8";
 
   return banner.href ? (
     <Link href={banner.href} className={shell}>

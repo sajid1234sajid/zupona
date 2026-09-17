@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import BotanicalBackdrop from "./BotanicalBackdrop";
 import { listStoreBanners, type StoreBanner } from "@/lib/storefront";
+import HeroCarousel from "./HeroCarousel";
 
 /** The top slot of the homepage.
  *
@@ -12,12 +13,19 @@ import { listStoreBanners, type StoreBanner } from "@/lib/storefront";
  * artwork below and never read the `banners` table; that is the whole reason
  * this component takes a trip to the database.
  *
+ * Publish several and they rotate, in the sort order the admin gave them. A
+ * single banner is deliberately *not* handed to the carousel: drawn here on
+ * the server it is in the HTML the browser first parses, which is what lets
+ * the picture start loading before any JavaScript has run.
+ *
  * With no banner published -- a fresh shop, or every one of them hidden --
  * the season artwork is still the fallback, so the homepage is never headed
  * by an empty box. */
 export default async function HeroBanner() {
-  const [banner] = await listStoreBanners("hero");
-  return banner ? <PublishedHero banner={banner} /> : <SeasonBanner />;
+  const banners = await listStoreBanners("hero");
+
+  if (banners.length > 1) return <HeroCarousel banners={banners} />;
+  return banners[0] ? <PublishedHero banner={banners[0]} /> : <SeasonBanner />;
 }
 
 /** The shell both versions sit in: one height on a phone, another on a laptop,

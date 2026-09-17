@@ -248,6 +248,7 @@ export default function ProductView({
             onPlayVideo={setPlaying}
             badgeLabel={product.badgeLabel}
             productName={product.name}
+            paused={Boolean(playing)}
             toolbar={<ShareButton title={product.name} />}
             overlayStart={
               (reviewSummary.total > 0 || product.soldCount > 0) && (

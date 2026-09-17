@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "@/components/ui/StoreImage";
 import { Crown, Play } from "lucide-react";
 import type { StoreMediaItem } from "@/lib/storefront";
@@ -12,15 +13,26 @@ function isUploadedMedia(url: string): boolean {
   return url.startsWith("/api/media/");
 }
 
-/** How many thumbnails fit before the strip gets a "+N" tile instead. */
-const VISIBLE_THUMBS = 4;
+/** How long a slide holds the screen before the gallery moves itself along. */
+const SLIDE_DWELL_MS = 2000;
+
+/** Quiet spell after a finger leaves the hero before it resumes on its own.
+ * Without it the carousel would slide out from under someone who had just
+ * swiped back to the picture they wanted to look at. */
+const RESUME_AFTER_MS = 5000;
 
 /** The gallery: one landscape hero, the thumbnail strip beneath it.
  *
  * Beneath, never beside -- a side rail costs the hero a third of a phone's
  * width. The hero is 4:3 rather than square for the same reason the reference
  * designs are: product photography is shot wide, and a square crop cuts the
- * ends off a watch strap or a pair of shoes. */
+ * ends off a watch strap or a pair of shoes.
+ *
+ * Every picture sits in one scroll-snap track rather than in a carousel
+ * library, which is what makes the hero swipeable: the browser does the
+ * physics, and a finger, a dot and a thumbnail all land in the same state
+ * because the active slide is read back off the scroll position rather than
+ * driving it. */
 export default function ProductMedia({
   media,
   activeId,
@@ -28,6 +40,7 @@ export default function ProductMedia({
   onPlayVideo,
   badgeLabel,
   productName,
+  paused,
   toolbar,
   overlayStart,
   overlayEnd,
@@ -38,6 +51,9 @@ export default function ProductMedia({
   onPlayVideo: (item: StoreMediaItem) => void;
   badgeLabel: string | null;
   productName: string;
+  /** Holds the automatic advance -- set while a clip plays over the page, so
+   * the gallery is not three slides on by the time the modal closes. */
+  paused?: boolean;
   /** Share and wishlist, floated over the top-right of the hero. */
   toolbar?: React.ReactNode;
   /** Floated over the bottom-left of the hero, e.g. the rating chip. */
@@ -46,83 +62,268 @@ export default function ProductMedia({
   overlayEnd?: React.ReactNode;
 }) {
   const active = media.find((item) => item.id === activeId) ?? media[0];
-  const activeIndex = media.findIndex((item) => item.id === active?.id);
+  const activeIndex = Math.max(
+    media.findIndex((item) => item.id === active?.id),
+    0
+  );
 
-  // Everything fits up to five; past that the last tile becomes a counter, so
-  // the strip never turns into a long horizontal scroll on a phone.
-  const overflowCount = media.length > VISIBLE_THUMBS + 1 ? media.length - VISIBLE_THUMBS : 0;
-  const shownThumbs = overflowCount > 0 ? media.slice(0, VISIBLE_THUMBS) : media;
+  const trackRef = useRef<HTMLDivElement>(null);
+  const stripRef = useRef<HTMLUListElement>(null);
+  const resumeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const settleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** Where a smooth scroll is heading, while it is still on its way. */
+  const travellingTo = useRef<number | null>(null);
+  const [held, setHeld] = useState(false);
+  /** The furthest picture reached so far, raised wherever a new slide becomes
+   * current. One past it is fetched and no further: left to themselves the
+   * browser pulls all six at once, and a shopper who reads the price and
+   * leaves has paid for pictures nobody looked at. It only ever grows, so
+   * nothing already on screen is torn down. */
+  const [reached, setReached] = useState(0);
+
+  /** The slide the track is actually parked on, or -1 before it has a width. */
+  const parkedIndex = useCallback(() => {
+    const track = trackRef.current;
+    if (!track || track.clientWidth === 0) return -1;
+    return Math.round(track.scrollLeft / track.clientWidth);
+  }, []);
+
+  /** Scrolls the track, which is what moves the carousel. Wraps, so the last
+   * picture leads back to the first instead of dead-ending. */
+  const goTo = useCallback(
+    (index: number) => {
+      const track = trackRef.current;
+      if (!track || media.length === 0) return;
+
+      const wrapped = ((index % media.length) + media.length) % media.length;
+      // Noted before the scroll starts, so the positions it travels through on
+      // the way are not mistaken for the shopper choosing them. Without this,
+      // a tap on the sixth dot selects the fourth picture mid-flight, and the
+      // effect below then scrolls back to it -- the journey stops half way.
+      travellingTo.current = wrapped;
+      track.scrollTo({ left: wrapped * track.clientWidth, behavior: "smooth" });
+      setReached((furthest) => Math.max(furthest, wrapped));
+
+      // Marked as active the moment the journey begins, so the dot and the
+      // thumbnail move with the picture rather than a few hundred
+      // milliseconds behind it.
+      const item = media[wrapped];
+      if (item && item.id !== activeId) onSelect(item.id);
+    },
+    [media, activeId, onSelect]
+  );
+
+  const hold = useCallback(() => {
+    if (resumeTimer.current) clearTimeout(resumeTimer.current);
+    // A finger on the track outranks any scroll still in flight.
+    travellingTo.current = null;
+    setHeld(true);
+  }, []);
+
+  const release = useCallback(() => {
+    if (resumeTimer.current) clearTimeout(resumeTimer.current);
+    resumeTimer.current = setTimeout(() => setHeld(false), RESUME_AFTER_MS);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (resumeTimer.current) clearTimeout(resumeTimer.current);
+      if (settleTimer.current) clearTimeout(settleTimer.current);
+    };
+  }, []);
+
+  /** Reads the slide back off the scroll position, which is what keeps a
+   * swipe, a dot and a thumbnail all in one state. */
+  const syncFromScroll = useCallback(() => {
+    const track = trackRef.current;
+    if (!track || track.clientWidth === 0) return;
+
+    const index = Math.round(track.scrollLeft / track.clientWidth);
+    const item = media[index];
+    if (!item) return;
+
+    setReached((furthest) => Math.max(furthest, index));
+    if (item.id !== activeId) onSelect(item.id);
+  }, [activeId, media, onSelect]);
+
+  function handleScroll() {
+    // Whatever else happens, the resting position wins: this also releases a
+    // smooth scroll that stopped a pixel short of its target, so one rounding
+    // error cannot leave the track deaf to the next swipe.
+    if (settleTimer.current) clearTimeout(settleTimer.current);
+    settleTimer.current = setTimeout(() => {
+      travellingTo.current = null;
+      syncFromScroll();
+    }, 120);
+
+    // A finger drags the dots along with it in real time; a scroll this
+    // component started is left to arrive first.
+    if (travellingTo.current === null) syncFromScroll();
+  }
+
+  // A choice made anywhere else -- a colour swatch that carries its own
+  // picture, a thumbnail, a dot -- brings the track with it. A no-op when the
+  // track is already there, which is the case after a swipe, so this can never
+  // fight the finger that caused it.
+  useEffect(() => {
+    if (travellingTo.current === activeIndex) return;
+
+    const parked = parkedIndex();
+    if (parked < 0 || parked === activeIndex) return;
+    goTo(activeIndex);
+  }, [activeIndex, goTo, parkedIndex]);
+
+  // The strip follows the hero. It has to, now that the gallery moves on by
+  // itself: a strip that showed the first four tiles only would sit with
+  // nothing marked for as long as the fifth or sixth picture was on screen.
+  useEffect(() => {
+    const strip = stripRef.current;
+    const tile = strip?.children[activeIndex] as HTMLElement | undefined;
+    if (!strip || !tile) return;
+
+    const offset = tile.getBoundingClientRect().left - strip.getBoundingClientRect().left;
+    const centred = strip.scrollLeft + offset - (strip.clientWidth - tile.clientWidth) / 2;
+    const furthest = strip.scrollWidth - strip.clientWidth;
+    const left = Math.max(0, Math.min(centred, furthest));
+
+    if (Math.abs(strip.scrollLeft - left) < 4) return;
+    strip.scrollTo({ left, behavior: "smooth" });
+  }, [activeIndex]);
+
+  // The automatic advance, restarted whenever the active slide changes: a
+  // swipe or a tap therefore gives the new picture its own full spell rather
+  // than whatever was left of the last one's.
+  useEffect(() => {
+    if (media.length < 2 || held || paused) return;
+
+    const timer = setTimeout(() => goTo(activeIndex + 1), SLIDE_DWELL_MS);
+    return () => clearTimeout(timer);
+  }, [activeIndex, media.length, held, paused, goTo]);
 
   if (!active) return null;
 
   return (
     <div>
       <div className="relative aspect-[6/5] w-full overflow-hidden rounded-2xl bg-mint">
-        {active.type === "video" ? (
-          <button
-            type="button"
-            onClick={() => onPlayVideo(active)}
-            aria-label={`Play ${productName} video`}
-            className="group relative block h-full w-full"
-          >
-            <Image
-              src={active.poster}
-              alt={active.alt}
-              fill
-              sizes="(min-width: 700px) 560px, 100vw"
-              className="object-cover"
-              unoptimized={isUploadedMedia(active.poster)}
-            />
-            <span className="absolute left-1/2 top-1/2 grid h-16 w-16 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-brand/95 text-white shadow-lg transition group-hover:scale-105">
-              <Play className="h-7 w-7 fill-current" />
-            </span>
-          </button>
-        ) : (
-          <Image
-            src={active.url}
-            alt={active.alt}
-            fill
-            sizes="(min-width: 700px) 560px, 100vw"
-            className="object-cover"
-            priority
-            unoptimized={isUploadedMedia(active.url)}
-          />
-        )}
+        <div
+          ref={trackRef}
+          onScroll={handleScroll}
+          onPointerDown={hold}
+          onPointerUp={release}
+          onPointerCancel={release}
+          onMouseEnter={hold}
+          onMouseLeave={release}
+          className="no-scrollbar absolute inset-0 flex snap-x snap-mandatory overflow-x-auto overscroll-x-contain"
+        >
+          {media.map((item, index) => (
+            <div key={item.id} className="relative h-full w-full shrink-0 snap-center">
+              {/* The box is always here, because the track's width and every
+                  snap position are measured from it. The picture inside is
+                  not, until the gallery is nearly at it. */}
+              {index > reached + 1 ? null : item.type === "video" ? (
+                <button
+                  type="button"
+                  onClick={() => onPlayVideo(item)}
+                  aria-label={`Play ${productName} video`}
+                  className="group relative block h-full w-full"
+                >
+                  <Image
+                    src={item.poster}
+                    alt={item.alt}
+                    fill
+                    sizes="(min-width: 700px) 560px, 100vw"
+                    className="object-cover"
+                    priority={index === 0}
+                    unoptimized={isUploadedMedia(item.poster)}
+                  />
+                  <span className="absolute left-1/2 top-1/2 grid h-16 w-16 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-brand/95 text-white shadow-lg transition group-hover:scale-105">
+                    <Play className="h-7 w-7 fill-current" />
+                  </span>
+                </button>
+              ) : (
+                <Image
+                  src={item.url}
+                  alt={item.alt}
+                  fill
+                  sizes="(min-width: 700px) 560px, 100vw"
+                  className="object-cover"
+                  // Only the first picture is worth fetching early; the next
+                  // one is mounted lazily, one ahead of where the shopper is.
+                  priority={index === 0}
+                  unoptimized={isUploadedMedia(item.url)}
+                />
+              )}
+            </div>
+          ))}
+        </div>
 
         {badgeLabel && (
-          <span className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-brand-darkest/95 px-3 py-1.5 text-[11px] font-bold text-white shadow-card">
+          <span className="pointer-events-none absolute left-3 top-3 z-10 inline-flex items-center gap-1.5 rounded-full bg-brand-darkest/95 px-3 py-1.5 text-[11px] font-bold text-white shadow-card">
             <Crown className="h-3.5 w-3.5" />
             {badgeLabel}
           </span>
         )}
 
-        {toolbar && <div className="absolute right-3 top-3 flex gap-2">{toolbar}</div>}
+        {toolbar && <div className="absolute right-3 top-3 z-10 flex gap-2">{toolbar}</div>}
 
+        {/* One band across the foot of the hero: chip, dots, chip. The dots
+            take whatever the two chips leave rather than being centred on the
+            picture, because centred they slide under "View Similar" on a
+            narrow phone. */}
         {(overlayStart || overlayEnd || media.length > 1) && (
-          <div className="pointer-events-none absolute inset-x-3 bottom-3 flex items-end justify-between gap-2 [&>*]:pointer-events-auto">
-            <div className="flex min-w-0 items-center gap-2">
-              {overlayStart}
-              {media.length > 1 && (
-                <span className="shrink-0 rounded-full bg-black/60 px-2.5 py-1 text-[11px] font-bold text-white">
-                  {activeIndex + 1}/{media.length}
-                </span>
-              )}
-            </div>
-            {overlayEnd}
+          <div className="pointer-events-none absolute inset-x-3 bottom-3 z-10 flex items-end gap-1.5 [&>*]:pointer-events-auto">
+            <div className="flex min-w-0 shrink-0 items-center gap-2">{overlayStart}</div>
+
+            {/* The position indicator the reference uses, and a tap target for
+                jumping a picture. */}
+            {media.length > 1 ? (
+              <div className="flex min-w-0 flex-1 items-center justify-center overflow-hidden">
+                {media.map((item, index) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => {
+                      hold();
+                      onSelect(item.id);
+                      release();
+                    }}
+                    aria-label={`Show picture ${index + 1} of ${media.length}`}
+                    aria-current={index === activeIndex ? "true" : undefined}
+                    className="grid h-6 w-[13px] shrink-0 place-items-center focus:outline-none"
+                  >
+                    <span
+                      className={`block h-[7px] rounded-full shadow-[0_0_3px_rgba(0,0,0,0.35)] transition-all ${
+                        index === activeIndex ? "w-[17px] bg-brand" : "w-[7px] bg-white/75"
+                      }`}
+                    />
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="flex-1" />
+            )}
+
+            <div className="flex shrink-0 items-center">{overlayEnd}</div>
           </div>
         )}
       </div>
 
       {media.length > 1 && (
-        <ul className="no-scrollbar mt-3 flex gap-[7px] overflow-x-auto pb-1" aria-label="Product media">
-          {shownThumbs.map((item) => {
+        <ul
+          ref={stripRef}
+          className="no-scrollbar mt-3 flex gap-[7px] overflow-x-auto pb-1"
+          aria-label="Product media"
+        >
+          {media.map((item) => {
             const selected = item.id === active.id;
             return (
               <li key={item.id} className="shrink-0">
                 <button
                   type="button"
                   onClick={() => {
+                    hold();
                     onSelect(item.id);
+                    release();
                     if (item.type === "video") onPlayVideo(item);
                   }}
                   aria-label={item.type === "video" ? "Play product video" : item.alt}
@@ -149,19 +350,6 @@ export default function ProductMedia({
               </li>
             );
           })}
-
-          {overflowCount > 0 && (
-            <li className="shrink-0">
-              <button
-                type="button"
-                onClick={() => onSelect(media[VISIBLE_THUMBS].id)}
-                aria-label={`Show ${overflowCount} more`}
-                className="grid h-[67px] w-[67px] place-items-center rounded-xl border-2 border-transparent bg-mint text-sm font-bold text-brand-darkest transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
-              >
-                +{overflowCount}
-              </button>
-            </li>
-          )}
         </ul>
       )}
     </div>

@@ -61,7 +61,11 @@ export async function getStockLevel(variantId: string): Promise<StockLevel | nul
 }
 
 /** Variants at or below their low-stock threshold -- the seller dashboard's
- * "restock these" list. */
+ * "restock these" list.
+ *
+ * Only products that count their units. An untracked one sits at zero by
+ * definition and would otherwise fill this list with things that can never run
+ * out, drowning the variants that genuinely need restocking. */
 export async function getLowStock(sellerId?: string, limit = 50): Promise<StockLevel[]> {
   const db = await getDB();
   const sellerClause = sellerId ? "AND p.seller_id = ?" : "";
@@ -71,6 +75,7 @@ export async function getLowStock(sellerId?: string, limit = 50): Promise<StockL
     .prepare(
       `${STOCK_SELECT}
        WHERE v.is_active = 1
+         AND p.track_inventory = 1
          AND (v.stock_quantity - v.reserved_quantity) <= v.low_stock_threshold
          ${sellerClause}
        ORDER BY (v.stock_quantity - v.reserved_quantity) ASC LIMIT ?`
@@ -172,14 +177,22 @@ export async function setStock(
 
 /** Holds stock for a checkout in flight. Returns false when there is not
  * enough available, so the caller can fail the order before taking payment.
- * The conditional UPDATE makes the check-and-hold a single atomic statement. */
+ * The conditional UPDATE makes the check-and-hold a single atomic statement.
+ *
+ * A product with `track_inventory = 0` has no ceiling to weigh the hold
+ * against, so the availability arm of the condition simply does not apply --
+ * the hold is still recorded, it just cannot fail. The test stays inside the
+ * one statement rather than becoming a read followed by a write, because two
+ * checkouts racing for the last unit is exactly what it exists to settle. */
 export async function reserveStock(variantId: string, quantity: number): Promise<boolean> {
   const db = await getDB();
   const result = await db
     .prepare(
       `UPDATE product_variants
        SET reserved_quantity = reserved_quantity + ?
-       WHERE id = ? AND (stock_quantity - reserved_quantity) >= ?`
+       WHERE id = ?
+         AND ((SELECT track_inventory FROM products WHERE id = product_variants.product_id) = 0
+              OR (stock_quantity - reserved_quantity) >= ?)`
     )
     .bind(quantity, variantId, quantity)
     .run();
@@ -199,7 +212,13 @@ export async function releaseReservation(variantId: string, quantity: number): P
 }
 
 /** Converts a reservation into a completed sale: drops the hold, deducts real
- * stock, bumps the product's sold counter and writes the ledger row. */
+ * stock, bumps the product's sold counter and writes the ledger row.
+ *
+ * The clamp at zero is what stops a double-applied sale on a counted product
+ * from driving stock negative. An untracked product is deducted without it, so
+ * its `stock_quantity` keeps matching the sum of its ledger rows and reads as
+ * "sold this many of something we were not counting" -- turning tracking on
+ * later then starts from an honest figure rather than a silent zero. */
 export async function commitSale(
   variantId: string,
   quantity: number,
@@ -212,10 +231,14 @@ export async function commitSale(
       .prepare(
         `UPDATE product_variants
          SET reserved_quantity = MAX(0, reserved_quantity - ?),
-             stock_quantity = MAX(0, stock_quantity - ?)
+             stock_quantity = CASE
+               WHEN (SELECT track_inventory FROM products WHERE id = product_variants.product_id) = 0
+                 THEN stock_quantity - ?
+               ELSE MAX(0, stock_quantity - ?)
+             END
          WHERE id = ?`
       )
-      .bind(quantity, quantity, variantId),
+      .bind(quantity, quantity, quantity, variantId),
     db
       .prepare(
         `UPDATE products SET sold_count = sold_count + ?

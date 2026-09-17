@@ -6,6 +6,7 @@
  * touches React, so it can be reasoned about -- and tested -- on its own. */
 
 import type { StoreProduct, StoreVariant } from "@/lib/storefront";
+import { UNLIMITED_STOCK } from "@/lib/stockLimits";
 
 /** Option group key to chosen value, e.g. `{ color: "Olive", size: "M" }`. */
 export type Selections = Record<string, string>;
@@ -97,11 +98,21 @@ export function initialSelections(product: StoreProduct): Selections {
 /** Price, stock and comparison figures for the current selection.
  *
  * Falls back to the product's own numbers when no variant is resolved, so a
- * product without options still prices and stocks correctly. */
+ * product without options still prices and stocks correctly.
+ *
+ * The fallback has to know about tracking on its own: `stockTotal` is the raw
+ * sum across the variants, and on a product that counts nothing that sum is
+ * zero for good -- which would read as sold out on exactly the products that
+ * can never sell out. `!== false` because KV can still be serving an entry
+ * written before the field existed. */
 export function resolvePricing(product: StoreProduct, variant: StoreVariant | null) {
   const price = variant?.price ?? product.price;
   const compareAtPrice = variant?.compareAtPrice ?? product.oldPrice;
-  const available = variant ? variant.available : product.stockTotal;
+  const available = variant
+    ? variant.available
+    : product.tracksInventory === false
+      ? UNLIMITED_STOCK
+      : product.stockTotal;
   const discountPercent =
     compareAtPrice > price ? Math.round(((compareAtPrice - price) / compareAtPrice) * 100) : 0;
 

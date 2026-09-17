@@ -204,7 +204,12 @@ CREATE TABLE IF NOT EXISTS products (
   short_description TEXT, -- the attribute line under the title, e.g. "Premium Cotton | Regular Fit"
   badge_label TEXT, -- hero badge: "Best Seller" | "Popular" | "New Arrival"
   return_policy TEXT, -- e.g. "7 Days Return"
-  warranty TEXT -- e.g. "1 Year Warranty"
+  warranty TEXT, -- e.g. "1 Year Warranty"
+  -- 0 = sells without a ceiling: never out of stock, never refused for want of
+  -- units, and no reservation weighed against a count. Stock still moves on a
+  -- sale so the ledger and stock_quantity agree; an untracked variant just goes
+  -- negative. New products default to this; see 0019_optional_stock_tracking.
+  track_inventory INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE INDEX IF NOT EXISTS idx_products_seller_id ON products (seller_id);

@@ -123,24 +123,37 @@ export default function ProductTable({ rows }: { rows: AdminProductRow[] }) {
                 <Td className="whitespace-nowrap text-right font-semibold">
                   {formatPrice(row.price)}
                 </Td>
+                {/* A product that does not count its units has no level to
+                    report, so the column shows a dash rather than a zero that
+                    would read as sold out -- and its pill falls through to
+                    whatever the product's own status is. */}
                 <Td className="text-right">
                   <span
                     className={
-                      row.stock === 0
-                        ? "font-semibold text-red-600"
-                        : row.isLowStock
-                          ? "font-semibold text-amber-600"
-                          : "text-neutral-600"
+                      !row.tracksStock
+                        ? "text-neutral-400"
+                        : row.stock === 0
+                          ? "font-semibold text-red-600"
+                          : row.isLowStock
+                            ? "font-semibold text-amber-600"
+                            : "text-neutral-600"
                     }
+                    title={row.tracksStock ? undefined : "Not counting stock"}
                   >
-                    {row.stock}
+                    {row.tracksStock ? row.stock : "—"}
                   </span>
                 </Td>
                 <Td>
                   <StatusPill
-                    status={row.stock === 0 ? "out_of_stock" : row.isLowStock ? "low_stock" : row.status}
+                    status={
+                      row.tracksStock && row.stock === 0
+                        ? "out_of_stock"
+                        : row.isLowStock
+                          ? "low_stock"
+                          : row.status
+                    }
                     label={
-                      row.stock === 0
+                      row.tracksStock && row.stock === 0
                         ? "Out of Stock"
                         : row.isLowStock
                           ? "Low Stock"

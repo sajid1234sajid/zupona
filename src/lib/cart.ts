@@ -1,5 +1,6 @@
 import { getDB } from "@/lib/db";
 import { getReferencedProductsByIds, getStoreProductsByIds } from "@/lib/storefront";
+import { UNLIMITED_STOCK } from "@/lib/stockLimits";
 import type { CartItem } from "@/types";
 
 interface CartRow {
@@ -15,6 +16,9 @@ interface CartRow {
   stock_quantity: number | null;
   reserved_quantity: number | null;
   variant_active: number | null;
+  /** 0 when the product sells without a ceiling, so the line's quantity is not
+   * weighed against a count. */
+  track_inventory: number;
 }
 
 export async function getCartItems(userId: string): Promise<CartItem[]> {
@@ -23,9 +27,11 @@ export async function getCartItems(userId: string): Promise<CartItem[]> {
     .prepare(
       `SELECT c.id, c.product_id, c.variant_id, c.color, c.quantity,
               v.price AS variant_price, v.old_price AS variant_old_price,
-              v.stock_quantity, v.reserved_quantity, v.is_active AS variant_active
+              v.stock_quantity, v.reserved_quantity, v.is_active AS variant_active,
+              COALESCE(p.track_inventory, 1) AS track_inventory
        FROM cart_items c
        LEFT JOIN product_variants v ON v.id = c.variant_id
+       LEFT JOIN products p ON p.id = c.product_id
        WHERE c.user_id = ? ORDER BY c.created_at DESC`
     )
     .bind(userId)
@@ -66,13 +72,19 @@ export async function getCartItems(userId: string): Promise<CartItem[]> {
       // `price`. Every total downstream is built from this.
       const price = row.variant_price ?? product.price;
       const oldPrice = row.variant_old_price ?? product.oldPrice;
+      // A retired variant or an archived product is unbuyable whatever its
+      // stock says. Past that, a product that does not count its units has no
+      // ceiling at all -- the same answer a line with no variant has always
+      // given, now reached for a second reason.
       const available = unavailable
         ? 0
-        : row.variant_id
-          ? Math.max(0, (row.stock_quantity ?? 0) - (row.reserved_quantity ?? 0))
-          : product.inStock
-            ? Number.MAX_SAFE_INTEGER
-            : 0;
+        : row.track_inventory === 0
+          ? UNLIMITED_STOCK
+          : row.variant_id
+            ? Math.max(0, (row.stock_quantity ?? 0) - (row.reserved_quantity ?? 0))
+            : product.inStock
+              ? UNLIMITED_STOCK
+              : 0;
 
       return {
         id: row.id,

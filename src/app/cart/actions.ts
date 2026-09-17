@@ -51,18 +51,27 @@ export async function updateCartQuantityAction(itemId: string, quantity: number)
    * checkout. Lines with no variant keep their previous behaviour. */
   const row = await db
     .prepare(
-      `SELECT c.variant_id, v.stock_quantity, v.reserved_quantity
+      `SELECT c.variant_id, v.stock_quantity, v.reserved_quantity,
+              COALESCE(p.track_inventory, 1) AS track_inventory
        FROM cart_items c
        LEFT JOIN product_variants v ON v.id = c.variant_id
+       LEFT JOIN products p ON p.id = c.product_id
        WHERE c.id = ? AND c.user_id = ?`
     )
     .bind(itemId, user.id)
-    .first<{ variant_id: string | null; stock_quantity: number | null; reserved_quantity: number | null }>();
+    .first<{
+      variant_id: string | null;
+      stock_quantity: number | null;
+      reserved_quantity: number | null;
+      track_inventory: number;
+    }>();
 
   if (!row) return;
 
   let wanted = Math.floor(quantity);
-  if (row.variant_id) {
+  // Nothing to clamp against on a product that does not count its units, and
+  // nothing that could empty and take the line with it.
+  if (row.variant_id && row.track_inventory === 1) {
     const available = Math.max(0, (row.stock_quantity ?? 0) - (row.reserved_quantity ?? 0));
     if (available <= 0) {
       await db.prepare("DELETE FROM cart_items WHERE id = ? AND user_id = ?").bind(itemId, user.id).run();

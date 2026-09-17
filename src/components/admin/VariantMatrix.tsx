@@ -12,7 +12,9 @@ import { Th, Td, Thumb, buttonStyles } from "./ui";
  *
  * Stock lives here and nowhere else, which is why a blank box is not the same
  * as a zero: a row the admin has not touched posts nothing and the stored
- * figure is left alone. A row that is switched off keeps its stock, SKU and
+ * figure is left alone. A product that does not count its units has no stock
+ * columns at all -- the rest of the row still does its job, because a
+ * combination is about price, picture and whether it sells, not only stock. A row that is switched off keeps its stock, SKU and
  * price -- it stops being sellable, it is not written down to nothing -- and
  * switching it back on brings all of it back. */
 
@@ -28,6 +30,10 @@ interface VariantMatrixProps {
   /** On the create form, the total entered above is spread across the rows the
    * way it always was; an untouched row shows its share. */
   defaultStock?: number;
+  /** False when the product does not count its units, which takes the two
+   * stock columns out of the table altogether -- there is nothing for them to
+   * hold and an empty box invites a figure that would never be read. */
+  showStock: boolean;
   maxVariants: number;
 }
 
@@ -37,6 +43,7 @@ export default function VariantMatrix({
   onChange,
   gallery,
   defaultStock,
+  showStock,
   maxVariants,
 }: VariantMatrixProps) {
   const patch = (key: string, change: Partial<CellOverride>) =>
@@ -83,8 +90,12 @@ export default function VariantMatrix({
               <Th className="w-36">SKU</Th>
               <Th className="w-28 text-right">Price</Th>
               <Th className="w-28 text-right">Compare at</Th>
-              <Th className="w-24 text-right">Stock</Th>
-              <Th className="w-24 text-right">Low at</Th>
+              {showStock ? (
+                <>
+                  <Th className="w-24 text-right">Stock</Th>
+                  <Th className="w-24 text-right">Low at</Th>
+                </>
+              ) : null}
               <Th className="w-48">Image</Th>
               <Th className="w-16 text-right">Active</Th>
             </tr>
@@ -139,29 +150,33 @@ export default function VariantMatrix({
                     className={`${SMALL_INPUT} text-right`}
                   />
                 </Td>
-                <Td>
-                  <input
-                    type="number"
-                    min={0}
-                    value={stockValue(cell, index)}
-                    onChange={(event) => patch(cell.key, { stock: event.target.value })}
-                    aria-label={`Stock for ${label(cell)}`}
-                    className={`${SMALL_INPUT} text-right`}
-                  />
-                </Td>
-                <Td>
-                  <input
-                    type="number"
-                    min={0}
-                    value={override.lowStockThreshold ?? ""}
-                    onChange={(event) =>
-                      patch(cell.key, { lowStockThreshold: event.target.value })
-                    }
-                    placeholder="5"
-                    aria-label={`Low stock alert for ${label(cell)}`}
-                    className={`${SMALL_INPUT} text-right`}
-                  />
-                </Td>
+                {showStock ? (
+                  <>
+                    <Td>
+                      <input
+                        type="number"
+                        min={0}
+                        value={stockValue(cell, index)}
+                        onChange={(event) => patch(cell.key, { stock: event.target.value })}
+                        aria-label={`Stock for ${label(cell)}`}
+                        className={`${SMALL_INPUT} text-right`}
+                      />
+                    </Td>
+                    <Td>
+                      <input
+                        type="number"
+                        min={0}
+                        value={override.lowStockThreshold ?? ""}
+                        onChange={(event) =>
+                          patch(cell.key, { lowStockThreshold: event.target.value })
+                        }
+                        placeholder="5"
+                        aria-label={`Low stock alert for ${label(cell)}`}
+                        className={`${SMALL_INPUT} text-right`}
+                      />
+                    </Td>
+                  </>
+                ) : null}
                 <Td>
                   <span className="flex items-center gap-2">
                     <Thumb src={override.imageUrl || null} alt="" size={28} />
@@ -268,27 +283,33 @@ export default function VariantMatrix({
                   className={SMALL_INPUT}
                 />
               </label>
-              <label className="block">
-                <span className="mb-1 block text-[11px] text-neutral-500">Stock</span>
-                <input
-                  type="number"
-                  min={0}
-                  value={stockValue(cell, index)}
-                  onChange={(event) => patch(cell.key, { stock: event.target.value })}
-                  className={SMALL_INPUT}
-                />
-              </label>
-              <label className="block">
-                <span className="mb-1 block text-[11px] text-neutral-500">Low at</span>
-                <input
-                  type="number"
-                  min={0}
-                  value={override.lowStockThreshold ?? ""}
-                  onChange={(event) => patch(cell.key, { lowStockThreshold: event.target.value })}
-                  placeholder="5"
-                  className={SMALL_INPUT}
-                />
-              </label>
+              {showStock ? (
+                <>
+                  <label className="block">
+                    <span className="mb-1 block text-[11px] text-neutral-500">Stock</span>
+                    <input
+                      type="number"
+                      min={0}
+                      value={stockValue(cell, index)}
+                      onChange={(event) => patch(cell.key, { stock: event.target.value })}
+                      className={SMALL_INPUT}
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="mb-1 block text-[11px] text-neutral-500">Low at</span>
+                    <input
+                      type="number"
+                      min={0}
+                      value={override.lowStockThreshold ?? ""}
+                      onChange={(event) =>
+                        patch(cell.key, { lowStockThreshold: event.target.value })
+                      }
+                      placeholder="5"
+                      className={SMALL_INPUT}
+                    />
+                  </label>
+                </>
+              ) : null}
               <label className="col-span-2 block">
                 <span className="mb-1 block text-[11px] text-neutral-500">Image</span>
                 <select
@@ -311,8 +332,10 @@ export default function VariantMatrix({
 
       <p className="mt-3 text-[11px] text-neutral-400">
         {matrix.length} combination{matrix.length === 1 ? "" : "s"}. An empty price inherits the
-        product price. Stock changes are written to the inventory ledger; retiring a combination
-        does not move any stock.
+        product price.{" "}
+        {showStock
+          ? "Stock changes are written to the inventory ledger; retiring a combination does not move any stock."
+          : "This product is not counting stock, so every combination sells without a limit."}
       </p>
     </div>
   );

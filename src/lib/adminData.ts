@@ -696,6 +696,9 @@ export interface AdminProductRow {
   stock: number;
   status: string;
   isLowStock: boolean;
+  /** False when the product does not count its units, in which case `stock`
+   * means nothing and the row must not read as sold out. */
+  tracksStock: boolean;
   createdAt: string;
 }
 
@@ -755,7 +758,7 @@ export async function listAdminProducts(filter: ProductFilter = {}): Promise<Pag
   const [rows, count] = await db.batch<Record<string, unknown>>([
     db
       .prepare(
-        `SELECT p.id, p.name, p.price, p.status, p.created_at,
+        `SELECT p.id, p.name, p.price, p.status, p.created_at, p.track_inventory,
                 b.name AS brand_name, c.name AS category_name,
                 (SELECT url FROM product_images i WHERE i.product_id = p.id
                   ORDER BY i.is_primary DESC, i.sort_order ASC LIMIT 1) AS image,
@@ -782,6 +785,7 @@ export async function listAdminProducts(filter: ProductFilter = {}): Promise<Pag
       image: string | null;
       stock: number;
       threshold: number;
+      track_inventory: number;
     }[]).map((row) => ({
       id: row.id,
       name: row.name,
@@ -791,7 +795,10 @@ export async function listAdminProducts(filter: ProductFilter = {}): Promise<Pag
       price: row.price,
       stock: row.stock,
       status: row.status,
-      isLowStock: row.stock > 0 && row.stock <= row.threshold,
+      // A product that counts nothing is never low and never out: the figure
+      // beside it is not a level, so neither warning is true of it.
+      isLowStock: row.track_inventory === 1 && row.stock > 0 && row.stock <= row.threshold,
+      tracksStock: row.track_inventory === 1,
       createdAt: row.created_at,
     })),
     total: (count.results as unknown as { n: number }[])[0]?.n ?? 0,
@@ -814,10 +821,13 @@ export async function getProductStats(): Promise<ProductStats> {
          COUNT(*) AS total,
          COUNT(CASE WHEN status = 'active' THEN 1 END) AS published,
          COUNT(CASE WHEN status IN ('draft', 'pending_review') THEN 1 END) AS draft,
-         COUNT(CASE WHEN qty = 0 THEN 1 END) AS out_of_stock,
-         COUNT(CASE WHEN qty > 0 AND qty <= threshold THEN 1 END) AS low_stock
+         -- Only products that count their units can be out or low. An
+         -- untracked one sits at zero for good, so counting it here would
+         -- show the shop a shortage it does not have.
+         COUNT(CASE WHEN tracked = 1 AND qty = 0 THEN 1 END) AS out_of_stock,
+         COUNT(CASE WHEN tracked = 1 AND qty > 0 AND qty <= threshold THEN 1 END) AS low_stock
        FROM (
-         SELECT p.status,
+         SELECT p.status, p.track_inventory AS tracked,
                 (SELECT COALESCE(SUM(v.stock_quantity), 0) FROM product_variants v
                   WHERE v.product_id = p.id AND v.is_active = 1) AS qty,
                 (SELECT COALESCE(MIN(v.low_stock_threshold), 5) FROM product_variants v
@@ -1576,7 +1586,7 @@ export async function getStaffAlerts(): Promise<StaffAlert[]> {
     db.prepare(
       `SELECT COUNT(*) AS n FROM product_variants v
        JOIN products p ON p.id = v.product_id
-       WHERE v.is_active = 1 AND p.status = 'active'
+       WHERE v.is_active = 1 AND p.status = 'active' AND p.track_inventory = 1
          AND (v.stock_quantity - v.reserved_quantity) <= v.low_stock_threshold`
     ),
   ]);
@@ -1829,6 +1839,9 @@ export interface EditableProduct {
   discountValue: number;
   isFeatured: boolean;
   isBestSeller: boolean;
+  /** Whether this product counts its units. False means it sells without a
+   * ceiling and the stock boxes have nothing to hold. */
+  trackInventory: boolean;
   weightKg: string;
   length: number;
   width: number;
@@ -1865,8 +1878,8 @@ export async function getProductForEdit(productId: string): Promise<EditableProd
   const row = await db
     .prepare(
       `SELECT id, name, slug, sku, description, category_id, brand_id, status, price, old_price,
-              is_featured, is_best_seller, weight_grams, dimensions_json, meta_title,
-              meta_description, sold_count, view_count, rating_avg, rating_count,
+              is_featured, is_best_seller, track_inventory, weight_grams, dimensions_json,
+              meta_title, meta_description, sold_count, view_count, rating_avg, rating_count,
               created_at, updated_at
        FROM products WHERE id = ?`
     )
@@ -1884,6 +1897,7 @@ export async function getProductForEdit(productId: string): Promise<EditableProd
       old_price: number;
       is_featured: number;
       is_best_seller: number;
+      track_inventory: number;
       weight_grams: number | null;
       dimensions_json: string | null;
       meta_title: string | null;
@@ -2057,6 +2071,7 @@ export async function getProductForEdit(productId: string): Promise<EditableProd
     discountValue: !discounted ? 0 : percentIsExact ? percent : off,
     isFeatured: row.is_featured === 1,
     isBestSeller: row.is_best_seller === 1,
+    trackInventory: row.track_inventory === 1,
     weightKg: row.weight_grams ? String(row.weight_grams / 1000) : "",
     length: dimensions.l ?? 0,
     width: dimensions.w ?? 0,

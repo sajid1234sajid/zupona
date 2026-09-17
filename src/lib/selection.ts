@@ -9,6 +9,7 @@
  * Server-only. Callers are server actions and server components. */
 
 import { getStoreProduct } from "@/lib/storefront";
+import { UNLIMITED_STOCK } from "@/lib/stockLimits";
 
 export type ResolvedSelection =
   | {
@@ -58,7 +59,7 @@ export async function resolveSelection(input: {
       label: "",
       price: product.price,
       oldPrice: product.oldPrice,
-      available: product.stockTotal,
+      available: product.tracksInventory ? product.stockTotal : UNLIMITED_STOCK,
       name: product.name,
       image: product.image,
     };

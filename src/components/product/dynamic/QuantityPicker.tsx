@@ -7,8 +7,8 @@ import { Minus, Plus } from "lucide-react";
  * The ceiling is the selected variant's availability, so the plus button stops
  * at what can be bought rather than letting the shopper reach checkout and be
  * told no. This is a convenience, not a control: the same limit is enforced
- * again on the server, where it counts. The stock figure itself is shown in the
- * stats row under the title. */
+ * again on the server, where it counts. The figure itself appears in the stats
+ * row under the title only when the shop has chosen to show it. */
 export default function QuantityPicker({
   quantity,
   available,

@@ -20,6 +20,7 @@
 
 import { getDB } from "@/lib/db";
 import { CacheKeys, cached } from "@/lib/cache";
+import { UNLIMITED_STOCK } from "@/lib/stockLimits";
 
 /* -------------------------------------------------------------------------- */
 /* Shapes                                                                     */
@@ -105,7 +106,8 @@ export interface StoreVariant {
    * `effectivePrice` DATABASE.md asks callers to read rather than `price`. */
   price: number;
   compareAtPrice: number;
-  /** stock_quantity minus what is already held, never below zero. */
+  /** stock_quantity minus what is already held, never below zero -- or
+   * `UNLIMITED_STOCK` when the product does not count its units. */
   available: number;
   /** The product image this variant switches the gallery to, if any. */
   imageId: string | null;
@@ -127,6 +129,10 @@ export interface StoreProduct extends StoreProductCard {
   attributes: { name: string; value: string }[];
   categoryName: string | null;
   stockTotal: number;
+  /** Whether this product counts its units at all. False means it sells
+   * without a ceiling -- `available` on every variant is unbounded, and
+   * nothing about the product ever reads as out of stock. */
+  tracksInventory: boolean;
 
   /* The dynamic option system. Everything above this line is unchanged and
    * still feeds the existing product page; everything below is additive.
@@ -210,6 +216,7 @@ interface CardRow {
   parent_id: string | null;
   stock_total: number | null;
   is_featured: number;
+  track_inventory: number;
 }
 
 function discountPercent(price: number, oldPrice: number): number {
@@ -234,7 +241,9 @@ function toCard(row: CardRow): StoreProductCard {
     categoryId: isSub ? row.parent_id : row.category_id,
     subcategoryId: isSub ? row.category_id : null,
     bestSeller: row.is_best_seller === 1,
-    inStock: (row.stock_total ?? 0) > 0,
+    // A product that does not count its units is always sellable: there is no
+    // figure for "none left" to be true of.
+    inStock: row.track_inventory === 0 || (row.stock_total ?? 0) > 0,
     featured: row.is_featured === 1,
   };
 }
@@ -243,7 +252,7 @@ function toCard(row: CardRow): StoreProductCard {
  * department from subcategory. */
 const CARD_SELECT = `
   SELECT p.id, p.name, p.price, p.old_price, p.rating_avg, p.rating_count,
-         p.is_best_seller, p.is_featured, p.category_id, c.parent_id,
+         p.is_best_seller, p.is_featured, p.category_id, p.track_inventory, c.parent_id,
          (SELECT url FROM product_images i WHERE i.product_id = p.id
            ORDER BY i.is_primary DESC, i.sort_order ASC LIMIT 1) AS image,
          (SELECT COALESCE(SUM(v.stock_quantity - v.reserved_quantity), 0)
@@ -363,6 +372,7 @@ async function queryProduct(id: string): Promise<StoreProduct | null> {
               p.is_best_seller, p.category_id, p.slug, p.description,
               p.hero_headline, p.hero_subtitle,
               p.short_description, p.badge_label, p.return_policy, p.warranty,
+              p.track_inventory,
               -- Units actually ordered. products.sold_count is never written by
               -- checkout, so it would read 0 on every product.
               (SELECT COALESCE(SUM(oi.quantity), 0) FROM order_items oi
@@ -591,6 +601,8 @@ async function queryProduct(id: string): Promise<StoreProduct | null> {
     selectionsByVariant.set(link.variant_id, selections);
   }
 
+  const tracksInventory = row.track_inventory === 1;
+
   const sellableVariants: StoreVariant[] = (
     sellable.results as unknown as {
       id: string;
@@ -607,7 +619,9 @@ async function queryProduct(id: string): Promise<StoreProduct | null> {
     // as `variant.price` anywhere.
     price: variant.price ?? row.price,
     compareAtPrice: variant.old_price ?? row.old_price,
-    available: Math.max(0, variant.stock_quantity - variant.reserved_quantity),
+    available: tracksInventory
+      ? Math.max(0, variant.stock_quantity - variant.reserved_quantity)
+      : UNLIMITED_STOCK,
     imageId: variant.image_id,
   }));
 
@@ -637,6 +651,7 @@ async function queryProduct(id: string): Promise<StoreProduct | null> {
       attr_value: string;
     }[]).map((a) => ({ name: a.attr_name, value: a.attr_value })),
     stockTotal: row.stock_total ?? 0,
+    tracksInventory,
     shortDescription: row.short_description,
     badgeLabel: row.badge_label,
     returnPolicy: row.return_policy,

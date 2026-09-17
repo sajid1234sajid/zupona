@@ -210,6 +210,17 @@ function planImages(
  * one poster per clip, the poster empty when the browser could not grab a
  * still -- so they are zipped here rather than parsed out of one encoded
  * field. Only the clip URL is required; a missing poster is normal. */
+/** Whether the product counts its units.
+ *
+ * An unticked checkbox posts nothing at all, so the hidden marker beside it is
+ * what tells "switched off" from "this form did not carry the field" -- the
+ * same shape the settings page uses. A form without the marker leaves the
+ * stored value alone rather than silently switching counting off. */
+function readTrackInventory(formData: FormData): boolean | null {
+  if (formData.get("__present_trackInventory") === null) return null;
+  return formData.get("trackInventory") !== null;
+}
+
 function readVideos(formData: FormData): { url: string; poster: string | null }[] {
   const urls = formData.getAll("videos").map(String);
   const posters = formData.getAll("videoPosters").map(String);
@@ -262,8 +273,9 @@ export async function createProductAction(
         .prepare(
           `INSERT INTO products (id, seller_id, category_id, brand_id, name, slug, sku, description,
                                  status, price, old_price, is_featured, is_best_seller,
-                                 weight_grams, dimensions_json, meta_title, meta_description)
-           VALUES (?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+                                 track_inventory, weight_grams, dimensions_json, meta_title,
+                                 meta_description)
+           VALUES (?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
         )
         .bind(
           productId,
@@ -278,6 +290,7 @@ export async function createProductAction(
           pricing.oldPrice,
           formData.get("isFeatured") ? 1 : 0,
           formData.get("isBestSeller") ? 1 : 0,
+          readTrackInventory(formData) ? 1 : 0,
           weightGrams,
           dimensions,
           readText(formData, "metaTitle"),
@@ -411,12 +424,15 @@ export async function updateProductAction(
     const weightKg = Number(String(formData.get("weight") ?? "").trim());
     const weightGrams = Number.isFinite(weightKg) && weightKg > 0 ? Math.round(weightKg * 1000) : null;
 
+    const trackInventory = readTrackInventory(formData);
+
     const statements = [
       db
         .prepare(
           `UPDATE products SET name = ?, slug = ?, sku = ?, description = ?, category_id = ?,
                                brand_id = ?, status = ?, price = ?, old_price = ?,
-                               is_featured = ?, is_best_seller = ?, weight_grams = ?,
+                               is_featured = ?, is_best_seller = ?,
+                               track_inventory = COALESCE(?, track_inventory), weight_grams = ?,
                                dimensions_json = ?, meta_title = ?, meta_description = ?,
                                updated_at = datetime('now')
            WHERE id = ?`
@@ -433,6 +449,7 @@ export async function updateProductAction(
           pricing.oldPrice,
           formData.get("isFeatured") ? 1 : 0,
           formData.get("isBestSeller") ? 1 : 0,
+          trackInventory === null ? null : trackInventory ? 1 : 0,
           weightGrams,
           dimensions,
           readText(formData, "metaTitle"),

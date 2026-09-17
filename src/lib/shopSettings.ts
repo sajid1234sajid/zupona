@@ -22,6 +22,10 @@ export interface ShopSettings {
   /** 0 disables free shipping entirely. */
   freeShippingThreshold: number;
   lowStockThreshold: number;
+  /** Whether a shopper sees how many units are left, or only whether the item
+   * can be bought at all. Off by default: the count is the shop's own figure,
+   * and an admin turns it on deliberately when they want it shown. */
+  showStockToShoppers: boolean;
   reviewsNeedApproval: boolean;
   /** Days a shopper has to return an item. 0 hides the line on product pages. */
   returnDays: number;
@@ -53,6 +57,7 @@ export const DEFAULT_SETTINGS: ShopSettings = {
   deliveryFee: DEFAULT_DELIVERY_FEE,
   freeShippingThreshold: DEFAULT_FREE_DELIVERY_THRESHOLD,
   lowStockThreshold: 5,
+  showStockToShoppers: false,
   reviewsNeedApproval: false,
   // Zero until the shop states a policy, so no product promises one it has not made.
   returnDays: 0,
@@ -95,6 +100,10 @@ async function querySettings(): Promise<ShopSettings> {
       DEFAULT_SETTINGS.freeShippingThreshold
     ),
     lowStockThreshold: readInt(map.get("low_stock_threshold"), DEFAULT_SETTINGS.lowStockThreshold),
+    showStockToShoppers: readFlag(
+      map.get("show_stock_to_shoppers"),
+      DEFAULT_SETTINGS.showStockToShoppers
+    ),
     reviewsNeedApproval: readFlag(
       map.get("reviews_need_approval"),
       DEFAULT_SETTINGS.reviewsNeedApproval

@@ -36,6 +36,9 @@ export interface ProductFormValues {
   discountValue: number;
   stock: number;
   lowStockAlert: number;
+  /** Whether the product counts its units at all. Off, it sells without a
+   * ceiling and every stock box disappears. */
+  trackInventory: boolean;
   colors: string[];
   sizes: string[];
   tags: string[];
@@ -96,6 +99,10 @@ export default function ProductForm({
   const [cells, setCells] = useState<Record<string, CellOverride>>(values.variantCells);
   const [gallery, setGallery] = useState<string[]>(values.images);
   const [stock, setStock] = useState(String(values.stock || ""));
+  // Off, the product sells without a ceiling and nothing here has a stock box
+  // to fill in -- which is the whole point of the switch. On, every stock
+  // control comes back exactly as it was.
+  const [trackInventory, setTrackInventory] = useState(values.trackInventory);
   const [lowStockAlert, setLowStockAlert] = useState(String(values.lowStockAlert || ""));
 
   const matrix = useMemo(() => buildMatrix(groups), [groups]);
@@ -105,7 +112,9 @@ export default function ProductForm({
   // variants start at zero the way an untouched row already does -- stock can
   // be filled in per combination later.
   const defaultStock =
-    showStockFields && stock.trim() !== "" ? Math.max(0, Number(stock) || 0) : undefined;
+    showStockFields && trackInventory && stock.trim() !== ""
+      ? Math.max(0, Number(stock) || 0)
+      : undefined;
   const defaultThreshold = showStockFields ? Math.max(0, Number(lowStockAlert) || 0) : undefined;
   const optionsPayload = useMemo(
     () => buildOptionsPayload({ groups, cells, matrix, defaultStock, defaultThreshold }),
@@ -223,7 +232,7 @@ export default function ProductForm({
                 </p>
               ) : null}
 
-              {showStockFields ? (
+              {showStockFields && trackInventory ? (
                 <>
                   <Field label="Stock Quantity" hint="Optional — spread across the combinations">
                     <input
@@ -324,8 +333,8 @@ export default function ProductForm({
           {groups.length === 0 ? (
             <p className="mt-3 flex items-start gap-2 rounded-xl bg-neutral-50 px-3.5 py-2.5 text-[11px] text-neutral-500">
               <Info className="mt-px h-3.5 w-3.5 shrink-0" />
-              No options yet. The product is sold as a single item — stock still lives on its one
-              combination below.
+              No options yet. The product is sold as a single item — it still has one combination
+              below, which is where any stock would live.
             </p>
           ) : null}
         </Card>
@@ -335,15 +344,45 @@ export default function ProductForm({
       <div className="min-w-0 xl:col-span-12 xl:order-last">
         <Card>
           <CardHeader
-            title="Variants & Stock"
-            subtitle="Every combination the options make, with what it costs and what is left"
+            title={trackInventory ? "Variants & Stock" : "Variants"}
+            subtitle={
+              trackInventory
+                ? "Every combination the options make, with what it costs and what is left"
+                : "Every combination the options make, with what it costs"
+            }
           />
+
+          {/* The switch that decides whether this product counts anything.
+              Posted as a marker plus the checkbox, the way the settings page
+              does it, so "turned off" is not read as "field not on the form". */}
+          <label className="mb-4 flex cursor-pointer items-start gap-3 rounded-xl border border-neutral-200 px-3.5 py-3 transition has-[:checked]:border-brand has-[:checked]:bg-brand-tint/40">
+            <input type="hidden" name="__present_trackInventory" value="1" />
+            <input
+              type="checkbox"
+              name="trackInventory"
+              checked={trackInventory}
+              onChange={(event) => setTrackInventory(event.target.checked)}
+              className="mt-0.5 h-4 w-4 shrink-0 rounded accent-[#16a34a]"
+            />
+            <span className="min-w-0">
+              <span className="block text-[13px] font-semibold text-neutral-800">
+                Keep count of stock
+              </span>
+              <span className="block text-[11px] text-neutral-400">
+                {trackInventory
+                  ? "Each combination has its own count, and the product sells out when it runs down"
+                  : "Off — this product sells without a limit and never shows as out of stock"}
+              </span>
+            </span>
+          </label>
+
           <VariantMatrix
             matrix={matrix}
             cells={cells}
             onChange={setCells}
             gallery={gallery}
             defaultStock={defaultStock}
+            showStock={trackInventory}
             maxVariants={MAX_VARIANTS}
           />
         </Card>

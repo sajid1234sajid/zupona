@@ -33,6 +33,9 @@ export default async function NewProductPage() {
           discountValue: 0,
           stock: 0,
           lowStockAlert: 5,
+          // Off by default: a new product sells without a ceiling until the
+          // admin says it should be counted.
+          trackInventory: false,
           colors: [],
           sizes: [],
           optionGroups: [],

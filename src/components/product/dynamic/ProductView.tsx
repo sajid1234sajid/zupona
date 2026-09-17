@@ -42,6 +42,7 @@ export default function ProductView({
   reviewSummary,
   hasSimilar,
   initiallyWishlisted,
+  showStock,
 }: {
   product: StoreProduct;
   /** Built on the server from the category tree, which the read model returns
@@ -57,6 +58,10 @@ export default function ProductView({
   /** Whether there is a Similar Products section for "View Similar" to reach. */
   hasSimilar: boolean;
   initiallyWishlisted: boolean;
+  /** Whether the shopper sees how many units are left. Off, the stats row says
+   * only whether the item can be bought -- the count is the shop's own figure
+   * and the admin panel is where it is read. */
+  showStock: boolean;
 }) {
   const router = useRouter();
 
@@ -264,8 +269,13 @@ export default function ProductView({
             <p className="mt-1.5 text-sm text-ink-soft">{product.shortDescription}</p>
           )}
 
-          {/* Reviews | Sold | Stock. Stock follows the selected option, so it
-              says what can actually be bought in the size on screen. */}
+          {/* Reviews | Sold | Stock. Availability follows the selected option, so
+              it speaks for the size on screen. Three ways it can read: a
+              product that counts nothing says nothing at all, one that counts
+              but keeps the figure to itself says In Stock or Out of Stock, and
+              one the shop has chosen to be open about names the number.
+              `!== false` because KV can still be serving an entry written
+              before the field existed, the way the option fields are read. */}
           <div className="mt-2.5 flex flex-wrap items-center gap-y-1.5 text-[13px]">
             <a
               href="#reviews"
@@ -284,10 +294,20 @@ export default function ProductView({
             <span className="font-semibold text-heading">
               Sold {product.soldCount.toLocaleString("en-US")}
             </span>
-            <span aria-hidden className="mx-2.5 h-3.5 w-px bg-line" />
-            <span className={`font-semibold ${available > 0 ? "text-brand" : "text-accent-red"}`}>
-              {available > 0 ? `Stock ${available.toLocaleString("en-US")}` : "Out of Stock"}
-            </span>
+            {product.tracksInventory !== false && (
+              <>
+                <span aria-hidden className="mx-2.5 h-3.5 w-px bg-line" />
+                <span
+                  className={`font-semibold ${available > 0 ? "text-brand" : "text-accent-red"}`}
+                >
+                  {available > 0
+                    ? showStock
+                      ? `Stock ${available.toLocaleString("en-US")}`
+                      : "In Stock"
+                    : "Out of Stock"}
+                </span>
+              </>
+            )}
           </div>
 
           <div className="mt-3 flex flex-wrap items-baseline gap-x-2 gap-y-1">

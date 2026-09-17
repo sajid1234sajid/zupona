@@ -195,6 +195,12 @@ export function StoreSettingsForm({
 
         <div className="mt-4 space-y-2.5">
           <Toggle
+            name="show_stock_to_shoppers"
+            label="Show stock counts to shoppers"
+            detail="Off, a product page says only In Stock or Out of Stock — the number stays in here"
+            checked={settings.showStockToShoppers}
+          />
+          <Toggle
             name="reviews_need_approval"
             label="Hold new reviews for moderation"
             detail="Reviews land as Pending instead of going live straight away"

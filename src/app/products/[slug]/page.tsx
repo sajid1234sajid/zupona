@@ -126,6 +126,7 @@ export default async function DynamicProductPage({ params }: PageProps<"/product
             reviewSummary={{ average: breakdown.average, total: breakdown.total }}
             hasSimilar={similar.length > 0}
             initiallyWishlisted={wishlistIds.has(product.id)}
+            showStock={settings.showStockToShoppers}
           />
 
           <div className="mt-4 space-y-4 tab:mt-8">

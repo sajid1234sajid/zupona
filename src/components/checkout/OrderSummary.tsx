@@ -85,7 +85,9 @@ export default function OrderSummary({
         </div>
         <div className="flex items-center justify-between text-[12px] text-ink-slate">
           <span>Delivery charge</span>
-          <span className="font-semibold text-ink-strong">{formatPrice(deliveryFee)}</span>
+          <span className="font-semibold text-ink-strong">
+            {deliveryFee === 0 ? "Free" : formatPrice(deliveryFee)}
+          </span>
         </div>
       </div>
 

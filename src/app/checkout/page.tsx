@@ -7,7 +7,7 @@ import { getVerifiedPhone } from "@/lib/verification";
 import { isServedLocation } from "@/data/locations";
 import { getDeliveryMethod, type DeliveryDetails } from "@/lib/checkout";
 import { availablePaymentMethods } from "@/lib/payments";
-import { getDeliveryFee } from "@/lib/shopSettings";
+import { getShopSettings, shippingFeeFor } from "@/lib/shopSettings";
 import CheckoutWizard from "@/components/checkout/CheckoutWizard";
 
 export default async function CheckoutPage({ searchParams }: PageProps<"/checkout">) {
@@ -17,8 +17,7 @@ export default async function CheckoutPage({ searchParams }: PageProps<"/checkou
   const shopper = await getShopper();
   if (!shopper) redirect("/cart");
 
-  const [verifiedPhone, deliveryFee] = await Promise.all([getVerifiedPhone(), getDeliveryFee()]);
-  const delivery = getDeliveryMethod("standard", deliveryFee);
+  const [verifiedPhone, settings] = await Promise.all([getVerifiedPhone(), getShopSettings()]);
   const payableWith = await availablePaymentMethods();
 
   // Buy Now checks out one line held in its own session; the cart is not read
@@ -36,6 +35,11 @@ export default async function CheckoutPage({ searchParams }: PageProps<"/checkou
   // line it is and offers the button that removes it. Letting them fill in an
   // address first and find out at "Pay Now" would be the same refusal, later.
   if (!buyNow && items.some((item) => item.unavailable)) redirect("/cart");
+
+  // Priced the way `placeOrder` will price it -- free-shipping threshold and
+  // all -- so the wizard never quotes a charge the order does not carry.
+  const subtotal = buyNow ? buyNow.price * buyNow.quantity : cartSubtotal(items);
+  const delivery = getDeliveryMethod("standard", shippingFeeFor(subtotal, settings));
 
   const addresses = shopper.isGuest ? [] : await getAddresses(shopper.id);
   const saved = addresses.find((address) => address.isDefault) ?? addresses[0] ?? null;
@@ -96,7 +100,7 @@ export default async function CheckoutPage({ searchParams }: PageProps<"/checkou
               oldPrice: item.product.oldPrice,
             }))
       }
-      subtotal={buyNow ? buyNow.price * buyNow.quantity : cartSubtotal(items)}
+      subtotal={subtotal}
       delivery={delivery}
       payableWith={payableWith}
     />

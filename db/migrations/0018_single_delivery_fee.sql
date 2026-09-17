@@ -10,3 +10,8 @@ VALUES ('delivery_fee', '130')
 ON CONFLICT(key) DO UPDATE SET value = excluded.value;
 
 DELETE FROM site_settings WHERE key IN ('standard_shipping_fee', 'express_shipping_fee');
+
+-- Free delivery over the threshold stays as it was; only the tiers are gone.
+INSERT INTO site_settings (key, value)
+VALUES ('free_shipping_threshold', '999')
+ON CONFLICT(key) DO UPDATE SET value = excluded.value;

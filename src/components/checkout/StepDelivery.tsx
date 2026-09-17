@@ -199,7 +199,7 @@ export default function StepDelivery({
             <p className="truncate text-[12px] text-ink-slate">{delivery.tagline}</p>
           </div>
           <span className="shrink-0 text-sm font-bold text-brand-darkest">
-            {formatPrice(delivery.fee)}
+            {delivery.fee === 0 ? "Free" : formatPrice(delivery.fee)}
           </span>
         </div>
       </section>

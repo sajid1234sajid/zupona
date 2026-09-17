@@ -6,15 +6,13 @@ import BotanicalBackdrop from "./BotanicalBackdrop";
 
 /** The two promotional banners, in the shop's own artwork.
  *
- * The artwork is the shop's, finished and untouched: one file each, shown
- * whole, never cropped, re-cut or drawn over. The card is what changes shape
- * around it. On a phone the pair shares a row half a screen each, in the
- * compact card the shop owner measured out -- and because that card is far
- * squarer than a banner better than four to one, the picture is fitted inside
- * it rather than filling it, with the card carrying the artwork's own colour
- * so the fit reads as the picture's background rather than as a gap. On a
- * laptop the pair stands in a column beside the hero, where each card takes
- * its picture's exact ratio and the artwork fills it edge to edge.
+ * The owner draws these, and supplies each one twice: a card-shaped pair for
+ * the phone row and a wide pair for the laptop column. Neither is cropped,
+ * stretched or drawn over here -- each is shown whole in a card of its own
+ * ratio. The card files are their sheet of the two cards cut in half and
+ * given the phone card's exact ratio, which the artwork was short of only in
+ * height, made up by stretching each card's own top and bottom edge rows: no
+ * part of the design touches an edge, so what is added is background.
  *
  * Banners published under the "promo" placement join them, taking the same
  * shape, which is what makes that choice in the admin panel mean something on
@@ -27,20 +25,22 @@ export default async function PromoBanners() {
   return (
     <section className="grid grid-cols-2 gap-1.5 px-3.5 pt-2.5 tab:flex tab:h-full tab:flex-col tab:justify-between tab:gap-3 tab:px-0 tab:pt-0">
       <ArtworkBanner
-        src="/promo-mega-deals.webp"
-        alt="Mega Deals -- top picks, best value and limited stock, up to 50% off"
+        card="/promo-mega-deals-card.webp"
+        wide="/promo-mega-deals.webp"
+        alt="Mega Deals -- top picks, special deals"
         shape="aspect-[327/191] tab:aspect-[1075/249]"
-        // Sampled from the artwork's own edge, so the card reads as the
-        // picture's background continuing rather than as a box around it.
-        surface="bg-[#076827]"
+        // Sampled from the artwork's own edge, so the card is the picture's
+        // colour for the moment before the picture itself arrives.
+        surface="bg-[#0b7d3f]"
         pill="bg-white text-brand-dark"
       />
 
       <ArtworkBanner
-        src="/promo-free-delivery.webp"
+        card="/promo-free-delivery-card.webp"
+        wide="/promo-free-delivery.webp"
         alt="Free delivery on orders over ৳1,000"
         shape="aspect-[327/191] tab:aspect-[1563/275]"
-        surface="bg-[#ecf4ef]"
+        surface="bg-[#e6f8ec]"
         pill="bg-brand text-white"
         // This artwork's own background is very nearly white, so without an
         // edge the card dissolves into the page it sits on.
@@ -58,20 +58,21 @@ export default async function PromoBanners() {
  *
  * The phone card's ratio is measured off the shop owner's own screen -- 327
  * by 191 of their 719px-wide screenshot, which is 163 by 95 css pixels beside
- * the margins and gap this row already had.
- *
- * The Shop Now pill sits bottom left on a phone, inside the band the fitted
- * picture leaves rather than on top of the artwork, and moves to the bottom
- * right on a laptop where the picture fills the card. */
+ * the margins and gap this row already had. That size is settled; what
+ * changes here is only which of the owner's two files is drawn in it. */
 function ArtworkBanner({
-  src,
+  card,
+  wide,
   alt,
   shape,
   surface,
   pill,
   frame = "",
 }: {
-  src: string;
+  /** The card-shaped artwork, drawn on a phone. */
+  card: string;
+  /** The wide artwork, drawn from the `tab` breakpoint up. */
+  wide: string;
   alt: string;
   shape: string;
   /** The card's own colour, taken from the artwork's edge. */
@@ -86,23 +87,28 @@ function ArtworkBanner({
       href="/offers"
       className={`relative block w-full overflow-hidden rounded-xl tab:rounded-2xl ${shape} ${surface} ${frame}`}
     >
-      <Image
-        src={src}
-        alt={alt}
-        fill
-        sizes="(min-width: 700px) 620px, 50vw"
-        // `contain`, never `cover`: the card on a phone is far squarer than
-        // the picture, and these banners carry their own wording, so a crop
-        // would take a word with it. The whole picture is drawn at the
-        // largest size that fits and the card's colour fills the rest.
-        style={{ objectFit: "contain", objectPosition: "50% 50%" }}
-      />
+      <picture>
+        <source media="(min-width: 700px)" srcSet={wide} />
+        {/* Each file is already the ratio of the card it is drawn in, so
+            `cover` cannot crop anything; `<picture>` is what gives a phone
+            the card-shaped artwork and a laptop the wide one, and it fetches
+            only the one it will draw. */}
+        <img
+          src={card}
+          alt={alt}
+          loading="lazy"
+          decoding="async"
+          className="absolute inset-0 h-full w-full object-cover"
+        />
+      </picture>
 
+      {/* The phone artwork carries its own call to action, so the pill is the
+          laptop's alone -- the wide cut has none drawn into it. */}
       <span
-        className={`absolute bottom-1 left-1 z-10 inline-flex items-center gap-0.5 rounded-full px-1.5 py-[2px] text-[9px] font-bold shadow-[0_1px_5px_rgba(0,40,28,0.28)] tab:bottom-2 tab:left-auto tab:right-2 tab:gap-1 tab:px-2.5 tab:py-1 tab:text-[11px] ${pill}`}
+        className={`absolute bottom-2 right-2 z-10 hidden items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold shadow-[0_1px_5px_rgba(0,40,28,0.28)] tab:inline-flex ${pill}`}
       >
         Shop Now
-        <ArrowRight className="h-2.5 w-2.5 tab:h-3.5 tab:w-3.5" strokeWidth={3} />
+        <ArrowRight className="h-3.5 w-3.5" strokeWidth={3} />
       </span>
     </Link>
   );

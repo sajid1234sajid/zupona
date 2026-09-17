@@ -37,15 +37,25 @@ export default async function OffersPage({ searchParams }: PageProps<"/offers">)
   const tab: DealTabId = isDealTab(requested) ? requested : "all";
 
   const user = await getCurrentUser();
-  const [wishlistIds, cartItems] = await Promise.all([
+
+  // One wave, not two. The sale, the deals and the coupons have nothing to do
+  // with who is asking, so waiting for the shopper's wishlist before starting
+  // them only bought a second round trip to a database that lives in Singapore.
+  // They come from the database now, so a flash sale scheduled in the admin
+  // panel and a coupon created there both appear here.
+  const [
+    wishlistIds,
+    cartItems,
+    saleWindow,
+    saleName,
+    saleItems,
+    deals,
+    savings,
+    topDiscount,
+    coupons,
+  ] = await Promise.all([
     getWishlistProductIds(user?.id ?? null),
     user ? getCartItems(user.id) : Promise.resolve([]),
-  ]);
-
-  // All five come from the database now, so a flash sale scheduled in the
-  // admin panel and a coupon created there both appear here.
-  const [saleWindow, saleName, saleItems, deals, savings, topDiscount, coupons] =
-    await Promise.all([
     flashSaleWindow(),
     flashSaleName(),
     flashSaleItems(),

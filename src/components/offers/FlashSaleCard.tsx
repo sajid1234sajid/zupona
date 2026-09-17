@@ -16,6 +16,7 @@ export default function FlashSaleCard({ item }: { item: FlashSaleItem }) {
 
   return (
     <Link
+      prefetch={false}
       href={`/product/${product.id}`}
       className="w-[112px] shrink-0 rounded-lg bg-white p-1.5 shadow-card tab:w-[150px]"
     >

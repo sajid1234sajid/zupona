@@ -40,7 +40,7 @@ function SimilarCard({
   return (
     <li className="min-w-0 overflow-hidden rounded-xl border border-line bg-white">
       <div className="relative">
-        <Link href={href} className="relative block aspect-square bg-mint">
+        <Link prefetch={false} href={href} className="relative block aspect-square bg-mint">
           <Image
             src={product.image}
             alt={product.name}
@@ -64,7 +64,7 @@ function SimilarCard({
         </button>
       </div>
 
-      <Link href={href} className="block p-2">
+      <Link prefetch={false} href={href} className="block p-2">
         <h3 className="line-clamp-2 min-h-[2.5em] text-[13px] font-semibold leading-tight text-heading">
           {product.name}
         </h3>

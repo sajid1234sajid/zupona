@@ -65,6 +65,12 @@ export default function ProductCard({
         {/* A square photo that scales with the column, so the tile is the same
             shape in every two-column grid instead of a fixed-height strip. */}
         <Link
+          // A grid draws dozens of these, and each one prefetching costs an
+          // RSC round trip for a product nobody has asked for yet. Measured on
+          // the offers page, that was twenty-one requests fired off during a
+          // single tab change, competing for a phone's bandwidth with the page
+          // the shopper actually wanted. The tap itself is what fetches.
+          prefetch={false}
           href={`/product/${product.id}`}
           className="relative block aspect-square overflow-hidden bg-brand-mist"
         >
@@ -105,7 +111,7 @@ export default function ProductCard({
       </div>
 
       <div className="flex flex-1 flex-col p-1.5">
-        <Link href={`/product/${product.id}`} className="block">
+        <Link prefetch={false} href={`/product/${product.id}`} className="block">
           <h3 className="line-clamp-2 min-h-[2.5em] text-[12px] font-semibold leading-[1.25] text-heading">
             {product.name}
           </h3>

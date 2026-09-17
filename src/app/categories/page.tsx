@@ -13,11 +13,11 @@ export const metadata: Metadata = {
 };
 
 export default async function CategoriesPage() {
-  const user = await getCurrentUser();
-  const [categories, wishlistIds] = await Promise.all([
-    categoryOverviews(),
-    getWishlistProductIds(user?.id ?? null),
-  ]);
+  // `categoryOverviews` is the same for every visitor, so it starts with the
+  // session lookup instead of after it. Only the wishlist has to wait to learn
+  // whose it is.
+  const [user, categories] = await Promise.all([getCurrentUser(), categoryOverviews()]);
+  const wishlistIds = await getWishlistProductIds(user?.id ?? null);
 
   return (
     // h-screen (not min-h-screen): the two panes scroll independently inside

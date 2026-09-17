@@ -206,6 +206,7 @@ export default function WishlistClient({
               )}
 
               <Link
+                prefetch={false}
                 href={`/product/${product.id}`}
                 className="relative h-[76px] w-[76px] shrink-0 overflow-hidden rounded-lg bg-brand-mist"
               >
@@ -224,7 +225,7 @@ export default function WishlistClient({
               </Link>
 
               <div className="min-w-0 flex-1">
-                <Link href={`/product/${product.id}`} className="block">
+                <Link prefetch={false} href={`/product/${product.id}`} className="block">
                   <p className="truncate text-[12px] font-semibold text-heading">
                     {product.name}
                   </p>

@@ -1,96 +1,46 @@
 import Image from "@/components/ui/StoreImage";
 import Link from "next/link";
-import { Zap, Truck, ArrowRight } from "lucide-react";
-import { getShopSettings } from "@/lib/shopSettings";
-import { formatPrice } from "@/lib/format";
+import { ArrowRight } from "lucide-react";
 import { listStoreBanners, type StoreBanner } from "@/lib/storefront";
 import BotanicalBackdrop from "./BotanicalBackdrop";
 
-/** The promotional tiles under the departments.
+/** The promotional banners under the departments.
  *
- * The delivery threshold is read from shop settings rather than typed in, so
- * raising free delivery in the admin panel updates the promise a customer is
- * shown here at the same moment it starts being honoured at checkout.
+ * Mega Deals and free delivery used to be drawn here in CSS -- a gradient, a
+ * lucide icon and a line of type each, side by side. They are now the shop's
+ * own artwork, which arrives already carrying its headline, its badges and
+ * its illustration, so the pair is drawn full width instead: at roughly four
+ * to one, half a phone's width would have cropped away most of each picture.
  *
- * Banners published under the "promo" placement join the two standing tiles
- * as further tiles in the same grid, which is what makes that choice in the
- * admin panel mean something on the shop.
+ * Each still carries the Shop Now pill it had, set into the corner over the
+ * artwork rather than beside it, so the tile is as tappable-looking as it was
+ * and no wording is drawn across the wording already in the picture.
+ *
+ * Banners published under the "promo" placement join them below, in the same
+ * single column, which is what makes that choice in the admin panel mean
+ * something on the shop.
  *
  * The `tab:` classes are the laptop sizes; the phone design is the rest. */
 export default async function PromoBanners() {
-  const [settings, promos] = await Promise.all([getShopSettings(), listStoreBanners("promo")]);
+  const promos = await listStoreBanners("promo");
 
   return (
-    <section className="grid grid-cols-2 gap-1.5 px-3.5 pt-2.5 tab:gap-3 tab:px-0 tab:pt-3">
-      <Link
-        href="/offers"
-        className="relative flex h-[92px] flex-col justify-center overflow-hidden rounded-xl bg-[linear-gradient(135deg,#00553d_0%,#007553_100%)] pl-3 pr-[58px] text-white tab:h-[150px] tab:rounded-2xl tab:pl-8 tab:pr-[140px]"
-      >
-        <BotanicalBackdrop
-          className="absolute inset-0 h-full w-full"
-          tone="#7fe0c6"
-          opacity={0.24}
-          blossoms={false}
-        />
+    <section className="flex flex-col gap-1.5 px-3.5 pt-2.5 tab:gap-3 tab:px-0 tab:pt-3">
+      <ArtworkBanner
+        src="/promo-mega-deals.webp"
+        alt="Mega Deals -- top picks, best value, limited stock, up to 50% off"
+        width={1075}
+        height={249}
+        pill="bg-white text-brand-dark"
+      />
 
-        <span className="relative z-10 flex items-center gap-1 tab:gap-2">
-          <Zap className="h-3 w-3 fill-accent-amber text-accent-amber tab:h-5 tab:w-5" />
-          <span className="text-[10.5px] font-bold leading-none tab:text-xl">Mega Deals</span>
-        </span>
-        <span className="relative z-10 mt-[3px] text-[10px] leading-none text-brand-tint tab:mt-2 tab:text-sm">
-          Limited Time Only
-        </span>
-        <span className="relative z-10 mt-1.5 inline-flex w-fit items-center gap-0.5 rounded-full bg-white px-2 py-[3px] text-[10px] font-bold text-brand-dark tab:mt-4 tab:gap-1.5 tab:px-4 tab:py-1.5 tab:text-[13px]">
-          Shop Now
-          <ArrowRight className="h-2.5 w-2.5 tab:h-3.5 tab:w-3.5" strokeWidth={3} />
-        </span>
-
-        <span className="absolute right-2 top-1/2 z-10 grid h-[50px] w-[50px] -translate-y-1/2 place-items-center rounded-full bg-white text-center tab:right-8 tab:h-[92px] tab:w-[92px]">
-          <span className="leading-none">
-            <span className="block text-[10px] font-bold tracking-[0.06em] text-ink-muted tab:text-[12px]">
-              UP TO
-            </span>
-            <span className="block text-[14px] font-extrabold leading-none text-brand tab:text-[28px]">50%</span>
-            <span className="block text-[10px] font-bold tracking-[0.06em] text-ink-muted tab:text-[12px]">
-              OFF
-            </span>
-          </span>
-        </span>
-      </Link>
-
-      <Link
-        href="/offers"
-        className="relative flex h-[92px] flex-col justify-center overflow-hidden rounded-xl border border-brand-tint bg-[linear-gradient(135deg,#eaf7f3_0%,#ffffff_60%,#dff2ec_100%)] pl-3 pr-[46px] tab:h-[150px] tab:rounded-2xl tab:pl-8 tab:pr-[120px]"
-      >
-        <BotanicalBackdrop
-          className="absolute inset-0 h-full w-full"
-          tone="#0a936a"
-          opacity={0.16}
-          blossoms={false}
-        />
-
-        <span className="relative z-10 flex items-center gap-1 tab:gap-2">
-          <Truck className="h-3 w-3 text-brand tab:h-5 tab:w-5" strokeWidth={2.4} />
-          <span className="text-[10.5px] font-bold leading-none text-brand-darkest tab:text-xl">
-            Free Delivery
-          </span>
-        </span>
-        <span className="relative z-10 mt-[3px] text-[10px] leading-[1.3] text-ink-muted tab:mt-2 tab:text-sm">
-          On orders over
-          <br />
-          {formatPrice(settings.freeShippingThreshold)}
-        </span>
-        <span className="relative z-10 mt-1.5 inline-flex w-fit items-center gap-0.5 rounded-full bg-brand px-2 py-[3px] text-[10px] font-bold text-white tab:mt-4 tab:gap-1.5 tab:px-4 tab:py-1.5 tab:text-[13px]">
-          Shop Now
-          <ArrowRight className="h-2.5 w-2.5 tab:h-3.5 tab:w-3.5" strokeWidth={3} />
-        </span>
-
-        <Truck
-          aria-hidden
-          className="absolute bottom-1.5 right-1.5 h-[30px] w-[30px] text-brand-tint tab:bottom-5 tab:right-8 tab:h-[72px] tab:w-[72px]"
-          strokeWidth={1.3}
-        />
-      </Link>
+      <ArtworkBanner
+        src="/promo-free-delivery.webp"
+        alt="Free delivery on orders over ৳1,000"
+        width={1563}
+        height={275}
+        pill="bg-brand text-white"
+      />
 
       {promos.map((promo) => (
         <PromoTile key={promo.id} banner={promo} />
@@ -99,8 +49,52 @@ export default async function PromoBanners() {
   );
 }
 
-/** One admin-published promo tile, built to the same height as the pair above
- * it so an odd number of them still leaves a tidy grid.
+/** One of the shop's two standing banners.
+ *
+ * The frame is given the picture's own ratio rather than a fixed height, so
+ * the artwork is shown whole at every width and nothing of it is cropped --
+ * these are single images with their text baked in, and a crop would cut a
+ * word in half. `sizes` is what keeps a phone off the full-width file. */
+function ArtworkBanner({
+  src,
+  alt,
+  width,
+  height,
+  pill,
+}: {
+  src: string;
+  alt: string;
+  width: number;
+  height: number;
+  /** Colours for the Shop Now pill, picked to sit on that artwork. */
+  pill: string;
+}) {
+  return (
+    <Link
+      href="/offers"
+      className="relative block w-full overflow-hidden rounded-xl tab:rounded-2xl"
+      style={{ aspectRatio: `${width} / ${height}` }}
+    >
+      <Image
+        src={src}
+        alt={alt}
+        fill
+        sizes="(min-width: 700px) 1392px, 100vw"
+        style={{ objectFit: "cover", objectPosition: "50% 50%" }}
+      />
+
+      <span
+        className={`absolute bottom-1 right-1 z-10 inline-flex items-center gap-0.5 rounded-full px-1.5 py-[2px] text-[9px] font-bold shadow-[0_1px_5px_rgba(0,40,28,0.28)] tab:bottom-5 tab:right-6 tab:gap-1.5 tab:px-4 tab:py-1.5 tab:text-[13px] ${pill}`}
+      >
+        Shop Now
+        <ArrowRight className="h-2.5 w-2.5 tab:h-3.5 tab:w-3.5" strokeWidth={3} />
+      </span>
+    </Link>
+  );
+}
+
+/** One admin-published promo banner, drawn in the same single column as the
+ * pair above it.
  *
  * As in the hero, an uploaded picture is left to speak for itself: these
  * banners arrive as finished artwork with their own wording, and a headline
@@ -112,7 +106,7 @@ function PromoTile({ banner }: { banner: StoreBanner }) {
       src={banner.image}
       alt={banner.title}
       fill
-      sizes="(min-width: 700px) 720px, 50vw"
+      sizes="(min-width: 700px) 1392px, 100vw"
       style={{ objectFit: "cover", objectPosition: "50% 50%" }}
     />
   ) : (

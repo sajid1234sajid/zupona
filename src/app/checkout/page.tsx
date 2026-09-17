@@ -5,9 +5,9 @@ import { getBuyNowLine } from "@/lib/buyNow";
 import { getAddresses } from "@/lib/addresses";
 import { getVerifiedPhone } from "@/lib/verification";
 import { isServedLocation } from "@/data/locations";
-import { getDeliveryMethod, type DeliveryDetails } from "@/lib/checkout";
+import { deliveryOptionsFor, type DeliveryDetails } from "@/lib/checkout";
 import { availablePaymentMethods } from "@/lib/payments";
-import { getShopSettings, shippingFeeFor } from "@/lib/shopSettings";
+import { getShopSettings } from "@/lib/shopSettings";
 import CheckoutWizard from "@/components/checkout/CheckoutWizard";
 
 export default async function CheckoutPage({ searchParams }: PageProps<"/checkout">) {
@@ -36,10 +36,10 @@ export default async function CheckoutPage({ searchParams }: PageProps<"/checkou
   // address first and find out at "Pay Now" would be the same refusal, later.
   if (!buyNow && items.some((item) => item.unavailable)) redirect("/cart");
 
-  // Priced the way `placeOrder` will price it -- free-shipping threshold and
-  // all -- so the wizard never quotes a charge the order does not carry.
+  // Priced and locked the way `placeOrder` will judge them, so the wizard
+  // cannot offer a choice the order would refuse.
   const subtotal = buyNow ? buyNow.price * buyNow.quantity : cartSubtotal(items);
-  const delivery = getDeliveryMethod("standard", shippingFeeFor(subtotal, settings));
+  const deliveryOptions = deliveryOptionsFor(subtotal, settings);
 
   const addresses = shopper.isGuest ? [] : await getAddresses(shopper.id);
   const saved = addresses.find((address) => address.isDefault) ?? addresses[0] ?? null;
@@ -69,6 +69,8 @@ export default async function CheckoutPage({ searchParams }: PageProps<"/checkou
     district: usableLocation ? savedLocation.district : "",
     area: usableLocation ? savedLocation.area : "",
     addressDetails: saved?.line1 ?? "",
+    // Home delivery is where checkout opens, whatever the order is worth.
+    deliveryMethod: "home",
   };
 
   return (
@@ -101,7 +103,7 @@ export default async function CheckoutPage({ searchParams }: PageProps<"/checkou
             }))
       }
       subtotal={subtotal}
-      delivery={delivery}
+      deliveryOptions={deliveryOptions}
       payableWith={payableWith}
     />
   );

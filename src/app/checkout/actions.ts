@@ -7,8 +7,8 @@ import { rateLimit } from "@/lib/cache";
 import { claimGuest, createSession, getShopper } from "@/lib/session";
 import { getCartItems } from "@/lib/cart";
 import { calcPointsEarned, generateOrderNumber } from "@/lib/orders";
-import { getDeliveryMethod, getPaymentOption, normalizeBdPhone } from "@/lib/checkout";
-import { getShopSettings, shippingFeeFor } from "@/lib/shopSettings";
+import { getPaymentOption, normalizeBdPhone, resolveDelivery } from "@/lib/checkout";
+import { getShopSettings } from "@/lib/shopSettings";
 import {
   clearPhoneVerification,
   confirmPhoneCode,
@@ -107,6 +107,7 @@ export interface CheckoutDetails {
   district: string;
   area: string;
   addressDetails: string;
+  deliveryMethod: string;
   paymentMethod: string;
   code: string;
   /** Whether the cart is being bought, or a single Buy Now line. */
@@ -246,14 +247,15 @@ export async function placeOrderAction(
   const sellerOf = new Map(owners.map((row) => [row.id, row.seller_id]));
   for (const line of lines) line.sellerId = sellerOf.get(line.productId) ?? null;
 
-  // The fee charged comes from the shop's own settings, and the free-shipping
-  // threshold is applied here so the amount recorded on the order is the
-  // amount the shopper was shown.
+  // The fee charged comes from the shop's own settings, and which option this
+  // order gets is decided here rather than taken from the browser: a request
+  // for free delivery under the threshold is given home delivery at the full
+  // fee instead, so no hand-made request can buy its way out of the charge.
   const settings = await getShopSettings();
-  const delivery = getDeliveryMethod("standard");
   const payment = getPaymentOption(details.paymentMethod);
   const subtotal = lines.reduce((sum, line) => sum + line.price * line.quantity, 0);
-  const shippingFee = shippingFeeFor(subtotal, settings);
+  const delivery = resolveDelivery(details.deliveryMethod, subtotal, settings);
+  const shippingFee = delivery.fee;
   const total = subtotal + shippingFee;
   const pointsEarned = calcPointsEarned(total);
 

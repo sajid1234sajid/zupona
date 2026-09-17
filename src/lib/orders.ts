@@ -1,7 +1,7 @@
 import { getDB } from "@/lib/db";
 import { formatPrice } from "@/lib/format";
-import { getDeliveryMethod } from "@/lib/checkout";
-import type { DeliveryMethodId, Order, OrderItem, OrderStatus, OrderStep } from "@/types";
+import { DELIVERY_DAYS, deliveryMethodName } from "@/lib/checkout";
+import type { Order, OrderItem, OrderStatus, OrderStep, StoredDeliveryMethodId } from "@/types";
 
 /** When the simulated tracker shows an order as delivered. Exported because
  * review eligibility has to agree with what the shopper's tracker says. */
@@ -72,7 +72,7 @@ interface OrderRow {
   address_district: string | null;
   address_city: string;
   payment_label: string;
-  delivery_method: DeliveryMethodId;
+  delivery_method: StoredDeliveryMethodId;
   placed_at: string;
 }
 
@@ -90,7 +90,7 @@ interface OrderItemRow {
 
 function toOrder(row: OrderRow, itemRows: OrderItemRow[]): Order {
   const { steps, current, estimatedDeliveryAt } = deriveSteps(row.placed_at, row.status);
-  const delivery = getDeliveryMethod(row.delivery_method);
+
   const items: OrderItem[] = itemRows.map((item) => ({
     id: item.id,
     productId: item.product_id,
@@ -119,9 +119,9 @@ function toOrder(row: OrderRow, itemRows: OrderItemRow[]): Order {
     addressDistrict: row.address_district,
     addressCity: row.address_city,
     paymentLabel: row.payment_label,
-    deliveryMethod: delivery.id,
-    deliveryMethodName: delivery.name,
-    deliveryEta: delivery.eta,
+    deliveryMethod: row.delivery_method,
+    deliveryMethodName: deliveryMethodName(row.delivery_method),
+    deliveryEta: `${DELIVERY_DAYS.min}-${DELIVERY_DAYS.max} days`,
     placedAt: row.placed_at,
     estimatedDeliveryAt,
     steps,

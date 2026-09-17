@@ -41,48 +41,109 @@ export interface DeliveryMethod {
   id: DeliveryMethodId;
   name: string;
   tagline: string;
+  /** How long it takes. Both options travel the same way, so both say so. */
   eta: string;
+  /** What this option costs on *this* order. */
   fee: number;
+  /** True when the order is too small to earn free delivery. A locked option
+   * is shown and cannot be chosen -- it tells the shopper what is on offer. */
+  locked: boolean;
+  /** The chip under the name: the ETA, the saving, or what unlocks it. */
+  badge: string;
 }
 
 /** The delivery window as numbers, so the product page can promise actual
  * dates. The ETA text below is built from it so the two cannot differ. */
 export const DELIVERY_DAYS = { min: 2, max: 3 } as const;
 
-/** What delivery costs before the shop configures its own fee. */
+/** What delivery costs, and what an order must reach to earn it free, before
+ * the shop configures its own. Both are editable on the admin Settings page. */
 export const DEFAULT_DELIVERY_FEE = 130;
+export const DEFAULT_FREE_DELIVERY_THRESHOLD = 999;
 
-/** The shop's one delivery option.
+/** The two settings every delivery decision is made from. Taking them as a
+ * plain object rather than the whole `ShopSettings` is what lets this file
+ * stay free of server-only imports and be used by the wizard as well. */
+export interface DeliveryPricing {
+  /** The paid option's fee. */
+  deliveryFee: number;
+  /** Subtotal at which free delivery unlocks. 0 switches it off entirely. */
+  freeShippingThreshold: number;
+}
+
+/** Whether this order has earned free delivery.
  *
- * There used to be a Standard/Express choice. The shop charges a single
- * delivery fee now, so there is nothing for the shopper to pick and the
- * option is shown rather than chosen. */
-export const deliveryOption: DeliveryMethod = {
-  id: "standard",
-  name: "Home Delivery",
-  tagline: "Safe & reliable delivery",
-  eta: `${DELIVERY_DAYS.min}-${DELIVERY_DAYS.max} days`,
-  fee: DEFAULT_DELIVERY_FEE,
-};
+ * At the threshold exactly, it has: `>=`, not `>`. A threshold of 0 means the
+ * shop is not offering free delivery, so nothing unlocks it. This one function
+ * decides it for the wizard and for `placeOrder` both, which is what stops a
+ * hand-made request from buying below the threshold and paying nothing. */
+export function freeDeliveryUnlocked(subtotal: number, pricing: DeliveryPricing): boolean {
+  return pricing.freeShippingThreshold > 0 && subtotal >= pricing.freeShippingThreshold;
+}
 
-/** Orders placed while Express still existed keep `express` in their record.
- * They are never re-priced -- the fee charged is stored on the order itself --
- * but their own label is kept so an old order does not read as something the
+/** Both options as this order sees them: priced, and with free delivery locked
+ * when the subtotal has not reached the threshold. Home delivery is always
+ * first, always unlocked, and is what the wizard starts on. */
+export function deliveryOptionsFor(subtotal: number, pricing: DeliveryPricing): DeliveryMethod[] {
+  const unlocked = freeDeliveryUnlocked(subtotal, pricing);
+  return [
+    {
+      id: "home",
+      name: "Home Delivery",
+      tagline: "Safe & reliable delivery to your doorstep",
+      eta: `${DELIVERY_DAYS.min}-${DELIVERY_DAYS.max} days`,
+      fee: pricing.deliveryFee,
+      locked: false,
+      badge: `${DELIVERY_DAYS.min}-${DELIVERY_DAYS.max} days`,
+    },
+    {
+      id: "free",
+      name: "Free Home Delivery",
+      tagline: `Get free delivery on orders ${formatThreshold(pricing)} or above`,
+      eta: `${DELIVERY_DAYS.min}-${DELIVERY_DAYS.max} days`,
+      fee: 0,
+      locked: !unlocked,
+      badge: unlocked
+        ? `Save ৳${pricing.deliveryFee}`
+        : `Free on orders ${formatThreshold(pricing)}+`,
+    },
+  ];
+}
+
+function formatThreshold(pricing: DeliveryPricing): string {
+  return `৳${pricing.freeShippingThreshold}`;
+}
+
+/** The option an order is actually placed with, and the fee it carries.
+ *
+ * A request for free delivery on an order below the threshold is not an error
+ * to report -- it is simply not honoured, and falls back to home delivery at
+ * the full fee. The wizard calls this so its radio cannot show a selection the
+ * order would not get, and `placeOrder` calls it so the fee it writes is
+ * decided on the server whatever the browser asked for. */
+export function resolveDelivery(
+  requested: string | undefined,
+  subtotal: number,
+  pricing: DeliveryPricing
+): DeliveryMethod {
+  const options = deliveryOptionsFor(subtotal, pricing);
+  const wanted = options.find((option) => option.id === requested && !option.locked);
+  return wanted ?? options[0];
+}
+
+/** Orders placed under the old Standard/Express delivery keep those ids. They
+ * are never re-priced -- the fee charged is stored on the order itself -- but
+ * their own label is kept, so an old order does not read as something the
  * shopper did not choose. */
-const legacyExpress: DeliveryMethod = {
-  id: "express",
-  name: "Express Delivery",
-  tagline: "Faster delivery for urgent orders",
-  eta: "24 hours",
-  fee: 120,
+const legacyNames: Record<string, string> = {
+  standard: "Standard Delivery",
+  express: "Express Delivery",
 };
 
-/** The delivery option behind a stored `delivery_method`, optionally priced
- * with the shop's configured fee. Applied here rather than at each call site
- * so cart, checkout and the order record can never disagree. */
-export function getDeliveryMethod(id: string, fee?: number): DeliveryMethod {
-  const method = id === "express" ? legacyExpress : deliveryOption;
-  return fee === undefined ? method : { ...method, fee };
+/** The label for a stored `delivery_method`, for showing an order back. */
+export function deliveryMethodName(id: string): string {
+  if (legacyNames[id]) return legacyNames[id];
+  return id === "free" ? "Free Home Delivery" : "Home Delivery";
 }
 
 /** The shape the wizard carries from the address step into placing the order. */
@@ -96,6 +157,9 @@ export interface DeliveryDetails {
   /** The upazila or thana inside the district. */
   area: string;
   addressDetails: string;
+  /** Which option the shopper picked. Only honoured when it is allowed on this
+   * order -- `resolveDelivery` has the last word on both sides. */
+  deliveryMethod: DeliveryMethodId;
 }
 
 export type PaymentMethodId = "cod" | "online" | "bank";

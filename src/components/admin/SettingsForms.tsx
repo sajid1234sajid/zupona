@@ -122,7 +122,7 @@ export function StoreSettingsForm({
               className={fieldStyles}
             />
           </Field>
-          <Field label="Free shipping over" hint="0 disables it">
+          <Field label="Free delivery over" hint="0 disables it">
             <input
               name="free_shipping_threshold"
               type="number"

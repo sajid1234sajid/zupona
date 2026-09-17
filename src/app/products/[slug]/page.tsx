@@ -11,7 +11,7 @@ import SimilarProducts from "@/components/product/dynamic/SimilarProducts";
 import type { DeliveryLine } from "@/components/product/dynamic/PurchaseInfo";
 import { getStoreProductBySlug, getStoreCategory, listStoreProducts } from "@/lib/storefront";
 import { getShopSettings } from "@/lib/shopSettings";
-import { DELIVERY_DAYS, getDeliveryMethod } from "@/lib/checkout";
+import { DELIVERY_DAYS, deliveryOptionsFor } from "@/lib/checkout";
 import { formatPrice } from "@/lib/format";
 import { getCurrentUser } from "@/lib/session";
 import { getWishlistProductIds } from "@/lib/wishlist";
@@ -98,15 +98,15 @@ export default async function DynamicProductPage({ params }: PageProps<"/product
     department?.subcategories.find((entry) => entry.id === product.subcategoryId)?.name,
   ].filter(Boolean) as string[];
 
-  // The shop's own configured fee, so what a product promises is what
-  // checkout charges.
-  const delivery = getDeliveryMethod("standard", settings.deliveryFee);
-  const deliveryLines: DeliveryLine[] = [
-    {
-      label: delivery.name,
-      value: `${delivery.eta} · ${formatPrice(delivery.fee)}`,
-    },
-  ];
+  // The shop's own configured fees, so what a product promises is what
+  // checkout charges. Priced at a subtotal of 0, which leaves free delivery
+  // locked and so describes what unlocks it rather than quoting it as given.
+  const deliveryLines: DeliveryLine[] = deliveryOptionsFor(0, settings).map((option) => ({
+    label: option.name,
+    value: option.locked
+      ? option.badge
+      : `${option.eta} · ${option.fee === 0 ? "Free" : formatPrice(option.fee)}`,
+  }));
 
   return (
     <StoreShell withStickyActions>

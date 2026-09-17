@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, MapPin, MessageCircle, Phone, Truck, User } from "lucide-react";
 import { getOrderDetail } from "@/lib/adminData";
+import { deliveryMethodName } from "@/lib/checkout";
 import { formatAddressLine, formatDateTime, formatPrice } from "@/lib/format";
 import {
   Card,
@@ -288,7 +289,9 @@ export default async function OrderDetailPage(props: PageProps<"/admin/orders/[i
                 <dd className="font-medium">{formatPrice(order.subtotal)}</dd>
               </div>
               <div className="flex justify-between">
-                <dt className="text-neutral-500">Delivery</dt>
+                <dt className="text-neutral-500">
+                  Delivery ({deliveryMethodName(order.deliveryMethod)})
+                </dt>
                 <dd className="font-medium">{formatPrice(order.shippingFee)}</dd>
               </div>
               {order.discountTotal > 0 ? (

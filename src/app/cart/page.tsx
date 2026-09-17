@@ -6,19 +6,23 @@ import BottomNav from "@/components/layout/BottomNav";
 import CartItemRow from "@/components/cart/CartItemRow";
 import { getShopper } from "@/lib/session";
 import { getCartItems, cartSubtotal } from "@/lib/cart";
-import { getShopSettings, shippingFeeFor } from "@/lib/shopSettings";
+import { resolveDelivery } from "@/lib/checkout";
+import { getShopSettings } from "@/lib/shopSettings";
 import { formatPrice } from "@/lib/format";
 
 export default async function CartPage() {
   // A browser that has never added anything has no shopper yet, and simply an
   // empty cart -- not a trip to the sign-in page.
-  const shopper = await getShopper();
+  // The shop's settings are the same for everybody, so they are asked for
+  // alongside the session rather than after it -- three waits in a row was
+  // three round trips for a screen that needs two.
+  const [shopper, settings] = await Promise.all([getShopper(), getShopSettings()]);
   const items = shopper ? await getCartItems(shopper.id) : [];
   const subtotal = cartSubtotal(items);
-  // Priced exactly as checkout will price it, threshold included, so the two
-  // screens cannot quote different delivery charges.
-  const settings = await getShopSettings();
-  const shippingFee = items.length > 0 ? shippingFeeFor(subtotal, settings) : 0;
+  // Quoted from the option checkout opens on -- home delivery -- so the two
+  // screens agree. Free delivery is the shopper's to choose there, and the
+  // cart does not pre-empt a choice they have not made.
+  const shippingFee = items.length > 0 ? resolveDelivery("home", subtotal, settings).fee : 0;
   const total = subtotal + shippingFee;
 
   return (

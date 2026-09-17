@@ -9,7 +9,7 @@
 
 import { getDB } from "@/lib/db";
 import { cached } from "@/lib/cache";
-import { DEFAULT_DELIVERY_FEE } from "@/lib/checkout";
+import { DEFAULT_DELIVERY_FEE, DEFAULT_FREE_DELIVERY_THRESHOLD } from "@/lib/checkout";
 
 export interface ShopSettings {
   storeName: string;
@@ -51,7 +51,7 @@ export const DEFAULT_SETTINGS: ShopSettings = {
   supportPhone: null,
   currencySymbol: "৳",
   deliveryFee: DEFAULT_DELIVERY_FEE,
-  freeShippingThreshold: 999,
+  freeShippingThreshold: DEFAULT_FREE_DELIVERY_THRESHOLD,
   lowStockThreshold: 5,
   reviewsNeedApproval: false,
   // Zero until the shop states a policy, so no product promises one it has not made.
@@ -121,22 +121,6 @@ export async function getShopSettings(): Promise<ShopSettings> {
 /* Derived helpers                                                            */
 /* -------------------------------------------------------------------------- */
 
-export async function getDeliveryFee(): Promise<number> {
-  const settings = await getShopSettings();
-  return settings.deliveryFee;
-}
-
-/** The delivery charge for an order, after the free-shipping threshold.
- *
- * One place decides this so the cart, the checkout summary and the order
- * total can never quote three different numbers. */
-export function shippingFeeFor(
-  subtotal: number,
-  settings: Pick<ShopSettings, "deliveryFee" | "freeShippingThreshold">
-): number {
-  // A threshold of 0 means the shop is not offering free delivery at all.
-  if (settings.freeShippingThreshold > 0 && subtotal >= settings.freeShippingThreshold) {
-    return 0;
-  }
-  return settings.deliveryFee;
-}
+/* `ShopSettings` already carries `deliveryFee` and `freeShippingThreshold`, so
+ * it satisfies `DeliveryPricing` as-is: every caller hands the settings object
+ * straight to `resolveDelivery` rather than re-deriving the rule locally. */

@@ -10,6 +10,7 @@ import {
   House,
   Lock,
   MapPin,
+  PackageCheck,
   RotateCcw,
   ShieldCheck,
   Truck,
@@ -19,6 +20,7 @@ import {
 import LocationPicker from "@/components/address/LocationPicker";
 import { formatBdPhone, normalizeBdPhone, type DeliveryMethod } from "@/lib/checkout";
 import type { DeliveryDetails } from "@/lib/checkout";
+import type { DeliveryMethodId } from "@/types";
 import { formatPrice } from "@/lib/format";
 import OrderSummary, { type SummaryLine } from "./OrderSummary";
 
@@ -27,8 +29,10 @@ interface StepDeliveryProps {
   onChange: (patch: Partial<DeliveryDetails>) => void;
   lines: SummaryLine[];
   subtotal: number;
-  /** Priced from the shop's settings rather than a built-in constant. */
-  delivery: DeliveryMethod;
+  /** Both options, priced and locked for this order's subtotal. */
+  deliveryOptions: DeliveryMethod[];
+  /** The one in force -- the choice, or home delivery when it is not allowed. */
+  selectedDelivery: DeliveryMethodId;
   /** Set when this browser already confirmed the delivery number. */
   phoneVerified: boolean;
   onContinue: () => void;
@@ -47,7 +51,8 @@ export default function StepDelivery({
   onChange,
   lines,
   subtotal,
-  delivery,
+  deliveryOptions,
+  selectedDelivery,
   phoneVerified,
   onContinue,
   pending = false,
@@ -56,7 +61,7 @@ export default function StepDelivery({
   // Open the contact editor when either required field is still missing,
   // so nothing needed to continue is hidden behind the collapsed row.
   const [editingContact, setEditingContact] = useState(!details.fullName || !details.phone);
-  const fee = delivery.fee;
+  const fee = deliveryOptions.find((option) => option.id === selectedDelivery)?.fee ?? 0;
   const normalized = normalizeBdPhone(details.phone);
   const displayPhone = normalized ? formatBdPhone(normalized) : details.phone;
 
@@ -180,27 +185,73 @@ export default function StepDelivery({
         </p>
       </section>
 
-      {/* One delivery option, so this states the charge rather than asking the
-          shopper to choose between tiers that no longer exist. */}
       <section className="rounded-2xl border border-line bg-white p-4 shadow-card">
-        <div className="flex items-center gap-2.5">
+        <div className="mb-3 flex items-center gap-2">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand">
             <Truck className="h-[22px] w-[22px] text-white" strokeWidth={2} />
           </span>
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-1.5">
-              <h2 className="truncate text-[16px] font-bold leading-tight text-ink-strong">
-                {delivery.name}
-              </h2>
-              <span className="shrink-0 rounded-md bg-brand-tint px-1.5 py-0.5 text-[9px] font-semibold text-brand-dark">
-                {delivery.eta}
-              </span>
-            </div>
-            <p className="truncate text-[12px] text-ink-slate">{delivery.tagline}</p>
+          <div>
+            <h2 className="text-[16px] font-bold leading-tight text-ink-strong">Delivery method</h2>
+            <p className="text-[12px] text-ink-slate">
+              Choose how you&apos;d like to receive your order
+            </p>
           </div>
-          <span className="shrink-0 text-sm font-bold text-brand-darkest">
-            {delivery.fee === 0 ? "Free" : formatPrice(delivery.fee)}
-          </span>
+        </div>
+
+        {/* A locked option stays in place, dimmed, rather than disappearing:
+            the shopper can see the free delivery they have not reached yet. */}
+        <div className="flex flex-col gap-2">
+          {deliveryOptions.map((option) => {
+            const selected = option.id === selectedDelivery;
+            const Icon = option.id === "free" ? PackageCheck : Truck;
+            return (
+              <label
+                key={option.id}
+                aria-disabled={option.locked}
+                className={`flex items-center gap-2.5 rounded-xl border p-3 transition-colors ${
+                  option.locked
+                    ? "cursor-not-allowed border-line bg-brand-mist/40 opacity-60"
+                    : selected
+                      ? "cursor-pointer border-brand bg-brand-tint/50"
+                      : "cursor-pointer border-line bg-white"
+                }`}
+              >
+                <span
+                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
+                    selected && !option.locked
+                      ? "bg-brand text-white"
+                      : "bg-brand-mist text-ink-slate"
+                  }`}
+                >
+                  <Icon className="h-4 w-4" />
+                </span>
+                {/* The badge sits under the tagline rather than beside the
+                    name: "Free Home Delivery" does not fit on one line with a
+                    chip next to it at phone width. */}
+                <span className="min-w-0 flex-1">
+                  <span className="block text-xs font-bold leading-tight text-ink-strong">
+                    {option.name}
+                  </span>
+                  <span className="block truncate text-[10px] text-ink-slate">{option.tagline}</span>
+                  <span className="mt-1 inline-flex items-center gap-0.5 rounded-md bg-brand-tint px-1.5 py-0.5 text-[9px] font-semibold text-brand-dark">
+                    {option.locked && <Lock className="h-2.5 w-2.5" />}
+                    {option.badge}
+                  </span>
+                </span>
+                <span className="shrink-0 text-sm font-bold text-brand-darkest">
+                  {option.fee === 0 ? "Free" : formatPrice(option.fee)}
+                </span>
+                <input
+                  type="radio"
+                  name="deliveryMethod"
+                  checked={selected}
+                  disabled={option.locked}
+                  onChange={() => onChange({ deliveryMethod: option.id })}
+                  className="h-4 w-4 shrink-0 accent-brand disabled:cursor-not-allowed"
+                />
+              </label>
+            );
+          })}
         </div>
       </section>
 

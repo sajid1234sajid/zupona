@@ -136,9 +136,11 @@ export interface CartItem {
   product: ProductSummary;
 }
 
-/** The shop offers one delivery option. `express` only ever appears on orders
- * placed before the two-tier delivery was retired. */
-export type DeliveryMethodId = "standard" | "express";
+/** Home delivery at the shop's fee, or free delivery once the order is large
+ * enough to earn it. `standard` and `express` are the retired two-tier pair,
+ * and only ever appear on orders placed while it existed. */
+export type DeliveryMethodId = "home" | "free";
+export type StoredDeliveryMethodId = DeliveryMethodId | "standard" | "express";
 
 export type OrderStatus =
   | "placed"
@@ -185,7 +187,8 @@ export interface Order {
   addressDistrict: string | null;
   addressCity: string;
   paymentLabel: string;
-  deliveryMethod: DeliveryMethodId;
+  /** Stored as placed, retired ids and all -- an order is never re-priced. */
+  deliveryMethod: StoredDeliveryMethodId;
   deliveryMethodName: string;
   deliveryEta: string;
   placedAt: string;

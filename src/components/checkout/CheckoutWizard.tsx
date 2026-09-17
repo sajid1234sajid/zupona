@@ -29,8 +29,8 @@ interface CheckoutWizardProps {
   verifiedPhone: string | null;
   lines: SummaryLine[];
   subtotal: number;
-  /** The shop's delivery option, priced from the admin Settings page. */
-  delivery: DeliveryMethod;
+  /** Both delivery options, priced and locked for this order's subtotal. */
+  deliveryOptions: DeliveryMethod[];
 }
 
 export default function CheckoutWizard({
@@ -40,7 +40,7 @@ export default function CheckoutWizard({
   verifiedPhone,
   lines,
   subtotal,
-  delivery,
+  deliveryOptions,
 }: CheckoutWizardProps) {
   const router = useRouter();
   // Nobody is asked to sign in, so checkout opens on delivery. The phone number
@@ -66,10 +66,25 @@ export default function CheckoutWizard({
   );
 
   const normalizedPhone = normalizeBdPhone(details.phone);
+  /* Which option this order actually gets. Derived from the choice rather
+   * than stored as its own state, so a subtotal that drops back under the
+   * threshold -- a line removed, a Buy Now session replaced -- takes the free
+   * option away again and lands on home delivery by itself. The server makes
+   * the same judgement when the order is placed. */
+  const delivery =
+    deliveryOptions.find((option) => option.id === details.deliveryMethod && !option.locked) ??
+    deliveryOptions[0];
   const fee = delivery.fee;
 
   const [orderState, placeOrder, placing] = useActionState<PlaceOrderState, FormData>(
-    placeOrderAction.bind(null, { ...details, paymentMethod, code, source, idempotencyKey }),
+    placeOrderAction.bind(null, {
+      ...details,
+      deliveryMethod: delivery.id,
+      paymentMethod,
+      code,
+      source,
+      idempotencyKey,
+    }),
     {}
   );
 
@@ -158,7 +173,8 @@ export default function CheckoutWizard({
             onChange={patchDetails}
             lines={lines}
             subtotal={subtotal}
-            delivery={delivery}
+            deliveryOptions={deliveryOptions}
+            selectedDelivery={delivery.id}
             phoneVerified={phoneVerified}
             onContinue={goToPayment}
             pending={sending}

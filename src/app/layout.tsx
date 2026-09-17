@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Poppins, Playfair_Display } from "next/font/google";
+import { Poppins } from "next/font/google";
 import ServiceWorkerRegistration from "@/components/app/ServiceWorkerRegistration";
 import "./globals.css";
 
@@ -9,18 +9,8 @@ const poppins = Poppins({
   weight: ["400", "500", "600", "700", "800"],
 });
 
-/** Reserved for display copy -- the hero headline and little else. The UI
- * itself stays on Poppins so the serif keeps its impact.
- *
- * One weight, because `font-serif` appears exactly once in the app and it is
- * set in bold. The 600 that used to be requested alongside it was a second
- * font file, preloaded and render-blocking, that nothing on the site ever
- * drew a glyph with. */
-const playfair = Playfair_Display({
-  variable: "--font-playfair",
-  subsets: ["latin"],
-  weight: ["700"],
-});
+/* The display serif that used to be loaded here is gone. `--font-serif` in
+ * globals.css is a system stack now; the note there says why. */
 
 /** `manifest` is what makes the shop installable.
  *
@@ -61,7 +51,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`${poppins.variable} ${playfair.variable} h-full antialiased`}
+      className={`${poppins.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-white">
         {children}

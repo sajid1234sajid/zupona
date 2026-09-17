@@ -112,7 +112,13 @@
   --color-ink-soft: var(--color-ink-soft);
   --color-heading: var(--color-heading);
   --font-sans: var(--font-poppins);
-  --font-serif: var(--font-playfair);
+  /* A system serif rather than a downloaded one. The display headline this
+   * token dresses only renders when no banner artwork has been uploaded --
+   * uploaded banners carry their own headline -- so Playfair Display was being
+   * preloaded on all eight pages of the live site and drawing glyphs on none
+   * of them: 23 KB a page, the largest single font on the shop, for nothing.
+   * Georgia keeps the headline a serif in the case that still shows it. */
+  --font-serif: Georgia, "Times New Roman", serif;
 
   /* The storefront turns from one column into two here. 700px rather than a
    * stock Tailwind breakpoint because that is where the product layout stops

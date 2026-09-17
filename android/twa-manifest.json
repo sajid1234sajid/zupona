@@ -23,7 +23,26 @@
   },
   "appVersionName": "1.0.0",
   "appVersionCode": 1,
-  "shortcuts": [],
+  "shortcuts": [
+    {
+      "name": "Categories",
+      "shortName": "Categories",
+      "url": "https://zupona.com/categories",
+      "chosenIconUrl": "https://zupona.com/shortcut-categories.png"
+    },
+    {
+      "name": "Offers",
+      "shortName": "Offers",
+      "url": "https://zupona.com/offers",
+      "chosenIconUrl": "https://zupona.com/shortcut-offers.png"
+    },
+    {
+      "name": "My cart",
+      "shortName": "Cart",
+      "url": "https://zupona.com/cart",
+      "chosenIconUrl": "https://zupona.com/shortcut-cart.png"
+    }
+  ],
   "generatorApp": "bubblewrap-cli",
   "webManifestUrl": "https://zupona.com/manifest.webmanifest",
   "fallbackType": "customtabs",

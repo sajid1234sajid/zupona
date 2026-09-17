@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Poppins, Playfair_Display } from "next/font/google";
+import ServiceWorkerRegistration from "@/components/app/ServiceWorkerRegistration";
 import "./globals.css";
 
 const poppins = Poppins({
@@ -62,7 +63,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="en"
       className={`${poppins.variable} ${playfair.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-white">{children}</body>
+      <body className="min-h-full flex flex-col bg-white">
+        {children}
+        <ServiceWorkerRegistration />
+      </body>
     </html>
   );
 }

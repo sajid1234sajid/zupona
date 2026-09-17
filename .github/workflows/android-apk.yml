@@ -19,6 +19,7 @@ on:
       - .github/workflows/android-apk.yml
       - public/manifest.webmanifest
       - public/icon-*.png
+      - public/shortcut-*.png
 
 permissions:
   contents: write
@@ -26,6 +27,10 @@ permissions:
 concurrency:
   group: android-apk
   cancel-in-progress: false
+
+env:
+  # The account the Worker deploys to; the signing key is kept in its KV.
+  CF_ACCOUNT: 14743b3b6de704c99ed06b7b67c65903
 
 jobs:
   apk:
@@ -42,20 +47,49 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      # Bubblewrap downloads the launcher icon and the splash screen from the
-      # live site, so a push that changes them has to reach Cloudflare first.
-      - name: Wait for the site to serve the app icons
+      # Bubblewrap downloads the launcher icon, the shortcut icons and the
+      # splash screen from the live site, so a push that changes them has to
+      # reach Cloudflare first.
+      #
+      # The wait compares content, not existence. Checking only that a file
+      # answers 200 lets a build that starts before the deploy finishes pick up
+      # the previous artwork and ship an app wearing last week's logo, which is
+      # exactly what happened to 1.0.4.
+      - name: Wait for the site to serve this commit's artwork
         run: |
+          set -u
+          artwork="icon-512.png icon-maskable-512.png shortcut-categories.png shortcut-offers.png shortcut-cart.png"
+
+          hash_of() {
+            node -e '
+              const crypto = require("crypto");
+              const fs = require("fs");
+              console.log(crypto.createHash("sha256").update(fs.readFileSync(process.argv[1])).digest("hex"));
+            ' "$1"
+          }
+
           for attempt in $(seq 1 24); do
-            if curl -fsS -o /dev/null https://zupona.com/icon-512.png \
-               && curl -fsS -o /dev/null https://zupona.com/icon-maskable-512.png; then
-              echo "Icons are live."
+            waiting_on=""
+            for file in $artwork; do
+              if ! curl -fsS "https://zupona.com/$file" -o "$RUNNER_TEMP/live-$file"; then
+                waiting_on="$file (not served yet)"
+                break
+              fi
+              if [ "$(hash_of "public/$file")" != "$(hash_of "$RUNNER_TEMP/live-$file")" ]; then
+                waiting_on="$file (the site still has the previous copy)"
+                break
+              fi
+            done
+
+            if [ -z "$waiting_on" ]; then
+              echo "The site is serving this commit's artwork."
               exit 0
             fi
-            echo "Attempt $attempt: the icons are not published yet."
+            echo "Attempt $attempt: waiting on $waiting_on"
             sleep 15
           done
-          echo "::error::zupona.com is not serving /icon-512.png, so the APK would be built from a missing icon."
+
+          echo "::error::zupona.com is still not serving this commit's artwork, so the APK would be built from the previous icons."
           exit 1
 
       - name: Point Bubblewrap at the runner's JDK and Android SDK
@@ -115,36 +149,123 @@ jobs:
             echo "Linked $sdk/bin -> $tools_bin"
           fi
 
-      # A keystore in the repository secrets keeps one identity across builds,
-      # which is what lets an installed app be updated in place and what makes
-      # a fingerprint worth publishing in assetlinks.json. Without it the build
-      # still produces a working APK, signed by a key that lives for one run.
-      - name: Prepare the signing key
+      # Where the signing key lives, and why it is not in this repository.
+      #
+      # Android installs an update only over an app signed by the same key, so
+      # a key generated per build would make every release a fresh install --
+      # uninstall, lose the session, start again. The key therefore has to
+      # outlive the run that made it, and a public repository is no place for
+      # one. It is kept in the Worker's KV namespace instead, reached with the
+      # Cloudflare token this repository already holds in order to deploy, so
+      # the app needs no new credential of its own.
+      #
+      # Repository secrets win if they are ever set, which is the migration
+      # path to a keystore held somewhere else.
+      - name: Fetch or create the app signing key
         id: signing
         env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
           KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
         run: |
-          cd android
+          set -u
+          work="$RUNNER_TEMP/signing"
+          mkdir -p "$work"
+          keystore="$GITHUB_WORKSPACE/android/android.keystore"
+
+          namespace=$(node -e '
+            const fs = require("fs");
+            // wrangler.jsonc only ever uses whole-line // comments.
+            const text = fs.readFileSync("wrangler.jsonc", "utf8")
+              .split("\n")
+              .filter((line) => !line.trim().startsWith("//"))
+              .join("\n");
+            const config = JSON.parse(text);
+            console.log(config.kv_namespaces.find((n) => n.binding === "CACHE").id);
+          ')
+          echo "Using KV namespace $namespace"
+          base="https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT/storage/kv/namespaces/$namespace"
+          echo "kv_base=$base" >> "$GITHUB_OUTPUT"
+
           alias_name="${KEY_ALIAS:-zupona}"
-          if [ -n "$KEYSTORE_BASE64" ]; then
-            echo "$KEYSTORE_BASE64" | base64 -d > android.keystore
+          stable=true
+
+          if [ -n "${KEYSTORE_BASE64:-}" ]; then
+            origin="repository secrets"
+            printf '%s' "$KEYSTORE_BASE64" | base64 -d > "$keystore"
             store_password="$KEYSTORE_PASSWORD"
             key_password="${KEY_PASSWORD:-$KEYSTORE_PASSWORD}"
-            echo "stable=true" >> "$GITHUB_OUTPUT"
+          elif [ -z "${CF_TOKEN:-}" ]; then
+            origin="a throwaway key (no Cloudflare token to reach the vault)"
+            stable=false
+          elif curl -fsS -H "Authorization: Bearer $CF_TOKEN" \
+                 "$base/values/android%3Asigning-key" -o "$work/vault.json"; then
+            origin="the Cloudflare KV vault"
+            node -e '
+              const fs = require("fs");
+              const work = process.argv[1];
+              const vault = JSON.parse(fs.readFileSync(work + "/vault.json", "utf8"));
+              fs.writeFileSync(work + "/keystore.b64", vault.keystore);
+              fs.writeFileSync(work + "/password", vault.password);
+              fs.writeFileSync(work + "/alias", vault.alias || "zupona");
+            ' "$work"
+            base64 -d < "$work/keystore.b64" > "$keystore"
+            store_password=$(cat "$work/password")
+            key_password="$store_password"
+            alias_name=$(cat "$work/alias")
           else
-            echo "::warning::No ANDROID_KEYSTORE_BASE64 secret - signing with a throwaway key. See android/README.md."
-            store_password="zupona-throwaway"
-            key_password="zupona-throwaway"
+            origin="a new key, now saved to the Cloudflare KV vault"
+          fi
+
+          if [ "${store_password:-}" = "" ]; then
+            # Either a brand new key, or no vault to keep one in.
+            store_password=$(openssl rand -hex 24)
+            key_password="$store_password"
             keytool -genkeypair -noprompt \
-              -keystore android.keystore -alias "$alias_name" \
+              -keystore "$keystore" -alias "$alias_name" \
               -storepass "$store_password" -keypass "$key_password" \
               -keyalg RSA -keysize 2048 -validity 10000 \
               -dname "CN=Zupona, O=Zupona, L=Dhaka, C=BD"
-            echo "stable=false" >> "$GITHUB_OUTPUT"
+
+            if [ "$stable" = "true" ]; then
+              node -e '
+                const fs = require("fs");
+                // argv[0] is node itself; `node -e` has no script name.
+                const [, work, keystore, password, alias] = process.argv;
+                const vault = {
+                  keystore: fs.readFileSync(keystore).toString("base64"),
+                  password,
+                  alias,
+                  createdAt: new Date().toISOString(),
+                };
+                fs.writeFileSync(work + "/upload.json", JSON.stringify([
+                  { key: "android:signing-key", value: JSON.stringify(vault) },
+                ]));
+              ' "$work" "$keystore" "$store_password" "$alias_name"
+
+              if curl -fsS -X PUT \
+                   -H "Authorization: Bearer $CF_TOKEN" \
+                   -H "Content-Type: application/json" \
+                   --data-binary "@$work/upload.json" "$base/bulk" -o "$work/put.json"; then
+                echo "Saved the new signing key to KV."
+              else
+                echo "::warning::Could not save the signing key to KV, so this build cannot be updated in place."
+                stable=false
+                origin="a throwaway key (saving to the vault failed)"
+              fi
+            fi
           fi
+
+          # Never let either password reach a log, including through a tool
+          # that echoes its own arguments.
+          echo "::add-mask::$store_password"
+          echo "::add-mask::$key_password"
+
+          echo "Signing with $origin, alias $alias_name."
+          echo "stable=$stable" >> "$GITHUB_OUTPUT"
+          echo "origin=$origin" >> "$GITHUB_OUTPUT"
           echo "alias_name=$alias_name" >> "$GITHUB_OUTPUT"
           # Bubblewrap reads both of these instead of prompting, which it
           # cannot do on a runner with no terminal attached.
@@ -188,23 +309,59 @@ jobs:
           fi
           ls -l ./*.apk
 
-      - name: Report the signing fingerprint
+      - name: Read the signing fingerprint
         id: fingerprint
         run: |
           cd android
           sha256=$(keytool -list -v -keystore android.keystore -alias "${{ steps.signing.outputs.alias_name }}" -storepass "$BUBBLEWRAP_KEYSTORE_PASSWORD" | grep -m1 "SHA256:" | sed 's/.*SHA256: //' | tr -d '[:space:]')
           echo "sha256=$sha256" >> "$GITHUB_OUTPUT"
-          {
-            echo "### Zupona app 1.0.${{ github.run_number }}"
-            echo
-            echo "Signing certificate SHA-256: \`$sha256\`"
-            echo
-            if [ "${{ steps.signing.outputs.stable }}" = "true" ]; then
-              echo "Put it in CERT_FINGERPRINTS in src/app/api/assetlinks/route.ts to drop the address bar."
-            else
-              echo "This key was generated for this run only, so it is not worth publishing - see android/README.md."
-            fi
-          } >> "$GITHUB_STEP_SUMMARY"
+          echo "Signing certificate SHA-256: $sha256"
+
+      # What removes Chrome's address bar from the installed app: the site
+      # states, at /.well-known/assetlinks.json, that it trusts an app signed
+      # by this certificate. Writing it here rather than committing it means
+      # the statement is made by the build that actually signed the APK.
+      #
+      # Older fingerprints are kept alongside the current one so that a phone
+      # still running a previously signed build keeps its full-screen app.
+      - name: Publish the fingerprint the site vouches for
+        if: steps.signing.outputs.stable == 'true'
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          KV_BASE: ${{ steps.signing.outputs.kv_base }}
+          SHA256: ${{ steps.fingerprint.outputs.sha256 }}
+        run: |
+          set -u
+          work="$RUNNER_TEMP/assetlinks"
+          mkdir -p "$work"
+
+          curl -fsS -H "Authorization: Bearer $CF_TOKEN" \
+            "$KV_BASE/values/android%3Asigning-fingerprints" -o "$work/current.json" \
+            || echo "[]" > "$work/current.json"
+
+          node -e '
+            const fs = require("fs");
+            const work = process.argv[1];
+            let existing = [];
+            try {
+              const parsed = JSON.parse(fs.readFileSync(work + "/current.json", "utf8"));
+              if (Array.isArray(parsed)) existing = parsed.filter((f) => typeof f === "string");
+            } catch {}
+            const current = process.env.SHA256;
+            // Newest first, and only the last three: a rotation needs the old
+            // one for a while, a museum of them helps nobody.
+            const merged = [current, ...existing.filter((f) => f !== current)].slice(0, 3);
+            fs.writeFileSync(work + "/upload.json", JSON.stringify([
+              { key: "android:signing-fingerprints", value: JSON.stringify(merged) },
+            ]));
+            console.log("Vouching for", merged.length, "certificate(s).");
+          ' "$work"
+
+          curl -fsS -X PUT \
+            -H "Authorization: Bearer $CF_TOKEN" \
+            -H "Content-Type: application/json" \
+            --data-binary "@$work/upload.json" "$KV_BASE/bulk" -o /dev/null
+          echo "Published."
 
       - name: Publish the release
         env:
@@ -220,7 +377,8 @@ jobs:
             echo
             echo "The app opens zupona.com full-screen, so it keeps up with the site by itself."
             echo
-            echo "Signing certificate SHA-256: \`${{ steps.fingerprint.outputs.sha256 }}\`"
+            echo "Signed with ${{ steps.signing.outputs.origin }}."
+            echo "Certificate SHA-256: \`${{ steps.fingerprint.outputs.sha256 }}\`"
             if [ "${{ steps.signing.outputs.stable }}" != "true" ]; then
               echo
               echo "> Signed with a per-build key. To move to a later version, uninstall this one first."
@@ -229,6 +387,17 @@ jobs:
           gh release create "app-v1.0.${{ github.run_number }}" zupona.apk \
             --title "Zupona app 1.0.${{ github.run_number }}" \
             --notes-file notes.md
+
+      - name: Summarise the build
+        if: always()
+        run: |
+          {
+            echo "### Zupona app 1.0.${{ github.run_number }}"
+            echo
+            echo "- Signing key: ${{ steps.signing.outputs.origin }}"
+            echo "- Updates install in place: ${{ steps.signing.outputs.stable }}"
+            echo "- Certificate SHA-256: \`${{ steps.fingerprint.outputs.sha256 }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - uses: actions/upload-artifact@v5
         if: always()

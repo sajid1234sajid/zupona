@@ -1,6 +1,8 @@
 "use server";
 
+import { redirect } from "next/navigation";
 import { getDB } from "@/lib/db";
+import { getCartItems } from "@/lib/cart";
 import { getOrCreateShopper, getShopper } from "@/lib/session";
 import { getStoreProductCard } from "@/lib/storefront";
 import { resolveSelection } from "@/lib/selection";
@@ -84,6 +86,42 @@ export async function updateCartQuantityAction(itemId: string, quantity: number)
     .prepare("UPDATE cart_items SET quantity = ? WHERE id = ? AND user_id = ?")
     .bind(wanted, itemId, user.id)
     .run();
+}
+
+/** Clears out the lines that can no longer be bought, then carries on.
+ *
+ * Checkout refuses a cart holding a retired variant or an archived product, and
+ * it refuses by sending the shopper back to the cart -- which, from a phone,
+ * looks exactly like the Proceed to Checkout button doing nothing at all. The
+ * cart says which lines are the problem and each has its own bin, but a shopper
+ * who has already pressed the big green button should not have to work that
+ * out. This is the button that does it for them.
+ *
+ * Only lines the catalog has actually withdrawn are touched; everything the
+ * shopper meant to buy is left exactly as it was. */
+export async function removeUnavailableItemsAction(): Promise<void> {
+  const user = await getShopper();
+  // Where the redirect goes is decided from what the cart holds afterwards, so
+  // a cart that was nothing but withdrawn lines does not bounce off an empty
+  // checkout and come straight back.
+  let buyableRemains = false;
+
+  if (user) {
+    const items = await getCartItems(user.id);
+    const gone = items.filter((item) => item.unavailable);
+    buyableRemains = items.length > gone.length;
+
+    if (gone.length > 0) {
+      const db = await getDB();
+      const placeholders = gone.map(() => "?").join(", ");
+      await db
+        .prepare(`DELETE FROM cart_items WHERE user_id = ? AND id IN (${placeholders})`)
+        .bind(user.id, ...gone.map((item) => item.id))
+        .run();
+    }
+  }
+
+  redirect(buyableRemains ? "/checkout" : "/cart");
 }
 
 export async function removeFromCartAction(itemId: string): Promise<void> {

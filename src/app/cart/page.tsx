@@ -4,6 +4,7 @@ import ProductHeader from "@/components/layout/ProductHeader";
 import DesktopHeader from "@/components/layout/DesktopHeader";
 import BottomNav from "@/components/layout/BottomNav";
 import CartItemRow from "@/components/cart/CartItemRow";
+import { removeUnavailableItemsAction } from "./actions";
 import { getShopper } from "@/lib/session";
 import { getCartItems, cartSubtotal } from "@/lib/cart";
 import { resolveDelivery } from "@/lib/checkout";
@@ -22,8 +23,24 @@ export default async function CartPage() {
   // Quoted from the option checkout opens on -- home delivery -- so the two
   // screens agree. Free delivery is the shopper's to choose there, and the
   // cart does not pre-empt a choice they have not made.
-  const shippingFee = items.length > 0 ? resolveDelivery("home", subtotal, settings).fee : 0;
+  // Counted from the subtotal, not from the number of lines: a cart holding
+  // nothing but withdrawn items has nothing to deliver, and quoting a delivery
+  // charge against a subtotal of zero showed a total of ৳130 for an order that
+  // could not be placed at all.
+  const shippingFee = subtotal > 0 ? resolveDelivery("home", subtotal, settings).fee : 0;
   const total = subtotal + shippingFee;
+
+  // Checkout will not open while a withdrawn line is in the cart -- it sends
+  // the shopper straight back here, which from a phone is indistinguishable
+  // from the button being dead. So the button stops pretending: when there is
+  // something in the way it says so, and pressing it clears the way.
+  const blocked = items.filter((item) => item.unavailable);
+  const blockedLabel =
+    blocked.length === 0
+      ? ""
+      : items.length === blocked.length
+        ? "Remove unavailable items"
+        : `Remove ${blocked.length} unavailable item${blocked.length > 1 ? "s" : ""} & checkout`;
 
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-md flex-col bg-brand-mist pb-40 tab:max-w-none tab:pb-12">
@@ -70,12 +87,23 @@ export default async function CartPage() {
                 <span>Total</span>
                 <span>{formatPrice(total)}</span>
               </div>
-              <Link
-                href="/checkout"
-                className="!mt-4 hidden w-full items-center justify-center rounded-xl bg-brand-darkest py-3.5 text-sm font-semibold text-white transition-colors hover:bg-brand-dark tab:flex"
-              >
-                Proceed to Checkout
-              </Link>
+              {blocked.length > 0 ? (
+                <form action={removeUnavailableItemsAction} className="!mt-4 hidden tab:block">
+                  <button
+                    type="submit"
+                    className="flex w-full items-center justify-center rounded-xl bg-brand-darkest py-3.5 text-sm font-semibold text-white transition-colors hover:bg-brand-dark"
+                  >
+                    {blockedLabel}
+                  </button>
+                </form>
+              ) : (
+                <Link
+                  href="/checkout"
+                  className="!mt-4 hidden w-full items-center justify-center rounded-xl bg-brand-darkest py-3.5 text-sm font-semibold text-white transition-colors hover:bg-brand-dark tab:flex"
+                >
+                  Proceed to Checkout
+                </Link>
+              )}
             </div>
           </div>
         )}
@@ -83,12 +111,23 @@ export default async function CartPage() {
 
       {items.length > 0 && (
         <div className="fixed inset-x-0 bottom-16 z-10 mx-auto max-w-md border-t border-line bg-white px-4 py-3 tab:hidden">
-          <Link
-            href="/checkout"
-            className="flex w-full items-center justify-center rounded-xl bg-brand-darkest py-3.5 text-sm font-semibold text-white"
-          >
-            Proceed to Checkout · {formatPrice(total)}
-          </Link>
+          {blocked.length > 0 ? (
+            <form action={removeUnavailableItemsAction}>
+              <button
+                type="submit"
+                className="flex w-full items-center justify-center rounded-xl bg-brand-darkest py-3.5 text-sm font-semibold text-white"
+              >
+                {blockedLabel}
+              </button>
+            </form>
+          ) : (
+            <Link
+              href="/checkout"
+              className="flex w-full items-center justify-center rounded-xl bg-brand-darkest py-3.5 text-sm font-semibold text-white"
+            >
+              Proceed to Checkout · {formatPrice(total)}
+            </Link>
+          )}
         </div>
       )}
       <BottomNav />

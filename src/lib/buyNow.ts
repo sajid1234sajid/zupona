@@ -51,13 +51,24 @@ export async function createBuyNowSession(
   const id = crypto.randomUUID();
   const expiresAt = new Date(Date.now() + SESSION_TTL_MS).toISOString();
 
-  await db
-    .prepare(
-      `INSERT INTO buy_now_sessions (id, user_id, product_id, variant_id, quantity, expires_at)
-       VALUES (?, ?, ?, ?, ?, ?)`
-    )
-    .bind(id, userId, selection.productId, selection.variantId, selection.quantity, expiresAt)
-    .run();
+  // Old sessions are cleared opportunistically rather than by a scheduled job,
+  // and the sweep does not depend on the insert -- so the two go together. D1
+  // is in Singapore and this runs while a shopper waits on Buy Now, so a wave
+  // saved here is a round trip they do not sit through.
+  await Promise.all([
+    db
+      .prepare(
+        `INSERT INTO buy_now_sessions (id, user_id, product_id, variant_id, quantity, expires_at)
+         VALUES (?, ?, ?, ?, ?, ?)`
+      )
+      .bind(id, userId, selection.productId, selection.variantId, selection.quantity, expiresAt)
+      .run(),
+    db
+      .prepare(
+        "DELETE FROM buy_now_sessions WHERE expires_at < datetime('now') AND consumed_at IS NULL"
+      )
+      .run(),
+  ]);
 
   const cookieStore = await cookies();
   cookieStore.set(BUY_NOW_COOKIE, id, {
@@ -67,11 +78,6 @@ export async function createBuyNowSession(
     path: "/",
     expires: new Date(expiresAt),
   });
-
-  // Old sessions are cleared opportunistically rather than by a scheduled job.
-  await db
-    .prepare("DELETE FROM buy_now_sessions WHERE expires_at < datetime('now') AND consumed_at IS NULL")
-    .run();
 
   return { ok: true };
 }

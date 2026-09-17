@@ -7,6 +7,7 @@ import { Heart, LayoutGrid, LoaderCircle, ShoppingCart, Star, Zap } from "lucide
 import type { StoreMediaItem, StoreProduct } from "@/lib/storefront";
 import { formatPrice } from "@/lib/format";
 import { addSelectionToCartAction, buyNowAction } from "@/app/cart/actions";
+import { callAction } from "@/lib/callAction";
 import { toggleWishlistAction } from "@/app/wishlist/actions";
 import ProductMedia from "./ProductMedia";
 import VideoModal from "./VideoModal";
@@ -21,6 +22,10 @@ import {
   resolvePricing,
   type Selections,
 } from "./variantMatching";
+
+/** What a refused request says. The shopper did nothing wrong and pressing
+ * again nearly always works, so the message asks for exactly that. */
+const NETWORK_MESSAGE = "Connection problem — please try again.";
 
 /** The product page, for every product.
  *
@@ -122,12 +127,22 @@ export default function ProductView({
   function addToCart() {
     setFeedback(null);
     return async () => {
-      const result = await addSelectionToCartAction({
-        productId: product.id,
-        variantId: variant?.id ?? null,
-        quantity,
-      });
+      // Through `callAction`, so a request the Worker refuses becomes a line of
+      // text under the button rather than the end of the page.
+      const attempt = await callAction(() =>
+        addSelectionToCartAction({
+          productId: product.id,
+          variantId: variant?.id ?? null,
+          quantity,
+        })
+      );
 
+      if (!attempt.ok) {
+        setFeedback({ ok: false, message: NETWORK_MESSAGE });
+        return;
+      }
+
+      const result = attempt.value;
       if (!result.ok) {
         setFeedback({ ok: false, message: result.error ?? "Could not add to the cart." });
         return;
@@ -145,12 +160,20 @@ export default function ProductView({
   function buyNow() {
     setFeedback(null);
     return async () => {
-      const result = await buyNowAction({
-        productId: product.id,
-        variantId: variant?.id ?? null,
-        quantity,
-      });
+      const attempt = await callAction(() =>
+        buyNowAction({
+          productId: product.id,
+          variantId: variant?.id ?? null,
+          quantity,
+        })
+      );
 
+      if (!attempt.ok) {
+        setFeedback({ ok: false, message: NETWORK_MESSAGE });
+        return;
+      }
+
+      const result = attempt.value;
       if (!result.ok) {
         setFeedback({ ok: false, message: result.error ?? "Could not start checkout." });
         return;
@@ -164,7 +187,13 @@ export default function ProductView({
     const next = !wishlisted;
     setWishlisted(next);
     startWish(async () => {
-      await toggleWishlistAction(product.id);
+      // The heart has already moved; if the save is refused, put it back rather
+      // than letting the rejection escape and take the page with it.
+      const attempt = await callAction(() => toggleWishlistAction(product.id));
+      if (!attempt.ok) {
+        setWishlisted(!next);
+        return;
+      }
       router.refresh();
     });
   }

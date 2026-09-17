@@ -204,23 +204,23 @@ function planImages(
   return { statements, imageIdByUrl };
 }
 
+/** Whether the product's stock is limited.
+ *
+ * The form posts "1" or "0" outright, so both answers arrive as a value rather
+ * than one of them being the absence of a field. The marker beside it still
+ * matters: a form that did not carry the choice at all returns null and leaves
+ * the stored setting alone, instead of silently reading as unlimited. */
+function readTrackInventory(formData: FormData): boolean | null {
+  if (formData.get("__present_trackInventory") === null) return null;
+  return String(formData.get("trackInventory") ?? "") === "1";
+}
+
 /** Reads the video list the form posts back.
  *
  * VideoUploader posts two positionally aligned lists -- one URL per clip and
  * one poster per clip, the poster empty when the browser could not grab a
  * still -- so they are zipped here rather than parsed out of one encoded
  * field. Only the clip URL is required; a missing poster is normal. */
-/** Whether the product counts its units.
- *
- * An unticked checkbox posts nothing at all, so the hidden marker beside it is
- * what tells "switched off" from "this form did not carry the field" -- the
- * same shape the settings page uses. A form without the marker leaves the
- * stored value alone rather than silently switching counting off. */
-function readTrackInventory(formData: FormData): boolean | null {
-  if (formData.get("__present_trackInventory") === null) return null;
-  return formData.get("trackInventory") !== null;
-}
-
 function readVideos(formData: FormData): { url: string; poster: string | null }[] {
   const urls = formData.getAll("videos").map(String);
   const posters = formData.getAll("videoPosters").map(String);

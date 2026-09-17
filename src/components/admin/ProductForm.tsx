@@ -352,29 +352,63 @@ export default function ProductForm({
             }
           />
 
-          {/* The switch that decides whether this product counts anything.
-              Posted as a marker plus the checkbox, the way the settings page
-              does it, so "turned off" is not read as "field not on the form". */}
-          <label className="mb-4 flex cursor-pointer items-start gap-3 rounded-xl border border-neutral-200 px-3.5 py-3 transition has-[:checked]:border-brand has-[:checked]:bg-brand-tint/40">
+          {/* Which kind of stock this product has, as the two words an admin
+              would use for it. A hidden field carries the answer rather than a
+              checkbox, so "unlimited" posts a real 0 instead of posting nothing
+              and having to be inferred from the field's absence. */}
+          <div className="mb-4">
             <input type="hidden" name="__present_trackInventory" value="1" />
-            <input
-              type="checkbox"
-              name="trackInventory"
-              checked={trackInventory}
-              onChange={(event) => setTrackInventory(event.target.checked)}
-              className="mt-0.5 h-4 w-4 shrink-0 rounded accent-[#16a34a]"
-            />
-            <span className="min-w-0">
-              <span className="block text-[13px] font-semibold text-neutral-800">
-                Keep count of stock
-              </span>
-              <span className="block text-[11px] text-neutral-400">
-                {trackInventory
-                  ? "Each combination has its own count, and the product sells out when it runs down"
-                  : "Off — this product sells without a limit and never shows as out of stock"}
-              </span>
-            </span>
-          </label>
+            <input type="hidden" name="trackInventory" value={trackInventory ? "1" : "0"} />
+
+            <div className="flex w-full gap-2 sm:w-auto">
+              {[
+                {
+                  tracked: false,
+                  label: "Unlimited",
+                  detail: "Sells without a limit, never shows as out of stock",
+                },
+                {
+                  tracked: true,
+                  label: "Limited",
+                  detail: "Each combination has its own count and can sell out",
+                },
+              ].map((option) => (
+                <button
+                  key={option.label}
+                  type="button"
+                  aria-pressed={trackInventory === option.tracked}
+                  aria-label={`${option.label} stock`}
+                  onClick={() => setTrackInventory(option.tracked)}
+                  className={`flex-1 rounded-xl border px-3.5 py-3 text-left transition sm:flex-none sm:w-64 ${
+                    trackInventory === option.tracked
+                      ? "border-brand bg-brand-tint/40"
+                      : "border-neutral-200 bg-white hover:border-neutral-300"
+                  }`}
+                >
+                  <span className="flex items-center gap-2">
+                    <span
+                      aria-hidden
+                      className={`grid h-4 w-4 shrink-0 place-items-center rounded-full border ${
+                        trackInventory === option.tracked
+                          ? "border-brand bg-brand"
+                          : "border-neutral-300"
+                      }`}
+                    >
+                      {trackInventory === option.tracked ? (
+                        <span className="h-1.5 w-1.5 rounded-full bg-white" />
+                      ) : null}
+                    </span>
+                    <span className="text-[13px] font-semibold text-neutral-800">
+                      {option.label}
+                    </span>
+                  </span>
+                  <span className="mt-1 block text-[11px] leading-snug text-neutral-400">
+                    {option.detail}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
 
           <VariantMatrix
             matrix={matrix}

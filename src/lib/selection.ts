@@ -50,6 +50,17 @@ export async function resolveSelection(input: {
   if (!product) return { ok: false, error: "This product is no longer available." };
 
   const variants = product.variants ?? [];
+
+  // Empty for two different reasons, and only one of them is sellable. A
+  // product that never had options sells from the product row itself; one whose
+  // combinations have all been retired in the admin panel has nothing left for
+  // a cart line to name, and must be refused here rather than quietly becoming
+  // an option-less line. The page already disables the button -- this is the
+  // copy of the rule that counts.
+  if (variants.length === 0 && (product.optionGroups ?? []).length > 0) {
+    return { ok: false, error: "This product is not available right now." };
+  }
+
   if (variants.length === 0) {
     return {
       ok: true,

@@ -557,9 +557,14 @@ export function planOptions(
   if (variants.length === 0) {
     throw new OptionValidationError("A product needs at least one sellable combination.");
   }
-  if (!variants.some((variant) => variant.isActive)) {
-    throw new OptionValidationError("At least one combination has to stay active to be sellable.");
-  }
+
+  /* Retiring every combination used to be refused here. It is allowed now: an
+   * admin setting a product aside a combination at a time should not be stopped
+   * on the last one, with a form full of work and no way to save it. Nothing
+   * downstream is harmed -- a product with no active combination has nothing to
+   * pick on the storefront and reads as unavailable, which is exactly what
+   * retiring them all was asking for. Publishing is the control that decides
+   * whether shoppers see a product at all. */
 
   /* ---- what is no longer offered -------------------------------------- */
 

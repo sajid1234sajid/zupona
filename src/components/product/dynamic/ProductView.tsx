@@ -94,7 +94,17 @@ export default function ProductView({
   // Every group has to be answered before anything can be bought, so a shirt
   // cannot be added with a colour and no size.
   const selectionComplete = groupKeys.every((key) => Boolean(selections[key]));
-  const canBuy = available > 0 && (variants.length === 0 || (Boolean(variant) && selectionComplete));
+
+  // A product with options but nothing sellable left -- every combination
+  // retired in the admin panel -- has no variant for a cart line to name, so it
+  // cannot be bought whatever its stock says. The distinction matters because
+  // `variants` is empty in two different situations: a product that never had
+  // options, which sells from the product itself, and one whose combinations
+  // have all been withdrawn, which sells nothing.
+  const soldOutOfOptions = optionGroups.length > 0 && variants.length === 0;
+  const sellable = available > 0 && !soldOutOfOptions;
+  const canBuy =
+    sellable && (optionGroups.length === 0 || (Boolean(variant) && selectionComplete));
 
   function choose(groupKey: string, value: string) {
     const next = { ...selections, [groupKey]: value };
@@ -172,7 +182,7 @@ export default function ProductView({
         ) : (
           <ShoppingCart className="h-[18px] w-[18px]" />
         )}
-        {available > 0 ? "Add to Cart" : "Out of Stock"}
+        {sellable ? "Add to Cart" : "Out of Stock"}
       </button>
 
       <button
@@ -294,13 +304,11 @@ export default function ProductView({
             <span className="font-semibold text-heading">
               Sold {product.soldCount.toLocaleString("en-US")}
             </span>
-            {product.tracksInventory !== false && (
+            {(product.tracksInventory !== false || soldOutOfOptions) && (
               <>
                 <span aria-hidden className="mx-2.5 h-3.5 w-px bg-line" />
-                <span
-                  className={`font-semibold ${available > 0 ? "text-brand" : "text-accent-red"}`}
-                >
-                  {available > 0
+                <span className={`font-semibold ${sellable ? "text-brand" : "text-accent-red"}`}>
+                  {sellable
                     ? showStock
                       ? `Stock ${available.toLocaleString("en-US")}`
                       : "In Stock"

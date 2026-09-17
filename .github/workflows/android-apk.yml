@@ -164,7 +164,7 @@ jobs:
       - name: Fetch or create the app signing key
         id: signing
         env:
-          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_KV_TOKEN || secrets.CLOUDFLARE_API_TOKEN }}
           KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
@@ -200,23 +200,37 @@ jobs:
           elif [ -z "${CF_TOKEN:-}" ]; then
             origin="a throwaway key (no Cloudflare token to reach the vault)"
             stable=false
-          elif curl -fsS -H "Authorization: Bearer $CF_TOKEN" \
-                 "$base/values/android%3Asigning-key" -o "$work/vault.json"; then
-            origin="the Cloudflare KV vault"
-            node -e '
-              const fs = require("fs");
-              const work = process.argv[1];
-              const vault = JSON.parse(fs.readFileSync(work + "/vault.json", "utf8"));
-              fs.writeFileSync(work + "/keystore.b64", vault.keystore);
-              fs.writeFileSync(work + "/password", vault.password);
-              fs.writeFileSync(work + "/alias", vault.alias || "zupona");
-            ' "$work"
-            base64 -d < "$work/keystore.b64" > "$keystore"
-            store_password=$(cat "$work/password")
-            key_password="$store_password"
-            alias_name=$(cat "$work/alias")
           else
-            origin="a new key, now saved to the Cloudflare KV vault"
+            # The status is read rather than trusted to curl's exit code, so a
+            # refusal can be told apart from a key that simply is not there
+            # yet, and so Cloudflare's own message reaches the run summary.
+            vault_status=$(curl -s -o "$work/vault.json" -w '%{http_code}' \
+              -H "Authorization: Bearer $CF_TOKEN" "$base/values/android%3Asigning-key")
+            case "$vault_status" in
+              200)
+                origin="the Cloudflare KV vault"
+                node -e '
+                  const fs = require("fs");
+                  const work = process.argv[1];
+                  const vault = JSON.parse(fs.readFileSync(work + "/vault.json", "utf8"));
+                  fs.writeFileSync(work + "/keystore.b64", vault.keystore);
+                  fs.writeFileSync(work + "/password", vault.password);
+                  fs.writeFileSync(work + "/alias", vault.alias || "zupona");
+                ' "$work"
+                base64 -d < "$work/keystore.b64" > "$keystore"
+                store_password=$(cat "$work/password")
+                key_password="$store_password"
+                alias_name=$(cat "$work/alias")
+                ;;
+              404)
+                origin="a new key, now saved to the Cloudflare KV vault"
+                ;;
+              *)
+                echo "::warning title=The KV vault could not be read::HTTP $vault_status from Cloudflare: $(head -c 300 "$work/vault.json" | tr -d '\n')"
+                origin="a throwaway key (the vault could not be read)"
+                stable=false
+                ;;
+            esac
           fi
 
           if [ "${store_password:-}" = "" ]; then
@@ -245,13 +259,14 @@ jobs:
                 ]));
               ' "$work" "$keystore" "$store_password" "$alias_name"
 
-              if curl -fsS -X PUT \
-                   -H "Authorization: Bearer $CF_TOKEN" \
-                   -H "Content-Type: application/json" \
-                   --data-binary "@$work/upload.json" "$base/bulk" -o "$work/put.json"; then
+              put_status=$(curl -s -o "$work/put.json" -w '%{http_code}' -X PUT \
+                -H "Authorization: Bearer $CF_TOKEN" \
+                -H "Content-Type: application/json" \
+                --data-binary "@$work/upload.json" "$base/bulk")
+              if [ "$put_status" = "200" ]; then
                 echo "Saved the new signing key to KV."
               else
-                echo "::warning::Could not save the signing key to KV, so this build cannot be updated in place."
+                echo "::warning title=The signing key could not be saved::HTTP $put_status from Cloudflare: $(head -c 300 "$work/put.json" | tr -d '\n')"
                 stable=false
                 origin="a throwaway key (saving to the vault failed)"
               fi
@@ -262,6 +277,19 @@ jobs:
           # that echoes its own arguments.
           echo "::add-mask::$store_password"
           echo "::add-mask::$key_password"
+
+          # An account collects near-identical token names, and the value is a
+          # secret so it cannot be compared against anything. The id is not a
+          # secret, and it is what the dashboard's edit page is keyed by, so a
+          # refusal says which token to go and widen.
+          if [ "$stable" != "true" ] && [ -n "${CF_TOKEN:-}" ]; then
+            token_id=$(curl -sS -H "Authorization: Bearer $CF_TOKEN" \
+                         https://api.cloudflare.com/client/v4/user/tokens/verify \
+                       | grep -o '"id":"[a-f0-9]\{32\}"' | head -1 | cut -d'"' -f4)
+            if [ -n "$token_id" ]; then
+              echo "::notice::The vault needs Workers KV Storage:Edit. This run used token $token_id - https://dash.cloudflare.com/profile/api-tokens/$token_id"
+            fi
+          fi
 
           echo "Signing with $origin, alias $alias_name."
           echo "stable=$stable" >> "$GITHUB_OUTPUT"
@@ -327,7 +355,7 @@ jobs:
       - name: Publish the fingerprint the site vouches for
         if: steps.signing.outputs.stable == 'true'
         env:
-          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_KV_TOKEN || secrets.CLOUDFLARE_API_TOKEN }}
           KV_BASE: ${{ steps.signing.outputs.kv_base }}
           SHA256: ${{ steps.fingerprint.outputs.sha256 }}
         run: |

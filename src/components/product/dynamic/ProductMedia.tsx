@@ -28,11 +28,10 @@ const RESUME_AFTER_MS = 5000;
  * Pictures only. Clips and the thumbnail strip were taken out of the gallery
  * at the owner's request, so the dots count exactly the product's images.
  *
- * Each picture is shown whole, never cropped: the uploads come in every
- * shape -- 2:3 portraits, squares, the odd wide shot -- and a frame that
- * filled itself with them cut the model's head off a shirt photo. The frame
- * is the near-square of the reference design, and whatever a picture does not
- * cover is the frame's own mint.
+ * The frame is square and each picture fills it edge to edge, as the owner's
+ * reference does; the whole, uncropped picture is one tap away in the viewer.
+ * The uploads are mostly 2:3 portraits of a model, so the crop is weighted
+ * towards the top: centred, it pressed every head against the upper edge.
  *
  * Every picture sits in one scroll-snap track rather than in a carousel
  * library, which is what makes the hero swipeable: the browser does the
@@ -188,7 +187,7 @@ export default function ProductMedia({
 
   return (
     <div>
-      <div className="relative aspect-[16/15] w-full overflow-hidden rounded-2xl bg-mint">
+      <div className="relative aspect-square w-full overflow-hidden rounded-2xl bg-mint">
         <div
           ref={trackRef}
           onScroll={handleScroll}
@@ -217,9 +216,7 @@ export default function ProductMedia({
                     alt={item.alt}
                     fill
                     sizes="(min-width: 700px) 560px, 100vw"
-                    // Contained, overriding StoreImage's default cover: the
-                    // whole picture, at its own proportions.
-                    style={{ objectFit: "contain" }}
+                    style={{ objectPosition: "50% 25%" }}
                     // Only the first picture is worth fetching early; the next
                     // one is mounted lazily, one ahead of where the shopper is.
                     priority={index === 0}
@@ -249,9 +246,11 @@ export default function ProductMedia({
             <div className="flex min-w-0 shrink-0 items-center gap-2">{overlayStart}</div>
 
             {/* The position indicator the reference uses, and a tap target for
-                jumping a picture. */}
+                jumping a picture. Measured off the owner's screenshot: 10px
+                dots, 10px apart, centred 16px above the picture's foot -- the
+                negative margin drops them below the chips' line to get there. */}
             {pictures.length > 1 ? (
-              <div className="flex min-w-0 flex-1 items-center justify-center overflow-hidden">
+              <div className="-mb-2 flex min-w-0 flex-1 items-center justify-center overflow-hidden">
                 {pictures.map((item, index) => (
                   <button
                     key={item.id}
@@ -263,11 +262,11 @@ export default function ProductMedia({
                     }}
                     aria-label={`Show picture ${index + 1} of ${pictures.length}`}
                     aria-current={index === activeIndex ? "true" : undefined}
-                    className="grid h-6 w-[13px] shrink-0 place-items-center focus:outline-none"
+                    className="grid h-6 w-5 shrink-0 place-items-center focus:outline-none"
                   >
                     <span
-                      className={`block h-[7px] rounded-full shadow-[0_0_3px_rgba(0,0,0,0.35)] transition-all ${
-                        index === activeIndex ? "w-[17px] bg-brand" : "w-[7px] bg-white/75"
+                      className={`block h-2.5 w-2.5 rounded-full shadow-[0_0_3px_rgba(0,0,0,0.35)] transition-colors ${
+                        index === activeIndex ? "bg-brand" : "bg-white"
                       }`}
                     />
                   </button>

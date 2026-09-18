@@ -181,11 +181,11 @@ export default function ProductLightbox({
               onClick={() => goTo(index)}
               aria-label={`Show picture ${index + 1} of ${pictures.length}`}
               aria-current={index === current ? "true" : undefined}
-              className="grid h-8 w-[15px] shrink-0 place-items-center focus:outline-none"
+              className="grid h-8 w-5 shrink-0 place-items-center focus:outline-none"
             >
               <span
-                className={`block h-[7px] rounded-full shadow-[0_0_3px_rgba(0,0,0,0.35)] transition-all ${
-                  index === current ? "w-[17px] bg-brand" : "w-[7px] bg-white/55"
+                className={`block h-2.5 w-2.5 rounded-full transition-colors ${
+                  index === current ? "bg-brand" : "bg-white/55"
                 }`}
               />
             </button>

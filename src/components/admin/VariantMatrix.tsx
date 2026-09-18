@@ -332,7 +332,7 @@ export default function VariantMatrix({
 
       <p className="mt-3 text-[11px] text-neutral-400">
         {matrix.length} combination{matrix.length === 1 ? "" : "s"}. An empty price inherits the
-        product price.{" "}
+        product price, and the product&apos;s discount applies to a price set here too.{" "}
         {showStock
           ? "Stock changes are written to the inventory ledger; retiring a combination does not move any stock."
           : "This product is not counting stock, so every combination sells without a limit."}

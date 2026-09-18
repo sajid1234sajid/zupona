@@ -16,6 +16,7 @@ import {
 } from "./optionBuilder";
 import { Card, CardHeader, Field, FormMessage, buttonStyles, fieldStyles, textareaStyles } from "./ui";
 import { MAX_GROUPS, MAX_VALUES_PER_GROUP, MAX_VARIANTS } from "@/lib/optionModel";
+import { applyDiscount } from "@/lib/productDiscount";
 import type { ProductFormState } from "@/app/admin/(panel)/products/actions";
 
 export interface ProductFormOption {
@@ -126,12 +127,7 @@ export default function ProductForm({
   // is a preview, not the source of truth.
   const base = Number(price) || 0;
   const discount = Number(discountValue) || 0;
-  const finalPrice =
-    discountType === "none" || discount <= 0
-      ? base
-      : discountType === "percent"
-        ? Math.max(1, Math.round(base * (1 - Math.min(discount, 99) / 100)))
-        : Math.max(0, base - discount);
+  const finalPrice = applyDiscount(base, { type: discountType, value: discount });
 
   return (
     <form action={formAction} className="grid gap-4 xl:grid-cols-12">

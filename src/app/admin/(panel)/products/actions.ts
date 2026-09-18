@@ -13,6 +13,14 @@ import {
   parseOptionsPayload,
   planOptionWrite,
 } from "@/lib/productOptions";
+import type { OptionsInput } from "@/lib/optionModel";
+import {
+  applyDiscount,
+  hasDiscount,
+  NO_DISCOUNT,
+  type DiscountRule,
+  type DiscountType,
+} from "@/lib/productDiscount";
 import type { ProductStatus } from "@/types";
 
 export interface ProductFormState {
@@ -73,22 +81,48 @@ function readText(formData: FormData, key: string): string | null {
  * stores. `price` is always what the shopper pays; `old_price` is the struck
  * through original, and is 0 when there is no discount so `discountPercent()`
  * reports none. */
-function resolvePricing(formData: FormData): { price: number; oldPrice: number } | string {
+function resolvePricing(
+  formData: FormData
+): { price: number; oldPrice: number; discount: DiscountRule } | string {
   const base = readInt(formData, "price");
   if (base <= 0) return "Enter a price greater than zero.";
 
-  const type = String(formData.get("discountType") ?? "none");
-  const value = readInt(formData, "discountValue");
+  const rawType = String(formData.get("discountType") ?? "none");
+  const type: DiscountType = rawType === "percent" || rawType === "fixed" ? rawType : "none";
+  const discount: DiscountRule = { type, value: readInt(formData, "discountValue") };
 
-  if (type === "none" || value <= 0) return { price: base, oldPrice: 0 };
+  if (!hasDiscount(discount)) return { price: base, oldPrice: 0, discount: NO_DISCOUNT };
+  if (type === "percent" && discount.value >= 100) return "A percentage discount must be under 100.";
+  if (type === "fixed" && discount.value >= base) return "The discount cannot be larger than the price.";
 
-  if (type === "percent") {
-    if (value >= 100) return "A percentage discount must be under 100.";
-    return { price: Math.max(1, Math.round(base * (1 - value / 100))), oldPrice: base };
-  }
+  return { price: applyDiscount(base, discount), oldPrice: base, discount };
+}
 
-  if (value >= base) return "The discount cannot be larger than the price.";
-  return { price: base - value, oldPrice: base };
+/** Carries the product's discount onto combinations that have their own price.
+ *
+ * A combination's price replaces the product's outright, so without this a
+ * discount set on the product never reached a size or colour priced on its
+ * own: the page sold it at full price with nothing struck through, while the
+ * card on the shelf advertised the discount. The typed figure is read as the
+ * pre-discount price, the same as the product's own Price box. A combination
+ * given its own compare-at price is left as typed -- that is its own deal. */
+function applyDiscountToVariants(options: OptionsInput, discount: DiscountRule): OptionsInput {
+  if (!hasDiscount(discount)) return options;
+
+  return {
+    ...options,
+    variants: options.variants.map((variant) => {
+      if (variant.price === null || variant.price <= 0) return variant;
+      if (variant.oldPrice !== null && variant.oldPrice > 0) return variant;
+
+      if (discount.type === "fixed" && discount.value >= variant.price) {
+        throw new OptionValidationError(
+          `The ৳${discount.value} discount is larger than a combination priced at ৳${variant.price}.`
+        );
+      }
+      return { ...variant, price: applyDiscount(variant.price, discount), oldPrice: variant.price };
+    }),
+  };
 }
 
 /** Splits a comma-separated field into trimmed, de-duplicated values. */
@@ -256,7 +290,10 @@ export async function createProductAction(
     const tags = readList(formData, "tags");
     const images = formData.getAll("images").map(String).filter(Boolean);
     const videos = readVideos(formData);
-    const options = parseOptionsPayload(formData.get("options"));
+    const options = applyDiscountToVariants(
+      parseOptionsPayload(formData.get("options")),
+      pricing.discount
+    );
 
     const length = readInt(formData, "length");
     const width = readInt(formData, "width");
@@ -409,7 +446,10 @@ export async function updateProductAction(
     const tags = readList(formData, "tags");
     const images = formData.getAll("images").map(String).filter(Boolean);
     const videos = readVideos(formData);
-    const options = parseOptionsPayload(formData.get("options"));
+    const options = applyDiscountToVariants(
+      parseOptionsPayload(formData.get("options")),
+      pricing.discount
+    );
 
     const currentImages = await db
       .prepare("SELECT id, url FROM product_images WHERE product_id = ?")

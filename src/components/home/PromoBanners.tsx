@@ -29,9 +29,15 @@ export default async function PromoBanners() {
         wide="/promo-mega-deals.webp"
         alt="Mega Deals -- top picks, special deals"
         shape="aspect-[330/187] tab:aspect-[1075/249]"
-        // Sampled from the artwork's own edge, so the card is the picture's
-        // colour for the moment before the picture itself arrives.
-        surface="bg-[#0b7d3f]"
+        // The phone file is built on the free delivery card's own canvas: the
+        // same 520 by 295, its drawn card in the same place at the same
+        // radius, so the two cards match to the pixel. The owner's Mega Deals
+        // art is wider than that card, so it sits inside it whole, across the
+        // full width, with the card's colour above and below it rather than
+        // any of the picture shaved off. It sits on white like its neighbour.
+        // The wide cut on a laptop is dark to its edges, and keeps the colour
+        // sampled from them.
+        surface="bg-white tab:bg-[#0b7d3f]"
         pill="bg-white text-brand-dark"
       />
 

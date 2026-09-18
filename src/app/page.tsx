@@ -9,6 +9,7 @@ import HideWhileSearching from "@/components/search/HideWhileSearching";
 import { getCurrentUser } from "@/lib/session";
 import { getWishlistProductIds } from "@/lib/wishlist";
 import { listStoreCategories, listStoreProducts } from "@/lib/storefront";
+import { categoryWordsOf } from "@/lib/productSearch";
 
 /** The storefront home page.
  *
@@ -59,6 +60,7 @@ export default async function Home() {
           <FeaturedProducts
             featured={featured}
             catalog={catalog}
+            categoryWords={categoryWordsOf(categories)}
             wishlistIds={Array.from(wishlistIds)}
             isSignedIn={Boolean(user)}
           />

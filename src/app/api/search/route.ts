@@ -10,38 +10,21 @@
  * D1 in Singapore. Only the matches cross the wire, so a search costs a few
  * kilobytes rather than the whole catalog.
  *
- * Matching is per word and covers the department and sub-department names as
- * well as the product's own, so "men shirt" finds a shirt filed under Men's
- * Fashion whose name never says "men". */
+ * What matches is decided in `src/lib/productSearch.ts`, which the home page
+ * runs too, so the same words find the same products on every page. */
 
 import { listStoreCategories, listStoreProducts } from "@/lib/storefront";
-import type { StoreProductCard } from "@/lib/storefront";
+import { categoryWordsOf, searchProducts, searchTerms } from "@/lib/productSearch";
 
 /** Enough to scroll through, few enough to stay a small response. */
 const LIMIT = 30;
 
-interface Ranked {
-  product: StoreProductCard;
-  score: number;
-}
-
-/** Lower is better: a name that starts with what was typed comes first, then
- * one that contains it, then a match that only came from the category. */
-function scoreOf(name: string, haystack: string, terms: string[]): number | null {
-  for (const term of terms) {
-    if (!haystack.includes(term)) return null;
-  }
-
-  const first = terms[0];
-  if (name.startsWith(first)) return 0;
-  if (name.includes(first)) return 1;
-  return 2;
-}
-
 export async function GET(request: Request) {
   const query = (new URL(request.url).searchParams.get("q") ?? "").trim();
+  const terms = searchTerms(query);
 
-  if (query.length === 0) {
+  // Punctuation alone has no words to match; it is not a request for everything.
+  if (terms.length === 0) {
     return json({ query, products: [] });
   }
 
@@ -51,38 +34,12 @@ export async function GET(request: Request) {
     listStoreCategories(),
   ]);
 
-  // Category id -> the words a shopper might type to mean it.
-  const categoryWords = new Map<string, string>();
-  for (const category of categories) {
-    categoryWords.set(category.id, category.name.toLowerCase());
-    for (const sub of category.subcategories) {
-      categoryWords.set(sub.id, `${category.name} ${sub.name}`.toLowerCase());
-    }
-  }
-
-  const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
-
-  const ranked: Ranked[] = [];
-  for (const product of catalog) {
-    const name = product.name.toLowerCase();
-    const haystack = [
-      name,
-      categoryWords.get(product.categoryId ?? "") ?? "",
-      categoryWords.get(product.subcategoryId ?? "") ?? "",
-    ].join(" ");
-
-    const score = scoreOf(name, haystack, terms);
-    if (score !== null) ranked.push({ product, score });
-  }
-
-  // The catalog arrives sorted by popularity, so an equal score keeps that
-  // order -- Array.prototype.sort is stable.
-  ranked.sort((a, b) => a.score - b.score);
+  const ranked = searchProducts(catalog, terms, categoryWordsOf(categories));
 
   return json({
     query,
     total: ranked.length,
-    products: ranked.slice(0, LIMIT).map(({ product }) => ({
+    products: ranked.slice(0, LIMIT).map((product) => ({
       id: product.id,
       name: product.name,
       image: product.image,

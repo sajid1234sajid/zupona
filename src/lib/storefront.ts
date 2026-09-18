@@ -43,6 +43,10 @@ export interface StoreProductCard {
   inStock: boolean;
   /** Ticked "Featured" in the admin panel; the home page leads with these. */
   featured: boolean;
+  /** The brand and the admin panel's tags, lowercased into one string: what
+   * search matches besides the name. One string rather than two fields
+   * because the home page ships the whole catalog to the browser. */
+  keywords: string;
 }
 
 export interface StoreProductVideo {
@@ -217,6 +221,8 @@ interface CardRow {
   stock_total: number | null;
   is_featured: number;
   track_inventory: number;
+  brand_name: string | null;
+  tags: string | null;
 }
 
 function discountPercent(price: number, oldPrice: number): number {
@@ -245,6 +251,8 @@ function toCard(row: CardRow): StoreProductCard {
     // figure for "none left" to be true of.
     inStock: row.track_inventory === 0 || (row.stock_total ?? 0) > 0,
     featured: row.is_featured === 1,
+    // The product page reads its row without the tags; it never searches.
+    keywords: [row.brand_name, row.tags].filter(Boolean).join(" ").toLowerCase(),
   };
 }
 
@@ -257,7 +265,10 @@ const CARD_SELECT = `
            ORDER BY i.is_primary DESC, i.sort_order ASC LIMIT 1) AS image,
          (SELECT COALESCE(SUM(v.stock_quantity - v.reserved_quantity), 0)
             FROM product_variants v WHERE v.product_id = p.id AND v.is_active = 1)
-           AS stock_total
+           AS stock_total,
+         (SELECT name FROM brands b WHERE b.id = p.brand_id) AS brand_name,
+         (SELECT group_concat(a.attr_value, ' ') FROM product_attributes a
+           WHERE a.product_id = p.id AND a.attr_name = 'tag') AS tags
   FROM products p
   LEFT JOIN categories c ON c.id = p.category_id`;
 

@@ -25,6 +25,10 @@ export function formatAddressLine(address: {
 /* Dates                                                                      */
 /* -------------------------------------------------------------------------- */
 
+/** Every clock on the site reads Bangladesh time. The Worker runs in UTC, so
+ * a date formatted without this shows the shopper's 4:20 PM order as 10:20 AM. */
+export const SHOP_TIME_ZONE = "Asia/Dhaka";
+
 /** SQLite writes `datetime('now')` as "YYYY-MM-DD HH:MM:SS" in UTC, which is
  * not a format `new Date()` parses consistently across engines. This turns it
  * into a real Date; ISO strings pass through untouched. */
@@ -38,7 +42,12 @@ export function parseDbDate(value: string | null | undefined): Date | null {
 export function formatDate(value: string | null | undefined): string {
   const date = parseDbDate(value);
   if (!date) return "—";
-  return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: SHOP_TIME_ZONE,
+  });
 }
 
 export function formatDateTime(value: string | null | undefined): string {
@@ -48,7 +57,8 @@ export function formatDateTime(value: string | null | undefined): string {
     month: "short",
     day: "numeric",
     year: "numeric",
-  })} · ${date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`;
+    timeZone: SHOP_TIME_ZONE,
+  })} · ${date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: SHOP_TIME_ZONE })}`;
 }
 
 /** "3 mins ago" for anything recent, falling back to a date past a week so an

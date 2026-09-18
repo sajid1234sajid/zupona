@@ -20,7 +20,7 @@ import {
 import { requireUser } from "@/lib/session";
 import { getOrder } from "@/lib/orders";
 import { formatBdPhone } from "@/lib/checkout";
-import { formatPrice } from "@/lib/format";
+import { formatPrice, SHOP_TIME_ZONE } from "@/lib/format";
 import LeafBackdrop from "@/components/checkout/LeafBackdrop";
 import ZuponaMark from "@/components/brand/ZuponaMark";
 import SuccessBurst from "@/components/checkout/SuccessBurst";
@@ -44,9 +44,9 @@ export default async function OrderConfirmedPage({ params }: PageProps<"/checkou
       icon: CalendarDays,
       label: "Order Date",
       value: placedAt
-        .toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
+        .toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: SHOP_TIME_ZONE })
         .replace("Sept", "Sep"),
-      note: placedAt.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }),
+      note: placedAt.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", timeZone: SHOP_TIME_ZONE }),
       pill: null,
     },
     {

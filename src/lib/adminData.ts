@@ -11,6 +11,11 @@
  * exist. */
 
 import { getDB } from "@/lib/db";
+import {
+  applyDiscount,
+  hasDiscount,
+  readDiscount,
+} from "@/lib/productDiscount";
 
 /* -------------------------------------------------------------------------- */
 /* Shared                                                                     */
@@ -33,7 +38,10 @@ export const RANGES = {
 
 export type RangeKey = keyof typeof RANGES;
 
-export function asRange(value: string | undefined, fallback: RangeKey = "7d"): RangeKey {
+export function asRange(
+  value: string | undefined,
+  fallback: RangeKey = "7d",
+): RangeKey {
   return value && value in RANGES ? (value as RangeKey) : fallback;
 }
 
@@ -71,7 +79,9 @@ export interface DashboardSummary {
 /** The four headline tiles. Each is measured over the selected window and
  * against the window immediately before it, which is what the "vs last 7 days"
  * caption underneath refers to. */
-export async function getDashboardSummary(range: RangeKey = "7d"): Promise<DashboardSummary> {
+export async function getDashboardSummary(
+  range: RangeKey = "7d",
+): Promise<DashboardSummary> {
   const db = await getDB();
   const window = RANGES[range];
   // Doubling the window gives the preceding period of equal length, so one
@@ -90,7 +100,7 @@ export async function getDashboardSummary(range: RangeKey = "7d"): Promise<Dashb
            COALESCE(SUM(CASE WHEN placed_at >= datetime('now', ?)
                               AND placed_at < datetime('now', ?) THEN total END), 0)
              AS prior_revenue
-         FROM orders WHERE status != 'cancelled'`
+         FROM orders WHERE status != 'cancelled'`,
       )
       .bind(window, prior, window, window, prior, window),
     db
@@ -99,7 +109,7 @@ export async function getDashboardSummary(range: RangeKey = "7d"): Promise<Dashb
                 COUNT(CASE WHEN created_at >= datetime('now', ?) THEN 1 END) AS current,
                 COUNT(CASE WHEN created_at >= datetime('now', ?)
                             AND created_at < datetime('now', ?) THEN 1 END) AS prior
-         FROM products WHERE status != 'archived'`
+         FROM products WHERE status != 'archived'`,
       )
       .bind(window, prior, window),
     db
@@ -108,19 +118,33 @@ export async function getDashboardSummary(range: RangeKey = "7d"): Promise<Dashb
                 COUNT(CASE WHEN created_at >= datetime('now', ?) THEN 1 END) AS current,
                 COUNT(CASE WHEN created_at >= datetime('now', ?)
                             AND created_at < datetime('now', ?) THEN 1 END) AS prior
-         FROM users WHERE role = 'customer'`
+         FROM users WHERE role = 'customer'`,
       )
       .bind(window, prior, window),
   ]);
 
-  const o = (orders.results as unknown as {
-    current_orders: number;
-    prior_orders: number;
-    current_revenue: number;
-    prior_revenue: number;
-  }[])[0];
-  const p = (products.results as unknown as { total: number; current: number; prior: number }[])[0];
-  const c = (customers.results as unknown as { total: number; current: number; prior: number }[])[0];
+  const o = (
+    orders.results as unknown as {
+      current_orders: number;
+      prior_orders: number;
+      current_revenue: number;
+      prior_revenue: number;
+    }[]
+  )[0];
+  const p = (
+    products.results as unknown as {
+      total: number;
+      current: number;
+      prior: number;
+    }[]
+  )[0];
+  const c = (
+    customers.results as unknown as {
+      total: number;
+      current: number;
+      prior: number;
+    }[]
+  )[0];
 
   return {
     orders: {
@@ -131,8 +155,14 @@ export async function getDashboardSummary(range: RangeKey = "7d"): Promise<Dashb
       value: o?.current_revenue ?? 0,
       change: delta(o?.current_revenue ?? 0, o?.prior_revenue ?? 0),
     },
-    products: { value: p?.total ?? 0, change: delta(p?.current ?? 0, p?.prior ?? 0) },
-    customers: { value: c?.total ?? 0, change: delta(c?.current ?? 0, c?.prior ?? 0) },
+    products: {
+      value: p?.total ?? 0,
+      change: delta(p?.current ?? 0, p?.prior ?? 0),
+    },
+    customers: {
+      value: c?.total ?? 0,
+      change: delta(c?.current ?? 0, c?.prior ?? 0),
+    },
   };
 }
 
@@ -142,13 +172,15 @@ export interface StatusSlice {
 }
 
 /** Order status mix for the dashboard donut. */
-export async function getOrderStatusBreakdown(range: RangeKey = "7d"): Promise<StatusSlice[]> {
+export async function getOrderStatusBreakdown(
+  range: RangeKey = "7d",
+): Promise<StatusSlice[]> {
   const db = await getDB();
   const { results } = await db
     .prepare(
       `SELECT status, COUNT(*) AS n FROM orders
        WHERE placed_at >= datetime('now', ?)
-       GROUP BY status`
+       GROUP BY status`,
     )
     .bind(RANGES[range])
     .all<{ status: string; n: number }>();
@@ -163,7 +195,9 @@ export interface SalesPoint {
 
 /** Daily revenue with empty days filled in, so the chart's x-axis stays evenly
  * spaced instead of silently skipping days that had no orders. */
-export async function getSalesSeries(range: RangeKey = "7d"): Promise<SalesPoint[]> {
+export async function getSalesSeries(
+  range: RangeKey = "7d",
+): Promise<SalesPoint[]> {
   const db = await getDB();
   const days = daysIn(range) > 90 ? 90 : daysIn(range);
 
@@ -172,7 +206,7 @@ export async function getSalesSeries(range: RangeKey = "7d"): Promise<SalesPoint
       `SELECT DATE(placed_at) AS day, COUNT(*) AS orders, COALESCE(SUM(total), 0) AS revenue
        FROM orders
        WHERE status != 'cancelled' AND placed_at >= datetime('now', ?)
-       GROUP BY day ORDER BY day ASC`
+       GROUP BY day ORDER BY day ASC`,
     )
     .bind(`-${days} days`)
     .all<{ day: string; orders: number; revenue: number }>();
@@ -207,24 +241,26 @@ export async function getRecentActivity(limit = 8): Promise<ActivityEntry[]> {
   const db = await getDB();
   const per = Math.max(3, Math.ceil(limit / 2));
 
-  const [orders, products, customers, reviews] = await db.batch<Record<string, unknown>>([
+  const [orders, products, customers, reviews] = await db.batch<
+    Record<string, unknown>
+  >([
     db
       .prepare(
         `SELECT o.id, o.order_number, o.placed_at, u.name AS user_name
          FROM orders o JOIN users u ON u.id = o.user_id
-         ORDER BY o.placed_at DESC LIMIT ?`
+         ORDER BY o.placed_at DESC LIMIT ?`,
       )
       .bind(per),
     db
       .prepare(
         `SELECT id, name, status, created_at FROM products
-         WHERE status != 'archived' ORDER BY created_at DESC LIMIT ?`
+         WHERE status != 'archived' ORDER BY created_at DESC LIMIT ?`,
       )
       .bind(per),
     db
       .prepare(
         `SELECT id, name, email, created_at FROM users
-         WHERE role = 'customer' ORDER BY created_at DESC LIMIT ?`
+         WHERE role = 'customer' ORDER BY created_at DESC LIMIT ?`,
       )
       .bind(per),
     db
@@ -233,7 +269,7 @@ export async function getRecentActivity(limit = 8): Promise<ActivityEntry[]> {
          FROM reviews r
          JOIN products p ON p.id = r.product_id
          JOIN users u ON u.id = r.user_id
-         ORDER BY r.created_at DESC LIMIT ?`
+         ORDER BY r.created_at DESC LIMIT ?`,
       )
       .bind(per),
   ]);
@@ -348,16 +384,21 @@ function orderWhere(filter: OrderFilter): { where: string; binds: unknown[] } {
   }
   if (filter.search?.trim()) {
     clauses.push(
-      "(o.order_number LIKE ? OR u.name LIKE ? OR u.email LIKE ? OR o.address_phone LIKE ?)"
+      "(o.order_number LIKE ? OR u.name LIKE ? OR u.email LIKE ? OR o.address_phone LIKE ?)",
     );
     const term = `%${filter.search.trim()}%`;
     binds.push(term, term, term, term);
   }
 
-  return { where: clauses.length ? `WHERE ${clauses.join(" AND ")}` : "", binds };
+  return {
+    where: clauses.length ? `WHERE ${clauses.join(" AND ")}` : "",
+    binds,
+  };
 }
 
-export async function listOrders(filter: OrderFilter = {}): Promise<Page<AdminOrderRow>> {
+export async function listOrders(
+  filter: OrderFilter = {},
+): Promise<Page<AdminOrderRow>> {
   const db = await getDB();
   const { where, binds } = orderWhere(filter);
   const offset = Math.max(0, (filter.page ?? 1) - 1) * PAGE_SIZE;
@@ -372,28 +413,32 @@ export async function listOrders(filter: OrderFilter = {}): Promise<Page<AdminOr
                   AS item_count
          FROM orders o JOIN users u ON u.id = o.user_id
          ${where}
-         ORDER BY o.placed_at DESC LIMIT ? OFFSET ?`
+         ORDER BY o.placed_at DESC LIMIT ? OFFSET ?`,
       )
       .bind(...binds, PAGE_SIZE, offset),
     db
-      .prepare(`SELECT COUNT(*) AS n FROM orders o JOIN users u ON u.id = o.user_id ${where}`)
+      .prepare(
+        `SELECT COUNT(*) AS n FROM orders o JOIN users u ON u.id = o.user_id ${where}`,
+      )
       .bind(...binds),
   ]);
 
   return {
-    rows: (rows.results as unknown as {
-      id: string;
-      order_number: string;
-      total: number;
-      status: string;
-      payment_status: string;
-      payment_label: string;
-      placed_at: string;
-      customer_name: string;
-      customer_email: string | null;
-      customer_avatar: string | null;
-      item_count: number;
-    }[]).map((row) => ({
+    rows: (
+      rows.results as unknown as {
+        id: string;
+        order_number: string;
+        total: number;
+        status: string;
+        payment_status: string;
+        payment_label: string;
+        placed_at: string;
+        customer_name: string;
+        customer_email: string | null;
+        customer_avatar: string | null;
+        item_count: number;
+      }[]
+    ).map((row) => ({
       id: row.id,
       orderNumber: row.order_number,
       customerName: row.customer_name,
@@ -413,14 +458,16 @@ export async function listOrders(filter: OrderFilter = {}): Promise<Page<AdminOr
 /** Counts per status for the tab strip above the orders table. Always returns
  * every status, including empty ones, so tabs don't appear and vanish as the
  * data changes underneath. */
-export async function getOrderCounts(filter: OrderFilter = {}): Promise<Record<string, number>> {
+export async function getOrderCounts(
+  filter: OrderFilter = {},
+): Promise<Record<string, number>> {
   const db = await getDB();
   const { where, binds } = orderWhere({ ...filter, status: "all" });
 
   const { results } = await db
     .prepare(
       `SELECT o.status, COUNT(*) AS n FROM orders o JOIN users u ON u.id = o.user_id
-       ${where} GROUP BY o.status`
+       ${where} GROUP BY o.status`,
     )
     .bind(...binds)
     .all<{ status: string; n: number }>();
@@ -484,7 +531,12 @@ export interface AdminOrderDetail {
   customerOrderCount: number;
   customerLifetimeValue: number;
   customerFirstOrderAt: string | null;
-  history: { status: string; note: string | null; at: string; by: string | null }[];
+  history: {
+    status: string;
+    note: string | null;
+    at: string;
+    by: string | null;
+  }[];
   /** One entry per seller in the order -- and one for an order that is
    * entirely the platform's. This is where courier and tracking live. */
   fulfilment: {
@@ -505,19 +557,23 @@ export interface AdminOrderDetail {
 
 /** Accepts either the internal id or the human order number, so a support
  * agent can paste "ZUP1234567" straight from a customer email. */
-export async function getOrderDetail(idOrNumber: string): Promise<AdminOrderDetail | null> {
+export async function getOrderDetail(
+  idOrNumber: string,
+): Promise<AdminOrderDetail | null> {
   const db = await getDB();
   const row = await db
     .prepare(
       `SELECT o.*, u.name AS customer_name, u.email AS customer_email, u.phone AS customer_phone
-       FROM orders o JOIN users u ON u.id = o.user_id WHERE o.id = ? OR o.order_number = ?`
+       FROM orders o JOIN users u ON u.id = o.user_id WHERE o.id = ? OR o.order_number = ?`,
     )
     .bind(idOrNumber, idOrNumber)
     .first<Record<string, string | number | null>>();
 
   if (!row) return null;
 
-  const [items, history, fulfilment, customer] = await db.batch<Record<string, unknown>>([
+  const [items, history, fulfilment, customer] = await db.batch<
+    Record<string, unknown>
+  >([
     // The SKU is what someone actually picks off a shelf, and the cost price
     // was snapshotted at purchase precisely so margin could be read back
     // later; neither was being surfaced.
@@ -527,7 +583,7 @@ export async function getOrderDetail(idOrNumber: string): Promise<AdminOrderDeta
                 oi.cost_price, v.sku
          FROM order_items oi
          LEFT JOIN product_variants v ON v.id = oi.variant_id
-         WHERE oi.order_id = ?`
+         WHERE oi.order_id = ?`,
       )
       .bind(row.id),
     db
@@ -535,7 +591,7 @@ export async function getOrderDetail(idOrNumber: string): Promise<AdminOrderDeta
         `SELECT h.status, h.note, h.created_at, u.name AS by_name
          FROM order_status_history h
          LEFT JOIN users u ON u.id = h.changed_by
-         WHERE h.order_id = ? ORDER BY h.created_at ASC`
+         WHERE h.order_id = ? ORDER BY h.created_at ASC`,
       )
       .bind(row.id),
     // Fulfilment: one row per seller, carrying the courier and tracking that
@@ -548,7 +604,7 @@ export async function getOrderDetail(idOrNumber: string): Promise<AdminOrderDeta
                 (SELECT COUNT(*) FROM order_items oi WHERE oi.suborder_id = s.id) AS item_count
          FROM suborders s
          LEFT JOIN sellers sel ON sel.id = s.seller_id
-         WHERE s.order_id = ? ORDER BY s.rowid ASC`
+         WHERE s.order_id = ? ORDER BY s.rowid ASC`,
       )
       .bind(row.id),
     // How many orders this customer has placed, and what they have spent, so
@@ -560,7 +616,7 @@ export async function getOrderDetail(idOrNumber: string): Promise<AdminOrderDeta
         `SELECT COUNT(*) AS order_count,
                 COALESCE(SUM(CASE WHEN status != 'cancelled' THEN total ELSE 0 END), 0) AS lifetime_value,
                 MIN(placed_at) AS first_order_at
-         FROM orders WHERE user_id = ?`
+         FROM orders WHERE user_id = ?`,
       )
       .bind(row.user_id),
   ]);
@@ -589,17 +645,19 @@ export async function getOrderDetail(idOrNumber: string): Promise<AdminOrderDeta
     addressArea: (row.address_area as string | null) ?? null,
     addressDistrict: (row.address_district as string | null) ?? null,
     addressCity: String(row.address_city),
-    items: (items.results as unknown as {
-      id: string;
-      product_id: string;
-      name: string;
-      image: string;
-      color: string | null;
-      price: number;
-      quantity: number;
-      cost_price: number;
-      sku: string | null;
-    }[]).map((item) => ({
+    items: (
+      items.results as unknown as {
+        id: string;
+        product_id: string;
+        name: string;
+        image: string;
+        color: string | null;
+        price: number;
+        quantity: number;
+        cost_price: number;
+        sku: string | null;
+      }[]
+    ).map((item) => ({
       id: item.id,
       productId: item.product_id,
       name: item.name,
@@ -611,40 +669,45 @@ export async function getOrderDetail(idOrNumber: string): Promise<AdminOrderDeta
       quantity: item.quantity,
     })),
     customerOrderCount: Number(
-      (customer.results?.[0] as Record<string, unknown> | undefined)?.order_count ?? 0
+      (customer.results?.[0] as Record<string, unknown> | undefined)
+        ?.order_count ?? 0,
     ),
     customerLifetimeValue: Number(
-      (customer.results?.[0] as Record<string, unknown> | undefined)?.lifetime_value ?? 0
+      (customer.results?.[0] as Record<string, unknown> | undefined)
+        ?.lifetime_value ?? 0,
     ),
     customerFirstOrderAt:
-      ((customer.results?.[0] as Record<string, unknown> | undefined)?.first_order_at as
-        | string
-        | null) ?? null,
-    history: (history.results as unknown as {
-      status: string;
-      note: string | null;
-      created_at: string;
-      by_name: string | null;
-    }[]).map((entry) => ({
+      ((customer.results?.[0] as Record<string, unknown> | undefined)
+        ?.first_order_at as string | null) ?? null,
+    history: (
+      history.results as unknown as {
+        status: string;
+        note: string | null;
+        created_at: string;
+        by_name: string | null;
+      }[]
+    ).map((entry) => ({
       status: entry.status,
       note: entry.note,
       at: entry.created_at,
       by: entry.by_name,
     })),
-    fulfilment: (fulfilment.results as unknown as {
-      id: string;
-      seller_id: string | null;
-      seller_name: string | null;
-      status: string;
-      subtotal: number;
-      shipping_fee: number;
-      commission_amount: number;
-      courier_name: string | null;
-      tracking_number: string | null;
-      shipped_at: string | null;
-      delivered_at: string | null;
-      item_count: number;
-    }[]).map((entry) => ({
+    fulfilment: (
+      fulfilment.results as unknown as {
+        id: string;
+        seller_id: string | null;
+        seller_name: string | null;
+        status: string;
+        subtotal: number;
+        shipping_fee: number;
+        commission_amount: number;
+        courier_name: string | null;
+        tracking_number: string | null;
+        shipped_at: string | null;
+        delivered_at: string | null;
+        item_count: number;
+      }[]
+    ).map((entry) => ({
       id: entry.id,
       sellerId: entry.seller_id,
       sellerName: entry.seller_name,
@@ -667,11 +730,11 @@ export async function getOrderInsights() {
   const row = await db
     .prepare(
       `SELECT
-         COUNT(CASE WHEN DATE(placed_at) = DATE('now') THEN 1 END) AS today_orders,
+         COUNT(CASE WHEN DATE(placed_at, '+6 hours') = DATE('now', '+6 hours') THEN 1 END) AS today_orders,
          COUNT(CASE WHEN payment_label LIKE '%Cash%' OR payment_label LIKE '%COD%' THEN 1 END)
            AS cod_orders,
          COALESCE(AVG(total), 0) AS avg_value
-       FROM orders WHERE status != 'cancelled'`
+       FROM orders WHERE status != 'cancelled'`,
     )
     .first<{ today_orders: number; cod_orders: number; avg_value: number }>();
 
@@ -711,7 +774,10 @@ export interface ProductFilter {
   page?: number;
 }
 
-function productWhere(filter: ProductFilter): { where: string; binds: unknown[] } {
+function productWhere(filter: ProductFilter): {
+  where: string;
+  binds: unknown[];
+} {
   const clauses: string[] = [];
   const binds: unknown[] = [];
 
@@ -737,12 +803,17 @@ function productWhere(filter: ProductFilter): { where: string; binds: unknown[] 
     binds.push(RANGES[filter.range]);
   }
   if (filter.search?.trim()) {
-    clauses.push("(p.name LIKE ? OR p.sku LIKE ? OR b.name LIKE ? OR c.name LIKE ?)");
+    clauses.push(
+      "(p.name LIKE ? OR p.sku LIKE ? OR b.name LIKE ? OR c.name LIKE ?)",
+    );
     const term = `%${filter.search.trim()}%`;
     binds.push(term, term, term, term);
   }
 
-  return { where: clauses.length ? `WHERE ${clauses.join(" AND ")}` : "", binds };
+  return {
+    where: clauses.length ? `WHERE ${clauses.join(" AND ")}` : "",
+    binds,
+  };
 }
 
 const ADMIN_PRODUCT_FROM = `
@@ -750,7 +821,9 @@ const ADMIN_PRODUCT_FROM = `
   LEFT JOIN brands b ON b.id = p.brand_id
   LEFT JOIN categories c ON c.id = p.category_id`;
 
-export async function listAdminProducts(filter: ProductFilter = {}): Promise<Page<AdminProductRow>> {
+export async function listAdminProducts(
+  filter: ProductFilter = {},
+): Promise<Page<AdminProductRow>> {
   const db = await getDB();
   const { where, binds } = productWhere(filter);
   const offset = Math.max(0, (filter.page ?? 1) - 1) * PAGE_SIZE;
@@ -767,26 +840,30 @@ export async function listAdminProducts(filter: ProductFilter = {}): Promise<Pag
                 (SELECT COALESCE(MIN(v.low_stock_threshold), 5) FROM product_variants v
                   WHERE v.product_id = p.id AND v.is_active = 1) AS threshold
          ${ADMIN_PRODUCT_FROM} ${where}
-         ORDER BY p.created_at DESC LIMIT ? OFFSET ?`
+         ORDER BY p.created_at DESC LIMIT ? OFFSET ?`,
       )
       .bind(...binds, PAGE_SIZE, offset),
-    db.prepare(`SELECT COUNT(*) AS n ${ADMIN_PRODUCT_FROM} ${where}`).bind(...binds),
+    db
+      .prepare(`SELECT COUNT(*) AS n ${ADMIN_PRODUCT_FROM} ${where}`)
+      .bind(...binds),
   ]);
 
   return {
-    rows: (rows.results as unknown as {
-      id: string;
-      name: string;
-      price: number;
-      status: string;
-      created_at: string;
-      brand_name: string | null;
-      category_name: string | null;
-      image: string | null;
-      stock: number;
-      threshold: number;
-      track_inventory: number;
-    }[]).map((row) => ({
+    rows: (
+      rows.results as unknown as {
+        id: string;
+        name: string;
+        price: number;
+        status: string;
+        created_at: string;
+        brand_name: string | null;
+        category_name: string | null;
+        image: string | null;
+        stock: number;
+        threshold: number;
+        track_inventory: number;
+      }[]
+    ).map((row) => ({
       id: row.id,
       name: row.name,
       image: row.image,
@@ -797,7 +874,10 @@ export async function listAdminProducts(filter: ProductFilter = {}): Promise<Pag
       status: row.status,
       // A product that counts nothing is never low and never out: the figure
       // beside it is not a level, so neither warning is true of it.
-      isLowStock: row.track_inventory === 1 && row.stock > 0 && row.stock <= row.threshold,
+      isLowStock:
+        row.track_inventory === 1 &&
+        row.stock > 0 &&
+        row.stock <= row.threshold,
       tracksStock: row.track_inventory === 1,
       createdAt: row.created_at,
     })),
@@ -833,7 +913,7 @@ export async function getProductStats(): Promise<ProductStats> {
                 (SELECT COALESCE(MIN(v.low_stock_threshold), 5) FROM product_variants v
                   WHERE v.product_id = p.id AND v.is_active = 1) AS threshold
          FROM products p WHERE p.status != 'archived'
-       )`
+       )`,
     )
     .first<{
       total: number;
@@ -865,7 +945,7 @@ export async function getTopCategories(limit = 5, range: RangeKey = "7d") {
        JOIN categories c ON c.id = p.category_id
        WHERE o.status != 'cancelled' AND o.placed_at >= datetime('now', ?)
        GROUP BY c.id, c.name
-       ORDER BY revenue DESC LIMIT ?`
+       ORDER BY revenue DESC LIMIT ?`,
     )
     .bind(RANGES[range], limit)
     .all<{ id: string; name: string; revenue: number; units: number }>();
@@ -901,7 +981,7 @@ export async function listCategoryTree(): Promise<AdminCategory[]> {
               (SELECT COUNT(*) FROM products p
                 WHERE p.category_id = c.id AND p.status != 'archived') AS product_count
        FROM categories c
-       ORDER BY c.sort_order ASC, c.name ASC`
+       ORDER BY c.sort_order ASC, c.name ASC`,
     )
     .all<{
       id: string;
@@ -944,7 +1024,9 @@ export async function listCategoryTree(): Promise<AdminCategory[]> {
 }
 
 /** Flat list of every category, indented by depth, for <select> menus. */
-export async function listCategoryOptions(): Promise<{ id: string; label: string; parentId: string | null }[]> {
+export async function listCategoryOptions(): Promise<
+  { id: string; label: string; parentId: string | null }[]
+> {
   const tree = await listCategoryTree();
   const options: { id: string; label: string; parentId: string | null }[] = [];
 
@@ -989,7 +1071,10 @@ export interface CustomerFilter {
   page?: number;
 }
 
-function customerWhere(filter: CustomerFilter): { where: string; binds: unknown[] } {
+function customerWhere(filter: CustomerFilter): {
+  where: string;
+  binds: unknown[];
+} {
   // Guests are carts without an account, not customers.
   const clauses: string[] = ["u.role != 'guest'"];
   const binds: unknown[] = [];
@@ -1008,10 +1093,15 @@ function customerWhere(filter: CustomerFilter): { where: string; binds: unknown[
     binds.push(term, term, term);
   }
 
-  return { where: clauses.length ? `WHERE ${clauses.join(" AND ")}` : "", binds };
+  return {
+    where: clauses.length ? `WHERE ${clauses.join(" AND ")}` : "",
+    binds,
+  };
 }
 
-export async function listCustomers(filter: CustomerFilter = {}): Promise<Page<AdminCustomerRow>> {
+export async function listCustomers(
+  filter: CustomerFilter = {},
+): Promise<Page<AdminCustomerRow>> {
   const db = await getDB();
   const { where, binds } = customerWhere(filter);
   const offset = Math.max(0, (filter.page ?? 1) - 1) * PAGE_SIZE;
@@ -1026,27 +1116,29 @@ export async function listCustomers(filter: CustomerFilter = {}): Promise<Page<A
                   WHERE o.user_id = u.id AND o.status != 'cancelled') AS total_spent,
                 (SELECT MAX(o.placed_at) FROM orders o WHERE o.user_id = u.id) AS last_order_at
          FROM users u ${where}
-         ORDER BY u.created_at DESC LIMIT ? OFFSET ?`
+         ORDER BY u.created_at DESC LIMIT ? OFFSET ?`,
       )
       .bind(...binds, PAGE_SIZE, offset),
     db.prepare(`SELECT COUNT(*) AS n FROM users u ${where}`).bind(...binds),
   ]);
 
   return {
-    rows: (rows.results as unknown as {
-      id: string;
-      name: string;
-      email: string | null;
-      phone: string | null;
-      avatar_url: string | null;
-      role: string;
-      status: string;
-      points: number;
-      created_at: string;
-      order_count: number;
-      total_spent: number;
-      last_order_at: string | null;
-    }[]).map((row) => ({
+    rows: (
+      rows.results as unknown as {
+        id: string;
+        name: string;
+        email: string | null;
+        phone: string | null;
+        avatar_url: string | null;
+        role: string;
+        status: string;
+        points: number;
+        created_at: string;
+        order_count: number;
+        total_spent: number;
+        last_order_at: string | null;
+      }[]
+    ).map((row) => ({
       id: row.id,
       name: row.name,
       email: row.email,
@@ -1073,9 +1165,14 @@ export async function getCustomerStats() {
          COUNT(CASE WHEN status = 'active' THEN 1 END) AS active,
          COUNT(CASE WHEN status IN ('suspended', 'banned') THEN 1 END) AS blocked,
          COUNT(CASE WHEN created_at >= datetime('now', '-30 days') THEN 1 END) AS new_this_month
-       FROM users WHERE role != 'guest'`
+       FROM users WHERE role != 'guest'`,
     )
-    .first<{ total: number; active: number; blocked: number; new_this_month: number }>();
+    .first<{
+      total: number;
+      active: number;
+      blocked: number;
+      new_this_month: number;
+    }>();
 
   return {
     total: row?.total ?? 0,
@@ -1092,7 +1189,7 @@ export async function getCustomerDetail(userId: string) {
     .prepare(
       `SELECT id, name, email, phone, avatar_url, role, status, points, email_verified,
               phone_verified, last_login_at, created_at
-       FROM users WHERE id = ?`
+       FROM users WHERE id = ?`,
     )
     .bind(userId)
     .first<{
@@ -1116,13 +1213,13 @@ export async function getCustomerDetail(userId: string) {
     db
       .prepare(
         `SELECT id, order_number, status, total, placed_at FROM orders
-         WHERE user_id = ? ORDER BY placed_at DESC LIMIT 20`
+         WHERE user_id = ? ORDER BY placed_at DESC LIMIT 20`,
       )
       .bind(userId),
     db
       .prepare(
         `SELECT label, full_name, phone, line1, area, city, postal_code, is_default
-         FROM addresses WHERE user_id = ? ORDER BY is_default DESC`
+         FROM addresses WHERE user_id = ? ORDER BY is_default DESC`,
       )
       .bind(userId),
   ]);
@@ -1190,7 +1287,10 @@ export interface ReviewFilter {
   page?: number;
 }
 
-function reviewWhere(filter: ReviewFilter): { where: string; binds: unknown[] } {
+function reviewWhere(filter: ReviewFilter): {
+  where: string;
+  binds: unknown[];
+} {
   const clauses: string[] = [];
   const binds: unknown[] = [];
 
@@ -1203,21 +1303,30 @@ function reviewWhere(filter: ReviewFilter): { where: string; binds: unknown[] } 
     binds.push(filter.rating);
   }
   if (filter.media === "with") {
-    clauses.push("EXISTS (SELECT 1 FROM review_images ri WHERE ri.review_id = r.id)");
+    clauses.push(
+      "EXISTS (SELECT 1 FROM review_images ri WHERE ri.review_id = r.id)",
+    );
   } else if (filter.media === "without") {
-    clauses.push("NOT EXISTS (SELECT 1 FROM review_images ri WHERE ri.review_id = r.id)");
+    clauses.push(
+      "NOT EXISTS (SELECT 1 FROM review_images ri WHERE ri.review_id = r.id)",
+    );
   }
   if (filter.range && filter.range !== "all") {
     clauses.push("r.created_at >= datetime('now', ?)");
     binds.push(RANGES[filter.range]);
   }
   if (filter.search?.trim()) {
-    clauses.push("(p.name LIKE ? OR u.name LIKE ? OR r.body LIKE ? OR r.title LIKE ?)");
+    clauses.push(
+      "(p.name LIKE ? OR u.name LIKE ? OR r.body LIKE ? OR r.title LIKE ?)",
+    );
     const term = `%${filter.search.trim()}%`;
     binds.push(term, term, term, term);
   }
 
-  return { where: clauses.length ? `WHERE ${clauses.join(" AND ")}` : "", binds };
+  return {
+    where: clauses.length ? `WHERE ${clauses.join(" AND ")}` : "",
+    binds,
+  };
 }
 
 const REVIEW_FROM = `
@@ -1225,7 +1334,9 @@ const REVIEW_FROM = `
   JOIN products p ON p.id = r.product_id
   JOIN users u ON u.id = r.user_id`;
 
-export async function listAdminReviews(filter: ReviewFilter = {}): Promise<Page<AdminReviewRow>> {
+export async function listAdminReviews(
+  filter: ReviewFilter = {},
+): Promise<Page<AdminReviewRow>> {
   const db = await getDB();
   const { where, binds } = reviewWhere(filter);
   const offset = Math.max(0, (filter.page ?? 1) - 1) * PAGE_SIZE;
@@ -1239,7 +1350,7 @@ export async function listAdminReviews(filter: ReviewFilter = {}): Promise<Page<
                 (SELECT url FROM product_images i WHERE i.product_id = p.id
                   ORDER BY i.is_primary DESC, i.sort_order ASC LIMIT 1) AS product_image
          ${REVIEW_FROM} ${where}
-         ORDER BY r.created_at DESC LIMIT ? OFFSET ?`
+         ORDER BY r.created_at DESC LIMIT ? OFFSET ?`,
       )
       .bind(...binds, PAGE_SIZE, offset),
     db.prepare(`SELECT COUNT(*) AS n ${REVIEW_FROM} ${where}`).bind(...binds),
@@ -1267,7 +1378,9 @@ export async function listAdminReviews(filter: ReviewFilter = {}): Promise<Page<
   if (reviewRows.length > 0) {
     const placeholders = reviewRows.map(() => "?").join(",");
     const { results: imageRows } = await db
-      .prepare(`SELECT review_id, url FROM review_images WHERE review_id IN (${placeholders})`)
+      .prepare(
+        `SELECT review_id, url FROM review_images WHERE review_id IN (${placeholders})`,
+      )
       .bind(...reviewRows.map((row) => row.id))
       .all<{ review_id: string; url: string }>();
 
@@ -1318,21 +1431,32 @@ export async function getReviewStats(): Promise<ReviewStats> {
               COALESCE(AVG(rating), 0) AS average,
               COUNT(CASE WHEN order_item_id IS NOT NULL THEN 1 END) AS verified,
               (SELECT COUNT(DISTINCT review_id) FROM review_images) AS with_media
-       FROM reviews`
+       FROM reviews`,
     ),
     db.prepare("SELECT rating, COUNT(*) AS n FROM reviews GROUP BY rating"),
     db.prepare("SELECT status, COUNT(*) AS n FROM reviews GROUP BY status"),
   ]);
 
-  const t = (totals.results as unknown as {
-    total: number;
-    average: number;
-    verified: number;
-    with_media: number;
-  }[])[0];
+  const t = (
+    totals.results as unknown as {
+      total: number;
+      average: number;
+      verified: number;
+      with_media: number;
+    }[]
+  )[0];
 
-  const counts: Record<1 | 2 | 3 | 4 | 5, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-  for (const row of byRating.results as unknown as { rating: number; n: number }[]) {
+  const counts: Record<1 | 2 | 3 | 4 | 5, number> = {
+    1: 0,
+    2: 0,
+    3: 0,
+    4: 0,
+    5: 0,
+  };
+  for (const row of byRating.results as unknown as {
+    rating: number;
+    n: number;
+  }[]) {
     const star = Math.min(5, Math.max(1, row.rating)) as 1 | 2 | 3 | 4 | 5;
     counts[star] = row.n;
   }
@@ -1344,7 +1468,10 @@ export async function getReviewStats(): Promise<ReviewStats> {
     rejected: 0,
     spam: 0,
   };
-  for (const row of byStatus.results as unknown as { status: string; n: number }[]) {
+  for (const row of byStatus.results as unknown as {
+    status: string;
+    n: number;
+  }[]) {
     statusCounts[row.status] = row.n;
   }
 
@@ -1379,7 +1506,7 @@ export interface AdminSellerRow {
 }
 
 export async function listAdminSellers(
-  filter: { search?: string; status?: string; page?: number } = {}
+  filter: { search?: string; status?: string; page?: number } = {},
 ): Promise<Page<AdminSellerRow>> {
   const db = await getDB();
   const clauses: string[] = [];
@@ -1409,30 +1536,34 @@ export async function listAdminSellers(
                 (SELECT COALESCE(SUM(so.subtotal), 0) FROM suborders so
                   WHERE so.seller_id = s.id AND so.status != 'cancelled') AS gross_sales
          FROM sellers s JOIN users u ON u.id = s.user_id
-         ${where} ORDER BY s.created_at DESC LIMIT ? OFFSET ?`
+         ${where} ORDER BY s.created_at DESC LIMIT ? OFFSET ?`,
       )
       .bind(...binds, PAGE_SIZE, offset),
     db
-      .prepare(`SELECT COUNT(*) AS n FROM sellers s JOIN users u ON u.id = s.user_id ${where}`)
+      .prepare(
+        `SELECT COUNT(*) AS n FROM sellers s JOIN users u ON u.id = s.user_id ${where}`,
+      )
       .bind(...binds),
   ]);
 
   return {
-    rows: (rows.results as unknown as {
-      id: string;
-      store_name: string;
-      slug: string;
-      logo_url: string | null;
-      status: string;
-      commission_rate: number;
-      rating_avg: number;
-      created_at: string;
-      owner_name: string;
-      owner_email: string | null;
-      product_count: number;
-      order_count: number;
-      gross_sales: number;
-    }[]).map((row) => ({
+    rows: (
+      rows.results as unknown as {
+        id: string;
+        store_name: string;
+        slug: string;
+        logo_url: string | null;
+        status: string;
+        commission_rate: number;
+        rating_avg: number;
+        created_at: string;
+        owner_name: string;
+        owner_email: string | null;
+        product_count: number;
+        order_count: number;
+        gross_sales: number;
+      }[]
+    ).map((row) => ({
       id: row.id,
       storeName: row.store_name,
       slug: row.slug,
@@ -1477,7 +1608,7 @@ export async function listBanners(placement?: string): Promise<Banner[]> {
     .prepare(
       `SELECT id, title, subtitle, image_url, link_url, placement, sort_order,
               is_active, starts_at, ends_at
-       FROM banners ${where} ORDER BY placement ASC, sort_order ASC`
+       FROM banners ${where} ORDER BY placement ASC, sort_order ASC`,
     )
     .bind(...binds)
     .all<{
@@ -1518,7 +1649,7 @@ export async function getRevenueByPayment(range: RangeKey = "30d") {
     .prepare(
       `SELECT payment_label AS label, COUNT(*) AS orders, COALESCE(SUM(total), 0) AS revenue
        FROM orders WHERE status != 'cancelled' AND placed_at >= datetime('now', ?)
-       GROUP BY payment_label ORDER BY revenue DESC`
+       GROUP BY payment_label ORDER BY revenue DESC`,
     )
     .bind(RANGES[range])
     .all<{ label: string; orders: number; revenue: number }>();
@@ -1533,7 +1664,7 @@ export async function getOrdersByCity(range: RangeKey = "30d", limit = 8) {
       `SELECT address_city AS city, COUNT(*) AS orders, COALESCE(SUM(total), 0) AS revenue
        FROM orders
        WHERE status != 'cancelled' AND placed_at >= datetime('now', ?) AND address_city != ''
-       GROUP BY address_city ORDER BY orders DESC LIMIT ?`
+       GROUP BY address_city ORDER BY orders DESC LIMIT ?`,
     )
     .bind(RANGES[range], limit)
     .all<{ city: string; orders: number; revenue: number }>();
@@ -1550,7 +1681,7 @@ export async function getTopCustomers(range: RangeKey = "30d", limit = 8) {
        FROM orders o JOIN users u ON u.id = o.user_id
        WHERE o.status != 'cancelled' AND o.placed_at >= datetime('now', ?)
        GROUP BY u.id, u.name, u.email, u.avatar_url
-       ORDER BY spent DESC LIMIT ?`
+       ORDER BY spent DESC LIMIT ?`,
     )
     .bind(RANGES[range], limit)
     .all<{
@@ -1579,7 +1710,9 @@ export interface StaffAlert {
 export async function getStaffAlerts(): Promise<StaffAlert[]> {
   const db = await getDB();
 
-  const [orders, reviews, sellers, stock] = await db.batch<Record<string, number>>([
+  const [orders, reviews, sellers, stock] = await db.batch<
+    Record<string, number>
+  >([
     db.prepare("SELECT COUNT(*) AS n FROM orders WHERE status = 'placed'"),
     db.prepare("SELECT COUNT(*) AS n FROM reviews WHERE status = 'pending'"),
     db.prepare("SELECT COUNT(*) AS n FROM sellers WHERE status = 'pending'"),
@@ -1587,7 +1720,7 @@ export async function getStaffAlerts(): Promise<StaffAlert[]> {
       `SELECT COUNT(*) AS n FROM product_variants v
        JOIN products p ON p.id = v.product_id
        WHERE v.is_active = 1 AND p.status = 'active' AND p.track_inventory = 1
-         AND (v.stock_quantity - v.reserved_quantity) <= v.low_stock_threshold`
+         AND (v.stock_quantity - v.reserved_quantity) <= v.low_stock_threshold`,
     ),
   ]);
 
@@ -1638,7 +1771,10 @@ export async function getStaffAlerts(): Promise<StaffAlert[]> {
  * reporting; this one joins back to the catalog because the dashboard renders
  * a product row, not a bare name. Products deleted since the sale still appear
  * -- the name is snapshotted on the order line -- they simply have no image. */
-export async function getTopProductsDetailed(limit = 5, range: RangeKey = "7d") {
+export async function getTopProductsDetailed(
+  limit = 5,
+  range: RangeKey = "7d",
+) {
   const db = await getDB();
   const { results } = await db
     .prepare(
@@ -1652,7 +1788,7 @@ export async function getTopProductsDetailed(limit = 5, range: RangeKey = "7d") 
        LEFT JOIN products p ON p.id = oi.product_id
        WHERE o.status != 'cancelled' AND o.placed_at >= datetime('now', ?)
        GROUP BY oi.product_id, oi.name
-       ORDER BY units DESC LIMIT ?`
+       ORDER BY units DESC LIMIT ?`,
     )
     .bind(RANGES[range], limit)
     .all<{
@@ -1667,7 +1803,10 @@ export async function getTopProductsDetailed(limit = 5, range: RangeKey = "7d") 
   // Order lines snapshot the name, so a product deleted since the sale still
   // belongs in the ranking -- it just must not be rendered as a link to an
   // edit page that would 404.
-  return results.map((row) => ({ ...row, stillListed: row.still_listed === 1 }));
+  return results.map((row) => ({
+    ...row,
+    stillListed: row.still_listed === 1,
+  }));
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1686,40 +1825,45 @@ export interface SearchHit {
 /** One box, three tables. The top bar's search covers the things a person
  * actually pastes in: a product name, an order number, a customer's email or
  * phone. Each source is capped so no one section can bury the others. */
-export async function searchEverything(term: string, perSection = 5): Promise<SearchHit[]> {
+export async function searchEverything(
+  term: string,
+  perSection = 5,
+): Promise<SearchHit[]> {
   const trimmed = term.trim();
   if (!trimmed) return [];
 
   const db = await getDB();
   const like = `%${trimmed}%`;
 
-  const [products, orders, customers] = await db.batch<Record<string, unknown>>([
-    db
-      .prepare(
-        `SELECT p.id, p.name, p.price, p.status,
+  const [products, orders, customers] = await db.batch<Record<string, unknown>>(
+    [
+      db
+        .prepare(
+          `SELECT p.id, p.name, p.price, p.status,
                 (SELECT url FROM product_images i WHERE i.product_id = p.id
                   ORDER BY i.is_primary DESC, i.sort_order ASC LIMIT 1) AS image
          FROM products p
          WHERE p.status != 'archived' AND (p.name LIKE ? OR p.sku LIKE ?)
-         ORDER BY p.created_at DESC LIMIT ?`
-      )
-      .bind(like, like, perSection),
-    db
-      .prepare(
-        `SELECT o.id, o.order_number, o.total, o.status, u.name AS customer_name
+         ORDER BY p.created_at DESC LIMIT ?`,
+        )
+        .bind(like, like, perSection),
+      db
+        .prepare(
+          `SELECT o.id, o.order_number, o.total, o.status, u.name AS customer_name
          FROM orders o JOIN users u ON u.id = o.user_id
          WHERE o.order_number LIKE ? OR u.name LIKE ? OR o.address_phone LIKE ?
-         ORDER BY o.placed_at DESC LIMIT ?`
-      )
-      .bind(like, like, like, perSection),
-    db
-      .prepare(
-        `SELECT id, name, email, phone, avatar_url FROM users
+         ORDER BY o.placed_at DESC LIMIT ?`,
+        )
+        .bind(like, like, like, perSection),
+      db
+        .prepare(
+          `SELECT id, name, email, phone, avatar_url FROM users
          WHERE name LIKE ? OR email LIKE ? OR phone LIKE ?
-         ORDER BY created_at DESC LIMIT ?`
-      )
-      .bind(like, like, like, perSection),
-  ]);
+         ORDER BY created_at DESC LIMIT ?`,
+        )
+        .bind(like, like, like, perSection),
+    ],
+  );
 
   const hits: SearchHit[] = [];
 
@@ -1873,7 +2017,9 @@ export interface EditableProduct {
  * the form works in "price + discount". This reverses that: a fixed discount
  * is preferred when it divides evenly into a whole percentage, because
  * "৳200 off" is what was almost certainly typed. */
-export async function getProductForEdit(productId: string): Promise<EditableProduct | null> {
+export async function getProductForEdit(
+  productId: string,
+): Promise<EditableProduct | null> {
   const db = await getDB();
   const row = await db
     .prepare(
@@ -1881,7 +2027,7 @@ export async function getProductForEdit(productId: string): Promise<EditableProd
               is_featured, is_best_seller, track_inventory, weight_grams, dimensions_json,
               meta_title, meta_description, sold_count, view_count, rating_avg, rating_count,
               created_at, updated_at
-       FROM products WHERE id = ?`
+       FROM products WHERE id = ?`,
     )
     .bind(productId)
     .first<{
@@ -1912,56 +2058,58 @@ export async function getProductForEdit(productId: string): Promise<EditableProd
 
   if (!row) return null;
 
-  const [images, videos, attributes, variants, optionRows, links] = await db.batch<
-    Record<string, unknown>
-  >([
-    db
-      .prepare(
-        "SELECT id, url FROM product_images WHERE product_id = ? ORDER BY is_primary DESC, sort_order ASC"
-      )
-      .bind(productId),
-    db
-      .prepare(
-        "SELECT url, poster_url FROM product_videos WHERE product_id = ? ORDER BY sort_order ASC"
-      )
-      .bind(productId),
-    db
-      .prepare(
-        "SELECT attr_name, attr_value FROM product_attributes WHERE product_id = ? ORDER BY sort_order ASC"
-      )
-      .bind(productId),
-    // Retired variants are included: the editor has to be able to show a
-    // combination coming back with everything it kept while it was off.
-    db
-      .prepare(
-        `SELECT id, sku, option1_value, option2_value, price, old_price, stock_quantity,
+  const [images, videos, attributes, variants, optionRows, links] =
+    await db.batch<Record<string, unknown>>([
+      db
+        .prepare(
+          "SELECT id, url FROM product_images WHERE product_id = ? ORDER BY is_primary DESC, sort_order ASC",
+        )
+        .bind(productId),
+      db
+        .prepare(
+          "SELECT url, poster_url FROM product_videos WHERE product_id = ? ORDER BY sort_order ASC",
+        )
+        .bind(productId),
+      db
+        .prepare(
+          "SELECT attr_name, attr_value FROM product_attributes WHERE product_id = ? ORDER BY sort_order ASC",
+        )
+        .bind(productId),
+      // Retired variants are included: the editor has to be able to show a
+      // combination coming back with everything it kept while it was off.
+      db
+        .prepare(
+          `SELECT id, sku, option1_value, option2_value, price, old_price, stock_quantity,
                 reserved_quantity, low_stock_threshold, is_active, image_id
-         FROM product_variants WHERE product_id = ? ORDER BY rowid ASC`
-      )
-      .bind(productId),
-    db
-      .prepare(
-        `SELECT g.id AS group_id, g.key, g.name, g.display, g.show_labels, g.is_active AS group_active,
+         FROM product_variants WHERE product_id = ? ORDER BY rowid ASC`,
+        )
+        .bind(productId),
+      db
+        .prepare(
+          `SELECT g.id AS group_id, g.key, g.name, g.display, g.show_labels, g.is_active AS group_active,
                 g.sort_order AS group_sort,
                 ov.id AS value_id, ov.value, ov.label, ov.color_hex, ov.image_url,
                 ov.is_active AS value_active, ov.sort_order AS value_sort
          FROM product_option_groups g
          LEFT JOIN product_option_values ov ON ov.group_id = g.id
          WHERE g.product_id = ?
-         ORDER BY g.sort_order ASC, ov.sort_order ASC`
-      )
-      .bind(productId),
-    db
-      .prepare(
-        `SELECT pvo.variant_id, pvo.group_id, pvo.value_id
+         ORDER BY g.sort_order ASC, ov.sort_order ASC`,
+        )
+        .bind(productId),
+      db
+        .prepare(
+          `SELECT pvo.variant_id, pvo.group_id, pvo.value_id
          FROM product_variant_options pvo
          JOIN product_option_groups g ON g.id = pvo.group_id
-         WHERE g.product_id = ?`
-      )
-      .bind(productId),
-  ]);
+         WHERE g.product_id = ?`,
+        )
+        .bind(productId),
+    ]);
 
-  const videoRows = videos.results as unknown as { url: string; poster_url: string | null }[];
+  const videoRows = videos.results as unknown as {
+    url: string;
+    poster_url: string | null;
+  }[];
 
   const attributeRows = attributes.results as unknown as {
     attr_name: string;
@@ -2039,17 +2187,17 @@ export async function getProductForEdit(productId: string): Promise<EditableProd
     selectionsByVariant.set(link.variant_id, selections);
   }
 
-  const discounted = row.old_price > row.price && row.old_price > 0;
-  const off = discounted ? row.old_price - row.price : 0;
-  const percent = discounted ? Math.round((off / row.old_price) * 100) : 0;
-  // Prefer the percentage reading only when it round-trips exactly; otherwise
-  // a "13%" that actually came from "৳199 off" would drift on every save.
-  const percentIsExact = discounted && Math.round(row.old_price * (1 - percent / 100)) === row.price;
+  const discount = readDiscount(row.price, row.old_price);
+  const discounted = hasDiscount(discount);
 
   const dimensions = (() => {
     try {
       return row.dimensions_json
-        ? (JSON.parse(row.dimensions_json) as { l?: number; w?: number; h?: number })
+        ? (JSON.parse(row.dimensions_json) as {
+            l?: number;
+            w?: number;
+            h?: number;
+          })
         : {};
     } catch {
       return {};
@@ -2067,8 +2215,8 @@ export async function getProductForEdit(productId: string): Promise<EditableProd
     status: row.status,
     basePrice: discounted ? row.old_price : row.price,
     sellingPrice: row.price,
-    discountType: !discounted ? "none" : percentIsExact ? "percent" : "fixed",
-    discountValue: !discounted ? 0 : percentIsExact ? percent : off,
+    discountType: discount.type,
+    discountValue: discount.value,
     isFeatured: row.is_featured === 1,
     isBestSeller: row.is_best_seller === 1,
     trackInventory: row.track_inventory === 1,
@@ -2083,32 +2231,54 @@ export async function getProductForEdit(productId: string): Promise<EditableProd
     // Posted back positionally alongside the URLs, so an empty string has to
     // hold the slot of a clip that never got a poster.
     videoPosters: videoRows.map((video) => video.poster_url ?? ""),
-    tags: attributeRows.filter((a) => a.attr_name === "tag").map((a) => a.attr_value),
+    tags: attributeRows
+      .filter((a) => a.attr_name === "tag")
+      .map((a) => a.attr_value),
     colors: [
       ...new Set(
-        variantRows.filter((v) => v.is_active === 1).map((v) => v.option1_value).filter(Boolean)
+        variantRows
+          .filter((v) => v.is_active === 1)
+          .map((v) => v.option1_value)
+          .filter(Boolean),
       ),
     ] as string[],
     sizes: [
       ...new Set(
-        variantRows.filter((v) => v.is_active === 1).map((v) => v.option2_value).filter(Boolean)
+        variantRows
+          .filter((v) => v.is_active === 1)
+          .map((v) => v.option2_value)
+          .filter(Boolean),
       ),
     ] as string[],
     optionGroups: [...groupsById.values()],
-    variants: variantRows.map((variant) => ({
-      id: variant.id,
-      sku: variant.sku,
-      optionValue: variant.option1_value,
-      option2Value: variant.option2_value,
-      price: variant.price,
-      oldPrice: variant.old_price,
-      stockQuantity: variant.stock_quantity,
-      reservedQuantity: variant.reserved_quantity,
-      lowStockThreshold: variant.low_stock_threshold,
-      isActive: variant.is_active === 1,
-      imageUrl: variant.image_id ? (imageUrlById.get(variant.image_id) ?? null) : null,
-      selections: selectionsByVariant.get(variant.id) ?? {},
-    })),
+    variants: variantRows.map((variant) => {
+      // A combination whose pair is exactly the product's discount applied to
+      // its own price was discounted by the save, not typed that way. It opens
+      // as the price that was typed, so it keeps following the product's
+      // discount when that changes rather than freezing at today's figure.
+      const followsProductDiscount =
+        discounted &&
+        variant.price !== null &&
+        variant.old_price !== null &&
+        variant.old_price > variant.price &&
+        applyDiscount(variant.old_price, discount) === variant.price;
+      return {
+        id: variant.id,
+        sku: variant.sku,
+        optionValue: variant.option1_value,
+        option2Value: variant.option2_value,
+        price: followsProductDiscount ? variant.old_price : variant.price,
+        oldPrice: followsProductDiscount ? null : variant.old_price,
+        stockQuantity: variant.stock_quantity,
+        reservedQuantity: variant.reserved_quantity,
+        lowStockThreshold: variant.low_stock_threshold,
+        isActive: variant.is_active === 1,
+        imageUrl: variant.image_id
+          ? (imageUrlById.get(variant.image_id) ?? null)
+          : null,
+        selections: selectionsByVariant.get(variant.id) ?? {},
+      };
+    }),
     soldCount: row.sold_count,
     viewCount: row.view_count,
     ratingAvg: row.rating_avg,
@@ -2154,7 +2324,7 @@ export async function listAdminCoupons(): Promise<AdminCouponRow[]> {
               c.per_user_limit, c.is_active, c.starts_at, c.ends_at, c.created_at,
               (SELECT COALESCE(SUM(r.discount_amount), 0) FROM coupon_redemptions r
                 WHERE r.coupon_id = c.id) AS redeemed_total
-       FROM coupons c ORDER BY c.created_at DESC`
+       FROM coupons c ORDER BY c.created_at DESC`,
     )
     .all<{
       id: string;
@@ -2223,7 +2393,7 @@ export async function listFlashSales(): Promise<AdminFlashSale[]> {
 
   const { results: sales } = await db
     .prepare(
-      "SELECT id, name, starts_at, ends_at, is_active FROM flash_sales ORDER BY starts_at DESC LIMIT 20"
+      "SELECT id, name, starts_at, ends_at, is_active FROM flash_sales ORDER BY starts_at DESC LIMIT 20",
     )
     .all<{
       id: string;
@@ -2244,7 +2414,7 @@ export async function listFlashSales(): Promise<AdminFlashSale[]> {
                 ORDER BY i.is_primary DESC, i.sort_order ASC LIMIT 1) AS product_image
        FROM flash_sale_items f
        JOIN products p ON p.id = f.product_id
-       WHERE f.flash_sale_id IN (${placeholders})`
+       WHERE f.flash_sale_id IN (${placeholders})`,
     )
     .bind(...sales.map((sale) => sale.id))
     .all<{
@@ -2286,7 +2456,7 @@ export async function listProductOptions(limit = 200) {
   const { results } = await db
     .prepare(
       `SELECT id, name, price FROM products
-       WHERE status = 'active' ORDER BY name ASC LIMIT ?`
+       WHERE status = 'active' ORDER BY name ASC LIMIT ?`,
     )
     .bind(limit)
     .all<{ id: string; name: string; price: number }>();

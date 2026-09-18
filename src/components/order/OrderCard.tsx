@@ -2,7 +2,7 @@ import Link from "next/link";
 import Image from "@/components/ui/StoreImage";
 import { Check, CreditCard, MapPin, Package } from "lucide-react";
 import type { Order } from "@/types";
-import { formatPrice } from "@/lib/format";
+import { formatPrice, SHOP_TIME_ZONE } from "@/lib/format";
 
 const STATUS_TONE: Record<string, string> = {
   placed: "bg-brand-mist text-ink-slate",
@@ -28,7 +28,7 @@ function formatArrival(iso: string | null): string {
 
   if (days === 0) return "Today";
   if (days === 1) return "Tomorrow";
-  return date.toLocaleDateString("en-US", { day: "2-digit", month: "short" });
+  return date.toLocaleDateString("en-US", { day: "2-digit", month: "short", timeZone: SHOP_TIME_ZONE });
 }
 
 /** One order, summarised: what was bought, what it cost, how far along it is.

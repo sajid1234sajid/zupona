@@ -3,6 +3,7 @@ import DesktopHeader from "@/components/layout/DesktopHeader";
 import { ChevronLeft, Star, ShoppingBag } from "lucide-react";
 import { requireUser } from "@/lib/session";
 import { getOrders } from "@/lib/orders";
+import { SHOP_TIME_ZONE } from "@/lib/format";
 
 export default async function PointsPage() {
   const user = await requireUser();
@@ -46,6 +47,7 @@ export default async function PointsPage() {
                       day: "2-digit",
                       month: "short",
                       year: "numeric",
+                      timeZone: SHOP_TIME_ZONE,
                     })}
                   </p>
                 </div>

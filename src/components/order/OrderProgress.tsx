@@ -1,5 +1,6 @@
 import { Check, Truck } from "lucide-react";
 import type { OrderStep } from "@/types";
+import { SHOP_TIME_ZONE } from "@/lib/format";
 
 /** The four milestones the confirmation screen shows on one horizontal rail. */
 const SHOWN = ["placed", "confirmed", "out_for_delivery", "delivered"] as const;
@@ -9,8 +10,8 @@ function formatAt(iso: string | null, fallback: string): string {
   const date = new Date(iso);
   // "Sept" is en-GB's only four-letter short month, and on a rail this narrow
   // it is the difference between one line and two.
-  const day = date.toLocaleDateString("en-GB", { day: "2-digit", month: "short" }).replace("Sept", "Sep");
-  const time = date.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
+  const day = date.toLocaleDateString("en-GB", { day: "2-digit", month: "short", timeZone: SHOP_TIME_ZONE }).replace("Sept", "Sep");
+  const time = date.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", timeZone: SHOP_TIME_ZONE });
   return `${day} · ${time}`;
 }
 

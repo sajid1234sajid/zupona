@@ -3,6 +3,7 @@ import DesktopHeader from "@/components/layout/DesktopHeader";
 import { ChevronLeft, ShieldCheck, Calendar } from "lucide-react";
 import { requireUser } from "@/lib/session";
 import { getDB } from "@/lib/db";
+import { SHOP_TIME_ZONE } from "@/lib/format";
 import ChangePasswordForm from "@/components/account/ChangePasswordForm";
 
 export default async function SecurityPage() {
@@ -17,6 +18,7 @@ export default async function SecurityPage() {
   const memberSince = new Date(`${user.createdAt.replace(" ", "T")}Z`).toLocaleDateString("en-US", {
     month: "long",
     year: "numeric",
+    timeZone: SHOP_TIME_ZONE,
   });
 
   return (

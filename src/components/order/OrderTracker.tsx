@@ -1,5 +1,6 @@
 import { CheckCircle2 } from "lucide-react";
 import type { OrderStep } from "@/types";
+import { SHOP_TIME_ZONE } from "@/lib/format";
 
 function formatStepDate(iso: string | null): string {
   if (!iso) return "Pending";
@@ -8,6 +9,7 @@ function formatStepDate(iso: string | null): string {
     month: "short",
     hour: "numeric",
     minute: "2-digit",
+    timeZone: SHOP_TIME_ZONE,
   });
 }
 

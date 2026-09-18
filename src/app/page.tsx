@@ -5,6 +5,7 @@ import CategoryGrid from "@/components/home/CategoryGrid";
 import PromoBanners from "@/components/home/PromoBanners";
 import FeaturedProducts from "@/components/home/FeaturedProducts";
 import SearchProvider from "@/components/search/SearchProvider";
+import HideWhileSearching from "@/components/search/HideWhileSearching";
 import { getCurrentUser } from "@/lib/session";
 import { getWishlistProductIds } from "@/lib/wishlist";
 import { listStoreCategories, listStoreProducts } from "@/lib/storefront";
@@ -42,17 +43,19 @@ export default async function Home() {
               departments run full width underneath, which is the laptop
               design. Only the columns are given a gap: each section already
               carries its own top padding. */}
-          <div className="tab:grid tab:grid-cols-[1.36fr_1fr] tab:gap-x-3">
-            <div className="tab:col-start-1 tab:row-start-1">
-              <HeroBanner />
+          <HideWhileSearching>
+            <div className="tab:grid tab:grid-cols-[1.36fr_1fr] tab:gap-x-3">
+              <div className="tab:col-start-1 tab:row-start-1">
+                <HeroBanner />
+              </div>
+              <div className="tab:col-span-2 tab:row-start-2">
+                <CategoryGrid categories={categories} />
+              </div>
+              <div className="tab:col-start-2 tab:row-start-1">
+                <PromoBanners />
+              </div>
             </div>
-            <div className="tab:col-span-2 tab:row-start-2">
-              <CategoryGrid categories={categories} />
-            </div>
-            <div className="tab:col-start-2 tab:row-start-1">
-              <PromoBanners />
-            </div>
-          </div>
+          </HideWhileSearching>
           <FeaturedProducts
             featured={featured}
             catalog={catalog}

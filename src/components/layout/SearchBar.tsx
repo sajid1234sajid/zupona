@@ -8,7 +8,9 @@ import { useProductSearch } from "@/components/search/SearchProvider";
  * The text is held in `SearchProvider` rather than here, because the results
  * appear in the product grid further down the page. Typing filters live, so
  * submitting has nothing left to do -- the button is kept because the design
- * has one, and it re-focuses the field rather than reloading the page.
+ * has one, and it closes the keyboard rather than reloading the page. On the
+ * home page `HideWhileSearching` clears the sections above the grid so the
+ * results appear right under this box.
  *
  * `size="large"` is the laptop header's version: the same box on a light
  * header instead of the green one, at a readable size. */
@@ -19,7 +21,12 @@ export default function SearchBar({ size = "compact" }: { size?: "compact" | "la
   return (
     <form
       role="search"
-      onSubmit={(event) => event.preventDefault()}
+      onSubmit={(event) => {
+        event.preventDefault();
+        // The results are already on screen; all that is left for the button
+        // or the enter key to do is put the phone's keyboard away.
+        event.currentTarget.querySelector("input")?.blur();
+      }}
       className={
         large
           ? "flex h-11 min-w-0 flex-1 items-center gap-2 rounded-full bg-brand-mist pl-4 pr-1.5 ring-1 ring-line focus-within:ring-2 focus-within:ring-brand"

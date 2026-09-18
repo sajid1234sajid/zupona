@@ -4,13 +4,12 @@ import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Heart, LayoutGrid, LoaderCircle, ShoppingCart, Star, Zap } from "lucide-react";
-import type { StoreMediaItem, StoreProduct } from "@/lib/storefront";
+import type { StoreProduct } from "@/lib/storefront";
 import { formatPrice } from "@/lib/format";
 import { addSelectionToCartAction, buyNowAction } from "@/app/cart/actions";
 import { callAction } from "@/lib/callAction";
 import { toggleWishlistAction } from "@/app/wishlist/actions";
 import ProductMedia from "./ProductMedia";
-import VideoModal from "./VideoModal";
 import OptionGroups from "./OptionGroups";
 import QuantityPicker from "./QuantityPicker";
 import ShareButton from "./ShareButton";
@@ -83,7 +82,6 @@ export default function ProductView({
   const [activeMediaId, setActiveMediaId] = useState(media[0]?.id ?? "");
   const [quantity, setQuantity] = useState(1);
   const [wishlisted, setWishlisted] = useState(initiallyWishlisted);
-  const [playing, setPlaying] = useState<StoreMediaItem | null>(null);
   const [feedback, setFeedback] = useState<{ ok: boolean; message: string } | null>(null);
 
   const [addPending, startAdd] = useTransition();
@@ -245,10 +243,8 @@ export default function ProductView({
             media={media}
             activeId={activeMediaId}
             onSelect={setActiveMediaId}
-            onPlayVideo={setPlaying}
             badgeLabel={product.badgeLabel}
             productName={product.name}
-            paused={Boolean(playing)}
             toolbar={<ShareButton title={product.name} />}
             overlayStart={
               (reviewSummary.total > 0 || product.soldCount > 0) && (
@@ -413,15 +409,6 @@ export default function ProductView({
       <div className="fixed inset-x-0 bottom-[68px] z-40 flex gap-2.5 border-t border-line bg-surface px-4 py-2.5 tab:hidden">
         {actions}
       </div>
-
-      {playing && (
-        <VideoModal
-          src={playing.url}
-          poster={playing.poster}
-          title={product.name}
-          onClose={() => setPlaying(null)}
-        />
-      )}
     </>
   );
 }

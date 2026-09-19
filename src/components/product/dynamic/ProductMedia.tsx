@@ -28,10 +28,12 @@ const RESUME_AFTER_MS = 5000;
  * Pictures only. Clips and the thumbnail strip were taken out of the gallery
  * at the owner's request, so the dots count exactly the product's images.
  *
- * The frame is square and each picture fills it edge to edge, as the owner's
- * reference does; the whole, uncropped picture is one tap away in the viewer.
- * The uploads are mostly 2:3 portraits of a model, so the crop is weighted
- * towards the top: centred, it pressed every head against the upper edge.
+ * The frame is a 2:3 portrait and each picture is contained in it, never
+ * cropped: the owner wants every part of a product picture on screen. The
+ * uploads are mostly portraits between 3:5 and 3:4, which 2:3 sits in the
+ * middle of, so they fill it bar a thin band; anything wider shows whole with
+ * the frame's colour above and below. On a computer the frame is held to
+ * 440px wide, or its 2:3 height would run far below the fold.
  *
  * Every picture sits in one scroll-snap track rather than in a carousel
  * library, which is what makes the hero swipeable: the browser does the
@@ -187,7 +189,7 @@ export default function ProductMedia({
 
   return (
     <div>
-      <div className="relative aspect-square w-full overflow-hidden rounded-2xl bg-mint">
+      <div className="relative mx-auto aspect-[2/3] w-full overflow-hidden rounded-2xl bg-mint tab:max-w-[440px]">
         <div
           ref={trackRef}
           onScroll={handleScroll}
@@ -215,8 +217,8 @@ export default function ProductMedia({
                     src={item.url}
                     alt={item.alt}
                     fill
-                    sizes="(min-width: 700px) 560px, 100vw"
-                    style={{ objectPosition: "50% 25%" }}
+                    sizes="(min-width: 700px) 440px, 100vw"
+                    style={{ objectFit: "contain" }}
                     // Only the first picture is worth fetching early; the next
                     // one is mounted lazily, one ahead of where the shopper is.
                     priority={index === 0}

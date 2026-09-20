@@ -209,7 +209,14 @@ CREATE TABLE IF NOT EXISTS products (
   -- units, and no reservation weighed against a count. Stock still moves on a
   -- sale so the ledger and stock_quantity agree; an untracked variant just goes
   -- negative. New products default to this; see 0019_optional_stock_tracking.
-  track_inventory INTEGER NOT NULL DEFAULT 0
+  track_inventory INTEGER NOT NULL DEFAULT 0,
+  -- 1 = an order made up entirely of such products is delivered at no charge,
+  -- whatever the subtotal. A cart that also holds an ordinary product is priced
+  -- by the shop-wide rule instead (site_settings.delivery_fee, waived at
+  -- free_shipping_threshold): an order carries one shipping_fee, with nothing
+  -- per-line to split, and a cheap item added alongside must not buy free
+  -- delivery for the rest. See 0020_product_free_delivery.
+  free_delivery INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE INDEX IF NOT EXISTS idx_products_seller_id ON products (seller_id);

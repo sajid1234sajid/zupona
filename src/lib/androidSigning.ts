@@ -16,7 +16,9 @@
  * One list covers both apps, because both are signed with the same keystore --
  * the one in the R2 vault. Only the application id differs between them.
  */
-export const ANDROID_CERT_FINGERPRINTS: string[] = [];
+export const ANDROID_CERT_FINGERPRINTS: string[] = [
+  "36:DE:0A:88:9F:5B:C9:2A:BE:A8:6D:69:A1:09:34:95:9F:4D:08:50:45:57:82:71:8C:01:15:6A:65:89:EB:FE",
+];
 
 /** The application ids the fingerprints belong to, as declared in
  * `android/twa-manifest.json` and `android/admin/twa-manifest.json`.

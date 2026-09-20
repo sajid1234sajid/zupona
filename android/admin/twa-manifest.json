@@ -1,0 +1,62 @@
+{
+  "packageId": "com.zupona.admin",
+  "host": "admin.zupona.com",
+  "name": "Zupona Admin",
+  "launcherName": "Zupona Admin",
+  "display": "standalone",
+  "orientation": "default",
+  "themeColor": "#0e3220",
+  "themeColorDark": "#0b2a1b",
+  "navigationColor": "#0e3220",
+  "navigationColorDark": "#0b2a1b",
+  "navigationDividerColor": "#0e3220",
+  "navigationDividerColorDark": "#0b2a1b",
+  "backgroundColor": "#0e3220",
+  "enableNotifications": false,
+  "startUrl": "/",
+  "iconUrl": "https://admin.zupona.com/admin-icon-512.png",
+  "maskableIconUrl": "https://admin.zupona.com/admin-icon-maskable-512.png",
+  "splashScreenFadeOutDuration": 300,
+  "signingKey": {
+    "path": "./android.keystore",
+    "alias": "zupona"
+  },
+  "appVersionName": "1.0.0",
+  "appVersionCode": 1,
+  "shortcuts": [
+    {
+      "name": "Orders",
+      "shortName": "Orders",
+      "url": "https://admin.zupona.com/orders",
+      "chosenIconUrl": "https://admin.zupona.com/shortcut-admin-orders.png"
+    },
+    {
+      "name": "Products",
+      "shortName": "Products",
+      "url": "https://admin.zupona.com/products",
+      "chosenIconUrl": "https://admin.zupona.com/shortcut-admin-products.png"
+    },
+    {
+      "name": "Add product",
+      "shortName": "Add",
+      "url": "https://admin.zupona.com/products/new",
+      "chosenIconUrl": "https://admin.zupona.com/shortcut-admin-new-product.png"
+    }
+  ],
+  "generatorApp": "bubblewrap-cli",
+  "webManifestUrl": "https://admin.zupona.com/admin.webmanifest",
+  "fallbackType": "customtabs",
+  "features": {},
+  "alphaDependencies": {
+    "enabled": false
+  },
+  "enableSiteSettingsShortcut": true,
+  "isChromeOSOnly": false,
+  "isMetaQuest": false,
+  "fullScopeUrl": "https://admin.zupona.com/",
+  "minSdkVersion": 21,
+  "fingerprints": [],
+  "additionalTrustedOrigins": [],
+  "retainedBundles": [],
+  "appVersion": "1.0.0"
+}

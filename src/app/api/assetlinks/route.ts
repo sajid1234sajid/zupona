@@ -1,56 +1,44 @@
-/** Digital Asset Links: the site vouching for the Android app.
+/** Digital Asset Links: each host vouching for its own Android app.
  *
- * The APK built by `.github/workflows/android-apk.yml` is a Trusted Web
- * Activity -- Chrome running zupona.com without its address bar. Chrome only
- * drops the address bar if the site names the app's signing certificate here,
- * so an unlisted certificate leaves the app looking like a browser tab rather
- * than failing outright.
+ * The APKs built by `.github/workflows/android-apk.yml` are Trusted Web
+ * Activities -- Chrome running zupona.com, or the panel on admin.zupona.com,
+ * without its address bar. Chrome only drops the address bar if the site names
+ * the app's signing certificate here, so an unlisted certificate leaves the
+ * app looking like a browser tab rather than failing outright.
  *
  * Android fetches this from `/.well-known/assetlinks.json`; `src/proxy.ts`
  * maps that path onto this route, because a route handler is served on every
  * host the Worker answers for and a dot-prefixed folder in `public/` is not
- * reliably published.
+ * reliably published. One Worker answers for both hosts, so which app is named
+ * is decided here by the Host header -- the same way the panel itself is.
  *
- * The fingerprints are read from KV rather than committed, because the APK
- * workflow writes them there at the moment it signs a build. That keeps the
- * two in step by construction: a key that has never signed anything is never
- * announced, and a new key takes effect without a deploy.
+ * The fingerprints come from `src/lib/androidSigning.ts`, which the APK
+ * workflow rewrites and commits whenever it signs with a new certificate.
  */
 
-import { getCache } from "@/lib/db";
+import {
+  ANDROID_ADMIN_PACKAGE_NAME,
+  ANDROID_CERT_FINGERPRINTS,
+  ANDROID_PACKAGE_NAME,
+} from "@/lib/androidSigning";
 
-const PACKAGE_NAME = "com.zupona.app";
+export function GET(request: Request) {
+  const host = (request.headers.get("host") ?? "").split(":")[0].toLowerCase();
+  const packageName = host.startsWith("admin.")
+    ? ANDROID_ADMIN_PACKAGE_NAME
+    : ANDROID_PACKAGE_NAME;
 
-/** Written by the APK workflow. A JSON array of SHA-256 certificate
- * fingerprints -- more than one is legitimate, since a key rotation lists the
- * old and the new one together until every install has moved over. */
-export const FINGERPRINT_KEY = "android:signing-fingerprints";
-
-async function readFingerprints(): Promise<string[]> {
-  try {
-    const kv = await getCache();
-    const stored = await kv.get(FINGERPRINT_KEY, "json");
-    if (!Array.isArray(stored)) return [];
-    return stored.filter((entry): entry is string => typeof entry === "string");
-  } catch {
-    // No bindings, or KV is unreachable. Saying nothing is the safe answer:
-    // Chrome then shows the address bar, which is a cosmetic loss, where a
-    // wrong fingerprint would be a claim that is not true.
-    return [];
-  }
-}
-
-export async function GET() {
-  const fingerprints = await readFingerprints();
-
-  const statements = fingerprints.length
+  // An empty list is the honest answer before the first stably signed build:
+  // Chrome then shows the address bar, which is a cosmetic loss, where a wrong
+  // fingerprint would be a claim that is not true.
+  const statements = ANDROID_CERT_FINGERPRINTS.length
     ? [
         {
           relation: ["delegate_permission/common.handle_all_urls"],
           target: {
             namespace: "android_app",
-            package_name: PACKAGE_NAME,
-            sha256_cert_fingerprints: fingerprints,
+            package_name: packageName,
+            sha256_cert_fingerprints: ANDROID_CERT_FINGERPRINTS,
           },
         },
       ]
@@ -60,8 +48,10 @@ export async function GET() {
     headers: {
       "content-type": "application/json",
       // Android caches the statement; an hour is short enough that a newly
-      // signed build is trusted the same day.
+      // published fingerprint is trusted the same day.
       "cache-control": "public, max-age=3600",
+      // The answer differs per host, and both hosts are one Worker.
+      vary: "host",
     },
   });
 }

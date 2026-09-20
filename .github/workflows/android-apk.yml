@@ -1,42 +1,82 @@
-# Builds the installable Android app on a GitHub runner and publishes it as a
-# release asset, so the newest APK always sits at
+# Builds the two installable Android apps on a GitHub runner and publishes
+# them as release assets, so the newest APKs always sit at
 #
 #   https://github.com/<owner>/<repo>/releases/latest/download/zupona.apk
+#   https://github.com/<owner>/<repo>/releases/latest/download/zupona-admin.apk
 #
-# The app is a Trusted Web Activity around zupona.com -- see android/README.md.
-# Nothing here needs an Android SDK on a laptop; the runner has one.
+# Both are Trusted Web Activities -- the shop around zupona.com, the panel
+# around admin.zupona.com -- and differ only by the configuration in their own
+# twa-manifest.json; see android/README.md. Nothing here needs an Android SDK
+# on a laptop; the runner has one.
 name: Build Android app
 
 on:
   workflow_dispatch:
   push:
     branches: [main]
-    # Only the things the APK is actually made of. Ordinary site changes reach
-    # the app the moment they deploy, so rebuilding for them would publish a
-    # release nobody needs to install.
+    # Only the things the APKs are actually made of. Ordinary site changes
+    # reach both apps the moment they deploy, so rebuilding for them would
+    # publish a release nobody needs to install.
     paths:
       - android/twa-manifest.json
+      - android/admin/twa-manifest.json
       - .github/workflows/android-apk.yml
       - public/manifest.webmanifest
+      - public/admin.webmanifest
       - public/icon-*.png
+      - public/admin-icon-*.png
       - public/shortcut-*.png
 
 permissions:
   contents: write
+  # For asking the deploy workflow to run after the fingerprint is committed.
+  actions: write
 
 concurrency:
   group: android-apk
   cancel-in-progress: false
 
 env:
-  # The account the Worker deploys to; the signing key is kept in its KV.
+  # The account the Worker deploys to, and the private R2 bucket the app's
+  # signing key is kept in. Nothing binds that bucket, so no route can serve it.
   CF_ACCOUNT: 14743b3b6de704c99ed06b7b67c65903
+  VAULT_BUCKET: zupona-app-signing
+  VAULT_OBJECT: android-keystore.json
 
 jobs:
   apk:
+    name: ${{ matrix.app.title }}
     runs-on: ubuntu-latest
+    strategy:
+      # One at a time, not for speed but for correctness: the first run of all
+      # creates the signing key, and two jobs creating it at once would leave
+      # two apps signed by different certificates and one of them overwritten
+      # in the vault. Running in order also means only one job ever commits a
+      # new fingerprint, so there is no push to rebase onto.
+      max-parallel: 1
+      # An app that fails to build should not take the other one's release
+      # down with it.
+      fail-fast: false
+      matrix:
+        app:
+          - id: shop
+            title: Zupona app
+            dir: android
+            host: zupona.com
+            apk: zupona.apk
+            artwork: icon-512.png icon-maskable-512.png shortcut-categories.png shortcut-offers.png shortcut-cart.png
+          - id: admin
+            title: Zupona Admin app
+            dir: android/admin
+            host: admin.zupona.com
+            apk: zupona-admin.apk
+            artwork: admin-icon-512.png admin-icon-maskable-512.png shortcut-admin-orders.png shortcut-admin-products.png shortcut-admin-new-product.png
     steps:
       - uses: actions/checkout@v5
+        with:
+          # Full history, because the fingerprint step rebases onto main before
+          # pushing and a shallow clone makes that awkward.
+          fetch-depth: 0
 
       - uses: actions/setup-node@v5
         with:
@@ -56,9 +96,12 @@ jobs:
       # the previous artwork and ship an app wearing last week's logo, which is
       # exactly what happened to 1.0.4.
       - name: Wait for the site to serve this commit's artwork
+        env:
+          HOST: ${{ matrix.app.host }}
+          ARTWORK: ${{ matrix.app.artwork }}
         run: |
           set -u
-          artwork="icon-512.png icon-maskable-512.png shortcut-categories.png shortcut-offers.png shortcut-cart.png"
+          artwork="$ARTWORK"
 
           hash_of() {
             node -e '
@@ -71,7 +114,7 @@ jobs:
           for attempt in $(seq 1 24); do
             waiting_on=""
             for file in $artwork; do
-              if ! curl -fsS "https://zupona.com/$file" -o "$RUNNER_TEMP/live-$file"; then
+              if ! curl -fsS "https://$HOST/$file" -o "$RUNNER_TEMP/live-$file"; then
                 waiting_on="$file (not served yet)"
                 break
               fi
@@ -89,7 +132,7 @@ jobs:
             sleep 15
           done
 
-          echo "::error::zupona.com is still not serving this commit's artwork, so the APK would be built from the previous icons."
+          echo "::error::$HOST is still not serving this commit's artwork, so the APK would be built from the previous icons."
           exit 1
 
       - name: Point Bubblewrap at the runner's JDK and Android SDK
@@ -155,16 +198,23 @@ jobs:
       # a key generated per build would make every release a fresh install --
       # uninstall, lose the session, start again. The key therefore has to
       # outlive the run that made it, and a public repository is no place for
-      # one. It is kept in the Worker's KV namespace instead, reached with the
+      # one. It is kept in a private R2 bucket instead, reached with the
       # Cloudflare token this repository already holds in order to deploy, so
-      # the app needs no new credential of its own.
+      # the app needs no new credential of its own. Nothing in the Worker binds
+      # that bucket, so no route can hand the key out the way /api/media hands
+      # out everything in the media bucket.
+      #
+      # KV would have been the obvious home and was tried first. Its free plan
+      # allows a thousand writes a day and the shop's own caching spends them,
+      # so the write that saves the key was refused with a quota error. R2's
+      # limits are monthly and nowhere near.
       #
       # Repository secrets win if they are ever set, which is the migration
       # path to a keystore held somewhere else.
       - name: Fetch or create the app signing key
         id: signing
         env:
-          CF_TOKEN: ${{ secrets.CLOUDFLARE_KV_TOKEN || secrets.CLOUDFLARE_API_TOKEN }}
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_R2_TOKEN || secrets.CLOUDFLARE_API_TOKEN }}
           KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
@@ -173,21 +223,13 @@ jobs:
           set -u
           work="$RUNNER_TEMP/signing"
           mkdir -p "$work"
-          keystore="$GITHUB_WORKSPACE/android/android.keystore"
+          # Beside the twa-manifest.json being built, which names it as
+          # `./android.keystore`. Both apps are signed with the same key, so
+          # both get the same copy of it.
+          keystore="$GITHUB_WORKSPACE/${{ matrix.app.dir }}/android.keystore"
 
-          namespace=$(node -e '
-            const fs = require("fs");
-            // wrangler.jsonc only ever uses whole-line // comments.
-            const text = fs.readFileSync("wrangler.jsonc", "utf8")
-              .split("\n")
-              .filter((line) => !line.trim().startsWith("//"))
-              .join("\n");
-            const config = JSON.parse(text);
-            console.log(config.kv_namespaces.find((n) => n.binding === "CACHE").id);
-          ')
-          echo "Using KV namespace $namespace"
-          base="https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT/storage/kv/namespaces/$namespace"
-          echo "kv_base=$base" >> "$GITHUB_OUTPUT"
+          buckets="https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT/r2/buckets"
+          vault="$buckets/$VAULT_BUCKET/objects/$VAULT_OBJECT"
 
           alias_name="${KEY_ALIAS:-zupona}"
           stable=true
@@ -205,10 +247,10 @@ jobs:
             # refusal can be told apart from a key that simply is not there
             # yet, and so Cloudflare's own message reaches the run summary.
             vault_status=$(curl -s -o "$work/vault.json" -w '%{http_code}' \
-              -H "Authorization: Bearer $CF_TOKEN" "$base/values/android%3Asigning-key")
+              -H "Authorization: Bearer $CF_TOKEN" "$vault")
             case "$vault_status" in
               200)
-                origin="the Cloudflare KV vault"
+                origin="the R2 vault"
                 node -e '
                   const fs = require("fs");
                   const work = process.argv[1];
@@ -223,10 +265,12 @@ jobs:
                 alias_name=$(cat "$work/alias")
                 ;;
               404)
-                origin="a new key, now saved to the Cloudflare KV vault"
+                # Either the object or the bucket is missing; both mean there
+                # is no key yet, and the write below creates whichever it is.
+                origin="a new key, now saved to the R2 vault"
                 ;;
               *)
-                echo "::warning title=The KV vault could not be read::HTTP $vault_status from Cloudflare: $(head -c 300 "$work/vault.json" | tr -d '\n')"
+                echo "::warning title=The vault could not be read::HTTP $vault_status from Cloudflare: $(head -c 300 "$work/vault.json" | tr -d '\n')"
                 origin="a throwaway key (the vault could not be read)"
                 stable=false
                 ;;
@@ -254,19 +298,26 @@ jobs:
                   alias,
                   createdAt: new Date().toISOString(),
                 };
-                fs.writeFileSync(work + "/upload.json", JSON.stringify([
-                  { key: "android:signing-key", value: JSON.stringify(vault) },
-                ]));
+                fs.writeFileSync(work + "/upload.json", JSON.stringify(vault));
               ' "$work" "$keystore" "$store_password" "$alias_name"
+
+              # Creating the bucket is idempotent enough: an existing one comes
+              # back as an error naming itself, which is not a failure here.
+              create_status=$(curl -s -o "$work/bucket.json" -w '%{http_code}' -X POST \
+                -H "Authorization: Bearer $CF_TOKEN" \
+                -H "Content-Type: application/json" \
+                -d "{\"name\":\"$VAULT_BUCKET\"}" "$buckets")
+              echo "Bucket create returned HTTP $create_status."
 
               put_status=$(curl -s -o "$work/put.json" -w '%{http_code}' -X PUT \
                 -H "Authorization: Bearer $CF_TOKEN" \
                 -H "Content-Type: application/json" \
-                --data-binary "@$work/upload.json" "$base/bulk")
+                --data-binary "@$work/upload.json" "$vault")
               if [ "$put_status" = "200" ]; then
-                echo "Saved the new signing key to KV."
+                echo "Saved the new signing key to the R2 vault."
               else
                 echo "::warning title=The signing key could not be saved::HTTP $put_status from Cloudflare: $(head -c 300 "$work/put.json" | tr -d '\n')"
+                echo "::warning::Bucket creation said: $(head -c 300 "$work/bucket.json" | tr -d '\n')"
                 stable=false
                 origin="a throwaway key (saving to the vault failed)"
               fi
@@ -287,7 +338,7 @@ jobs:
                          https://api.cloudflare.com/client/v4/user/tokens/verify \
                        | grep -o '"id":"[a-f0-9]\{32\}"' | head -1 | cut -d'"' -f4)
             if [ -n "$token_id" ]; then
-              echo "::notice::The vault needs Workers KV Storage:Edit. This run used token $token_id - https://dash.cloudflare.com/profile/api-tokens/$token_id"
+              echo "::notice::The vault needs Workers R2 Storage:Edit. This run used token $token_id - https://dash.cloudflare.com/profile/api-tokens/$token_id"
             fi
           fi
 
@@ -303,10 +354,11 @@ jobs:
       - name: Stamp the version
         env:
           KEY_ALIAS: ${{ steps.signing.outputs.alias_name }}
+          APP_DIR: ${{ matrix.app.dir }}
         run: |
           node -e '
             const fs = require("fs");
-            const file = "android/twa-manifest.json";
+            const file = process.env.APP_DIR + "/twa-manifest.json";
             const manifest = JSON.parse(fs.readFileSync(file, "utf8"));
             const build = Number(process.env.GITHUB_RUN_NUMBER);
             manifest.appVersionCode = build;
@@ -323,7 +375,7 @@ jobs:
       # guessing at it.
       - name: Build the APK
         run: |
-          cd android
+          cd "${{ matrix.app.dir }}"
           status=0
           {
             bubblewrap update --skipVersionUpgrade < /dev/null
@@ -340,7 +392,7 @@ jobs:
       - name: Read the signing fingerprint
         id: fingerprint
         run: |
-          cd android
+          cd "${{ matrix.app.dir }}"
           sha256=$(keytool -list -v -keystore android.keystore -alias "${{ steps.signing.outputs.alias_name }}" -storepass "$BUBBLEWRAP_KEYSTORE_PASSWORD" | grep -m1 "SHA256:" | sed 's/.*SHA256: //' | tr -d '[:space:]')
           echo "sha256=$sha256" >> "$GITHUB_OUTPUT"
           echo "Signing certificate SHA-256: $sha256"
@@ -352,58 +404,94 @@ jobs:
       #
       # Older fingerprints are kept alongside the current one so that a phone
       # still running a previously signed build keeps its full-screen app.
-      - name: Publish the fingerprint the site vouches for
-        if: steps.signing.outputs.stable == 'true'
+      # The statement is committed rather than stored in KV, because the deploy
+      # that publishes it is free and reliable where a KV write is neither.
+      # Nothing here is secret: a signing certificate's fingerprint is meant to
+      # be published.
+      #
+      # It only commits when the certificate is one the file does not already
+      # name, which after the first stable build means never.
+      #
+      # Only the shop's job does this, though the statement covers both apps:
+      # one keystore signs both, so both fingerprints are the same one, and
+      # letting the second job commit it too would mean a push to rebase onto
+      # for no new information. `src/app/api/assetlinks/route.ts` names the
+      # right application id per host from this one list.
+      - name: Vouch for the certificate that signed this build
+        if: steps.signing.outputs.stable == 'true' && matrix.app.id == 'shop'
         env:
-          CF_TOKEN: ${{ secrets.CLOUDFLARE_KV_TOKEN || secrets.CLOUDFLARE_API_TOKEN }}
-          KV_BASE: ${{ steps.signing.outputs.kv_base }}
+          GH_TOKEN: ${{ github.token }}
           SHA256: ${{ steps.fingerprint.outputs.sha256 }}
         run: |
-          set -u
-          work="$RUNNER_TEMP/assetlinks"
-          mkdir -p "$work"
+          set -eu
+          file="src/lib/androidSigning.ts"
 
-          curl -fsS -H "Authorization: Bearer $CF_TOKEN" \
-            "$KV_BASE/values/android%3Asigning-fingerprints" -o "$work/current.json" \
-            || echo "[]" > "$work/current.json"
+          if grep -q "$SHA256" "$file"; then
+            echo "The site already vouches for this certificate."
+            exit 0
+          fi
 
           node -e '
             const fs = require("fs");
-            const work = process.argv[1];
-            let existing = [];
-            try {
-              const parsed = JSON.parse(fs.readFileSync(work + "/current.json", "utf8"));
-              if (Array.isArray(parsed)) existing = parsed.filter((f) => typeof f === "string");
-            } catch {}
-            const current = process.env.SHA256;
-            // Newest first, and only the last three: a rotation needs the old
-            // one for a while, a museum of them helps nobody.
-            const merged = [current, ...existing.filter((f) => f !== current)].slice(0, 3);
-            fs.writeFileSync(work + "/upload.json", JSON.stringify([
-              { key: "android:signing-fingerprints", value: JSON.stringify(merged) },
-            ]));
+            const file = process.argv[1];
+            const source = fs.readFileSync(file, "utf8");
+            const quoted = source.match(/"[0-9A-F]{2}(?::[0-9A-F]{2}){31}"/g) || [];
+            const known = quoted.map((entry) => entry.slice(1, -1));
+            // Newest first, and at most three: a rotation needs the previous
+            // fingerprint until every phone has the new build, and no longer.
+            const merged = [process.env.SHA256, ...known.filter((f) => f !== process.env.SHA256)]
+              .slice(0, 3);
+            const body = merged.map((f) => `\n  "${f}",`).join("") + "\n";
+            const replaced = source.replace(
+              /export const ANDROID_CERT_FINGERPRINTS: string\[\] = \[[^\]]*\];/,
+              `export const ANDROID_CERT_FINGERPRINTS: string[] = [${body}];`
+            );
+            if (replaced === source) throw new Error("the fingerprint list was not found in " + file);
+            fs.writeFileSync(file, replaced);
             console.log("Vouching for", merged.length, "certificate(s).");
-          ' "$work"
+          ' "$file"
 
-          curl -fsS -X PUT \
-            -H "Authorization: Bearer $CF_TOKEN" \
-            -H "Content-Type: application/json" \
-            --data-binary "@$work/upload.json" "$KV_BASE/bulk" -o /dev/null
-          echo "Published."
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "$file"
+          # Two -m flags rather than a heredoc: inside a YAML block the heredoc
+          # body cannot start at column zero, and its indentation would end up
+          # in the commit message.
+          git commit \
+            -m "Vouch for the certificate signing the Android app" \
+            -m "Written by the APK build for version 1.0.${{ github.run_number }}. Chrome hides its address bar inside the installed app only once the site names the certificate the APK was signed with."
+          git pull --rebase origin main
+          git push origin HEAD:main
 
+          # A push made with GITHUB_TOKEN deliberately starts no workflows, so
+          # the deploy that would publish this has to be asked for by name --
+          # otherwise the statement sits in the repository, true and unserved.
+          gh workflow run "Deploy to Cloudflare" --ref main
+          echo "Asked for a deploy so the site starts serving it."
+
+      # Both APKs go into one release rather than one release each, because
+      # GitHub's "latest" is a single release: publishing them separately would
+      # make whichever finished second the latest one and start 404ing the
+      # other app's /releases/latest/download/ link. The first job to get here
+      # creates the release; the second adds its APK to it.
       - name: Publish the release
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: app-v1.0.${{ github.run_number }}
         run: |
-          apk=$(ls android/*.apk | head -1)
-          cp "$apk" zupona.apk
+          apk=$(ls "${{ matrix.app.dir }}"/*.apk | head -1)
+          cp "$apk" "${{ matrix.app.apk }}"
           {
-            echo "The Zupona shop as an installable Android app."
+            echo "The Zupona shop and its admin panel, as installable Android apps."
             echo
-            echo "**Install:** download zupona.apk below on an Android phone and open it."
+            echo "**Install:** download an APK below on an Android phone and open it."
             echo "Android asks permission to install from this source the first time."
             echo
-            echo "The app opens zupona.com full-screen, so it keeps up with the site by itself."
+            echo "- \`zupona.apk\` — the shop, opening zupona.com full-screen."
+            echo "- \`zupona-admin.apk\` — the admin panel, opening admin.zupona.com."
+            echo "  It asks for the usual admin sign-in; install it only on a phone that should be running the store."
+            echo
+            echo "Neither needs updating when the site changes: they are the site, full-screen."
             echo
             echo "Signed with ${{ steps.signing.outputs.origin }}."
             echo "Certificate SHA-256: \`${{ steps.fingerprint.outputs.sha256 }}\`"
@@ -412,15 +500,20 @@ jobs:
               echo "> Signed with a per-build key. To move to a later version, uninstall this one first."
             fi
           } > notes.md
-          gh release create "app-v1.0.${{ github.run_number }}" zupona.apk \
-            --title "Zupona app 1.0.${{ github.run_number }}" \
-            --notes-file notes.md
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "${{ matrix.app.apk }}" --clobber
+          else
+            gh release create "$TAG" "${{ matrix.app.apk }}" \
+              --title "Zupona apps 1.0.${{ github.run_number }}" \
+              --notes-file notes.md
+          fi
 
       - name: Summarise the build
         if: always()
         run: |
           {
-            echo "### Zupona app 1.0.${{ github.run_number }}"
+            echo "### ${{ matrix.app.title }} 1.0.${{ github.run_number }}"
             echo
             echo "- Signing key: ${{ steps.signing.outputs.origin }}"
             echo "- Updates install in place: ${{ steps.signing.outputs.stable }}"
@@ -430,6 +523,6 @@ jobs:
       - uses: actions/upload-artifact@v5
         if: always()
         with:
-          name: zupona-apk
-          path: android/*.apk
+          name: zupona-${{ matrix.app.id }}-apk
+          path: ${{ matrix.app.dir }}/*.apk
           if-no-files-found: ignore

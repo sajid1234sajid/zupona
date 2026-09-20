@@ -33,6 +33,17 @@ const PASS_THROUGH = [
   "/icon-192.png",
   "/icon-512.png",
   "/icon-maskable-512.png",
+  // The panel's own installable-app files. These have to be served on the
+  // admin host rather than redirected to the apex: a redirect is what the
+  // Android build fetching them would fail on, and a manifest whose icons
+  // live on another origin is not the panel's app.
+  "/admin.webmanifest",
+  "/admin-icon-192.png",
+  "/admin-icon-512.png",
+  "/admin-icon-maskable-512.png",
+  "/shortcut-admin-orders.png",
+  "/shortcut-admin-products.png",
+  "/shortcut-admin-new-product.png",
 ];
 
 /** Android insists on this exact path; the handler lives under `/api`. */

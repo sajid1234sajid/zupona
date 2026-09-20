@@ -92,6 +92,7 @@ export default async function EditProductPage(props: PageProps<"/admin/products/
           stock: totalStock,
           lowStockAlert: product.variants[0]?.lowStockThreshold ?? 5,
           trackInventory: product.trackInventory,
+          freeDelivery: product.freeDelivery,
           colors: product.colors,
           sizes: product.sizes,
           optionGroups: groupsFromProduct(product.optionGroups),

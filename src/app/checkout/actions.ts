@@ -7,7 +7,12 @@ import { rateLimit } from "@/lib/cache";
 import { claimGuest, createSession, getShopper } from "@/lib/session";
 import { getCartItems } from "@/lib/cart";
 import { calcPointsEarned, generateOrderNumber } from "@/lib/orders";
-import { getPaymentOption, normalizeBdPhone, resolveDelivery } from "@/lib/checkout";
+import {
+  freeDeliveryByProduct,
+  getPaymentOption,
+  normalizeBdPhone,
+  resolveDelivery,
+} from "@/lib/checkout";
 import { getShopSettings } from "@/lib/shopSettings";
 import {
   clearPhoneVerification,
@@ -239,13 +244,23 @@ export async function placeOrderAction(
   const productIds = [...new Set(lines.map((line) => line.productId))];
   const { results: owners } = await db
     .prepare(
-      `SELECT id, seller_id FROM products WHERE id IN (${productIds.map(() => "?").join(",")})`
+      `SELECT id, seller_id, free_delivery FROM products
+        WHERE id IN (${productIds.map(() => "?").join(",")})`
     )
     .bind(...productIds)
-    .all<{ id: string; seller_id: string | null }>();
+    .all<{ id: string; seller_id: string | null; free_delivery: number }>();
 
   const sellerOf = new Map(owners.map((row) => [row.id, row.seller_id]));
   for (const line of lines) line.sellerId = sellerOf.get(line.productId) ?? null;
+
+  /* Whether the products themselves carry the delivery, read here from the
+   * database rather than taken from the cart the browser was shown: this is
+   * the figure the shopper is charged. A product id that came back with no row
+   * is one that has been archived since, and is not free. */
+  const freeOf = new Map(owners.map((row) => [row.id, row.free_delivery === 1]));
+  const freeByProduct = freeDeliveryByProduct(
+    lines.map((line) => ({ freeDelivery: freeOf.get(line.productId) === true }))
+  );
 
   // The fee charged comes from the shop's own settings, and which option this
   // order gets is decided here rather than taken from the browser: a request
@@ -254,7 +269,7 @@ export async function placeOrderAction(
   const settings = await getShopSettings();
   const payment = getPaymentOption(details.paymentMethod);
   const subtotal = lines.reduce((sum, line) => sum + line.price * line.quantity, 0);
-  const delivery = resolveDelivery(details.deliveryMethod, subtotal, settings);
+  const delivery = resolveDelivery(details.deliveryMethod, subtotal, settings, freeByProduct);
   const shippingFee = delivery.fee;
   const total = subtotal + shippingFee;
   const pointsEarned = calcPointsEarned(total);

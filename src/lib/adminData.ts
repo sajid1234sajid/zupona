@@ -1843,6 +1843,8 @@ export interface EditableProduct {
   /** Whether this product counts its units. False means it sells without a
    * ceiling and the stock boxes have nothing to hold. */
   trackInventory: boolean;
+  /** Whether this product carries its own delivery. */
+  freeDelivery: boolean;
   weightKg: string;
   length: number;
   width: number;
@@ -1879,7 +1881,8 @@ export async function getProductForEdit(productId: string): Promise<EditableProd
   const row = await db
     .prepare(
       `SELECT id, name, slug, sku, description, category_id, brand_id, status, price, old_price,
-              is_featured, is_best_seller, track_inventory, weight_grams, dimensions_json,
+              is_featured, is_best_seller, track_inventory, free_delivery, weight_grams,
+              dimensions_json,
               meta_title, meta_description, sold_count, view_count, rating_avg, rating_count,
               created_at, updated_at
        FROM products WHERE id = ?`
@@ -1899,6 +1902,7 @@ export async function getProductForEdit(productId: string): Promise<EditableProd
       is_featured: number;
       is_best_seller: number;
       track_inventory: number;
+      free_delivery: number;
       weight_grams: number | null;
       dimensions_json: string | null;
       meta_title: string | null;
@@ -2073,6 +2077,7 @@ export async function getProductForEdit(productId: string): Promise<EditableProd
     isFeatured: row.is_featured === 1,
     isBestSeller: row.is_best_seller === 1,
     trackInventory: row.track_inventory === 1,
+    freeDelivery: row.free_delivery === 1,
     weightKg: row.weight_grams ? String(row.weight_grams / 1000) : "",
     length: dimensions.l ?? 0,
     width: dimensions.w ?? 0,

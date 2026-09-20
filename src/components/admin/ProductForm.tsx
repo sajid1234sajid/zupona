@@ -60,6 +60,8 @@ export interface ProductFormValues {
   status: string;
   isFeatured: boolean;
   isBestSeller: boolean;
+  /** Ticked when this product carries its own delivery. */
+  freeDelivery: boolean;
   /** What the product's `updated_at` was when this form was loaded. Posted
    * back so a save can tell whether anyone else has saved in the meantime. */
   updatedAt?: string | null;
@@ -471,7 +473,30 @@ export default function ProductForm({
         </Card>
 
         <Card>
-          <CardHeader title="Shipping" subtitle="Used for delivery estimates" />
+          <CardHeader title="Shipping" subtitle="Delivery charge, weight and size" />
+
+          <label className="mb-4 flex cursor-pointer items-start gap-2.5 rounded-xl border border-neutral-200 bg-neutral-50 p-3.5">
+            <input
+              type="checkbox"
+              name="freeDelivery"
+              defaultChecked={values.freeDelivery}
+              className="mt-0.5 h-4 w-4 rounded accent-[#16a34a]"
+            />
+            <span>
+              <span className="block text-[13px] font-semibold text-neutral-800">
+                Free delivery on this product
+              </span>
+              {/* Said plainly, because the rule is not what "free delivery"
+                  sounds like on its own: an order carries one delivery charge,
+                  so a mixed basket cannot be half free. */}
+              <span className="block text-[11px] leading-relaxed text-neutral-500">
+                An order of only this product (and others marked the same way) is delivered
+                free, whatever it comes to. If the cart also holds an ordinary product, the
+                shop&rsquo;s usual delivery charge applies to the whole order.
+              </span>
+            </span>
+          </label>
+
           <div className="grid grid-cols-2 gap-3">
             <Field label="Weight (kg)">
               <input

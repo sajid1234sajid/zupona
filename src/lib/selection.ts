@@ -26,6 +26,10 @@ export type ResolvedSelection =
       available: number;
       name: string;
       image: string;
+      /** Whether this product carries its own delivery, for the Buy Now line
+       * that checkout prices. A Buy Now order is one product, so this alone
+       * decides it -- unlike a cart, which has to be free on every line. */
+      freeDelivery: boolean;
     }
   | { ok: false; error: string };
 
@@ -73,6 +77,7 @@ export async function resolveSelection(input: {
       available: product.tracksInventory ? product.stockTotal : UNLIMITED_STOCK,
       name: product.name,
       image: product.image,
+      freeDelivery: product.freeDelivery === true,
     };
   }
 
@@ -109,5 +114,6 @@ export async function resolveSelection(input: {
     available: variant.available,
     name: product.name,
     image: product.image,
+    freeDelivery: product.freeDelivery === true,
   };
 }

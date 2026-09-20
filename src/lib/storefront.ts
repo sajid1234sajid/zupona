@@ -137,6 +137,14 @@ export interface StoreProduct extends StoreProductCard {
    * without a ceiling -- `available` on every variant is unbounded, and
    * nothing about the product ever reads as out of stock. */
   tracksInventory: boolean;
+  /** This product carries its own delivery. An order made up entirely of such
+   * products ships free whatever it comes to; a basket that also holds an
+   * ordinary product is priced the shop-wide way. What is charged is decided
+   * from the database when the order is placed, never from here -- this is
+   * what the product page and Buy Now *promise*, and a cached entry written
+   * before this field existed reads as undefined, which is the safe way round.
+   */
+  freeDelivery: boolean;
 
   /* The dynamic option system. Everything above this line is unchanged and
    * still feeds the existing product page; everything below is additive.
@@ -383,7 +391,7 @@ async function queryProduct(id: string): Promise<StoreProduct | null> {
               p.is_best_seller, p.category_id, p.slug, p.description,
               p.hero_headline, p.hero_subtitle,
               p.short_description, p.badge_label, p.return_policy, p.warranty,
-              p.track_inventory,
+              p.track_inventory, p.free_delivery,
               -- Units actually ordered. products.sold_count is never written by
               -- checkout, so it would read 0 on every product.
               (SELECT COALESCE(SUM(oi.quantity), 0) FROM order_items oi
@@ -414,6 +422,7 @@ async function queryProduct(id: string): Promise<StoreProduct | null> {
         sold_count: number;
         category_name: string | null;
         brand_name: string | null;
+        free_delivery: number;
       }
     >();
 
@@ -663,6 +672,7 @@ async function queryProduct(id: string): Promise<StoreProduct | null> {
     }[]).map((a) => ({ name: a.attr_name, value: a.attr_value })),
     stockTotal: row.stock_total ?? 0,
     tracksInventory,
+    freeDelivery: row.free_delivery === 1,
     shortDescription: row.short_description,
     badgeLabel: row.badge_label,
     returnPolicy: row.return_policy,

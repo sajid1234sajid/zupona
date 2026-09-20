@@ -71,20 +71,65 @@ export interface DeliveryPricing {
   freeShippingThreshold: number;
 }
 
+/** Whether an order made of these lines is delivered free on the products'
+ * own account, whatever it comes to.
+ *
+ * Every line has to be a product the admin marked as free delivery. One
+ * ordinary product among them and the answer is no: an order carries a single
+ * `shipping_fee` with nothing per-line to split, so if a mixed basket shipped
+ * free, a ৳50 item added next to the promoted one would ride along for
+ * nothing. An empty list earns nothing -- there is nothing to deliver.
+ *
+ * Lines that cannot be bought are the caller's to leave out, the same way
+ * `cartSubtotal` leaves them out of the total. */
+export function freeDeliveryByProduct(lines: { freeDelivery: boolean }[]): boolean {
+  return lines.length > 0 && lines.every((line) => line.freeDelivery);
+}
+
 /** Whether this order has earned free delivery.
  *
- * At the threshold exactly, it has: `>=`, not `>`. A threshold of 0 means the
- * shop is not offering free delivery, so nothing unlocks it. This one function
- * decides it for the wizard and for `placeOrder` both, which is what stops a
- * hand-made request from buying below the threshold and paying nothing. */
-export function freeDeliveryUnlocked(subtotal: number, pricing: DeliveryPricing): boolean {
+ * Either the products carry it themselves, or the order is large enough: at
+ * the threshold exactly it has earned it -- `>=`, not `>` -- and a threshold
+ * of 0 means the shop is not offering that at all, so nothing unlocks it.
+ * This one function decides it for the wizard and for `placeOrder` both, which
+ * is what stops a hand-made request from buying below the threshold and paying
+ * nothing. */
+export function freeDeliveryUnlocked(
+  subtotal: number,
+  pricing: DeliveryPricing,
+  freeByProduct = false
+): boolean {
+  if (freeByProduct) return true;
   return pricing.freeShippingThreshold > 0 && subtotal >= pricing.freeShippingThreshold;
 }
 
 /** Both options as this order sees them: priced, and with free delivery locked
  * when the subtotal has not reached the threshold. Home delivery is always
- * first, always unlocked, and is what the wizard starts on. */
-export function deliveryOptionsFor(subtotal: number, pricing: DeliveryPricing): DeliveryMethod[] {
+ * first, always unlocked, and is what the wizard starts on.
+ *
+ * An order whose products all carry their own delivery is the exception: it
+ * gets the free option alone. Offering the paid one beside it would be
+ * offering a worse version of the only thing on the table, and leaving it
+ * first would be charging ৳130 to a shopper who did not notice the radio. */
+export function deliveryOptionsFor(
+  subtotal: number,
+  pricing: DeliveryPricing,
+  freeByProduct = false
+): DeliveryMethod[] {
+  if (freeByProduct) {
+    return [
+      {
+        id: "free",
+        name: "Free Home Delivery",
+        tagline: "Delivery is included with everything in this order",
+        eta: `${DELIVERY_DAYS.min}-${DELIVERY_DAYS.max} days`,
+        fee: 0,
+        locked: false,
+        badge: `${DELIVERY_DAYS.min}-${DELIVERY_DAYS.max} days · Save ৳${pricing.deliveryFee}`,
+      },
+    ];
+  }
+
   const unlocked = freeDeliveryUnlocked(subtotal, pricing);
   return [
     {
@@ -124,9 +169,10 @@ function formatThreshold(pricing: DeliveryPricing): string {
 export function resolveDelivery(
   requested: string | undefined,
   subtotal: number,
-  pricing: DeliveryPricing
+  pricing: DeliveryPricing,
+  freeByProduct = false
 ): DeliveryMethod {
-  const options = deliveryOptionsFor(subtotal, pricing);
+  const options = deliveryOptionsFor(subtotal, pricing, freeByProduct);
   const wanted = options.find((option) => option.id === requested && !option.locked);
   return wanted ?? options[0];
 }

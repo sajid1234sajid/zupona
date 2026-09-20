@@ -310,9 +310,9 @@ export async function createProductAction(
         .prepare(
           `INSERT INTO products (id, seller_id, category_id, brand_id, name, slug, sku, description,
                                  status, price, old_price, is_featured, is_best_seller,
-                                 track_inventory, weight_grams, dimensions_json, meta_title,
-                                 meta_description)
-           VALUES (?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+                                 track_inventory, free_delivery, weight_grams, dimensions_json,
+                                 meta_title, meta_description)
+           VALUES (?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
         )
         .bind(
           productId,
@@ -328,6 +328,7 @@ export async function createProductAction(
           formData.get("isFeatured") ? 1 : 0,
           formData.get("isBestSeller") ? 1 : 0,
           readTrackInventory(formData) ? 1 : 0,
+          formData.get("freeDelivery") ? 1 : 0,
           weightGrams,
           dimensions,
           readText(formData, "metaTitle"),
@@ -472,7 +473,8 @@ export async function updateProductAction(
           `UPDATE products SET name = ?, slug = ?, sku = ?, description = ?, category_id = ?,
                                brand_id = ?, status = ?, price = ?, old_price = ?,
                                is_featured = ?, is_best_seller = ?,
-                               track_inventory = COALESCE(?, track_inventory), weight_grams = ?,
+                               track_inventory = COALESCE(?, track_inventory),
+                               free_delivery = ?, weight_grams = ?,
                                dimensions_json = ?, meta_title = ?, meta_description = ?,
                                updated_at = datetime('now')
            WHERE id = ?`
@@ -490,6 +492,7 @@ export async function updateProductAction(
           formData.get("isFeatured") ? 1 : 0,
           formData.get("isBestSeller") ? 1 : 0,
           trackInventory === null ? null : trackInventory ? 1 : 0,
+          formData.get("freeDelivery") ? 1 : 0,
           weightGrams,
           dimensions,
           readText(formData, "metaTitle"),

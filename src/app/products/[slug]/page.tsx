@@ -100,8 +100,15 @@ export default async function DynamicProductPage({ params }: PageProps<"/product
 
   // The shop's own configured fees, so what a product promises is what
   // checkout charges. Priced at a subtotal of 0, which leaves free delivery
-  // locked and so describes what unlocks it rather than quoting it as given.
-  const deliveryLines: DeliveryLine[] = deliveryOptionsFor(0, settings).map((option) => ({
+  // locked and so describes what unlocks it rather than quoting it as given --
+  // unless the product carries its own delivery, in which case there is one
+  // option and it is free at any subtotal, which is exactly what a basket of
+  // only this product will be charged.
+  const deliveryLines: DeliveryLine[] = deliveryOptionsFor(
+    0,
+    settings,
+    product.freeDelivery === true
+  ).map((option) => ({
     label: option.name,
     value: option.locked
       ? option.badge

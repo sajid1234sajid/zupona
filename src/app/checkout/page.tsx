@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getShopper } from "@/lib/session";
-import { getCartItems, cartSubtotal } from "@/lib/cart";
+import { getCartItems, cartSubtotal, cartFreeDelivery } from "@/lib/cart";
 import { getBuyNowLine } from "@/lib/buyNow";
 import { getAddresses } from "@/lib/addresses";
 import { getVerifiedPhone } from "@/lib/verification";
@@ -39,7 +39,11 @@ export default async function CheckoutPage({ searchParams }: PageProps<"/checkou
   // Priced and locked the way `placeOrder` will judge them, so the wizard
   // cannot offer a choice the order would refuse.
   const subtotal = buyNow ? buyNow.price * buyNow.quantity : cartSubtotal(items);
-  const deliveryOptions = deliveryOptionsFor(subtotal, settings);
+  // Free on the products' own account when every line carries it -- one line
+  // for Buy Now, all of them for a cart. `placeOrder` judges it again from the
+  // database, so the wizard can only ever quote what the order will charge.
+  const freeByProduct = buyNow ? buyNow.freeDelivery : cartFreeDelivery(items);
+  const deliveryOptions = deliveryOptionsFor(subtotal, settings, freeByProduct);
 
   const addresses = shopper.isGuest ? [] : await getAddresses(shopper.id);
   const saved = addresses.find((address) => address.isDefault) ?? addresses[0] ?? null;

@@ -6,7 +6,7 @@ import BottomNav from "@/components/layout/BottomNav";
 import CartItemRow from "@/components/cart/CartItemRow";
 import { removeUnavailableItemsAction } from "./actions";
 import { getShopper } from "@/lib/session";
-import { getCartItems, cartSubtotal } from "@/lib/cart";
+import { getCartItems, cartSubtotal, cartFreeDelivery } from "@/lib/cart";
 import { resolveDelivery } from "@/lib/checkout";
 import { getShopSettings } from "@/lib/shopSettings";
 import { formatPrice } from "@/lib/format";
@@ -27,7 +27,11 @@ export default async function CartPage() {
   // nothing but withdrawn items has nothing to deliver, and quoting a delivery
   // charge against a subtotal of zero showed a total of ৳130 for an order that
   // could not be placed at all.
-  const shippingFee = subtotal > 0 ? resolveDelivery("home", subtotal, settings).fee : 0;
+  // A cart made up entirely of products that carry their own delivery is free
+  // whatever it comes to; one ordinary line among them and the shop-wide rule
+  // applies. Decided by the same function the wizard and `placeOrder` use.
+  const shippingFee =
+    subtotal > 0 ? resolveDelivery("home", subtotal, settings, cartFreeDelivery(items)).fee : 0;
   const total = subtotal + shippingFee;
 
   // Checkout will not open while a withdrawn line is in the cart -- it sends

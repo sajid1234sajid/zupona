@@ -36,6 +36,9 @@ export default async function NewProductPage() {
           // Off by default: a new product sells without a ceiling until the
           // admin says it should be counted.
           trackInventory: false,
+          // Off by default: delivery is charged the shop's usual way until an
+          // admin decides this one product carries it.
+          freeDelivery: false,
           colors: [],
           sizes: [],
           optionGroups: [],

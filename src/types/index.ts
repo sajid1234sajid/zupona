@@ -130,6 +130,9 @@ export interface CartItem {
    * the cart and stays visible -- it is simply not in the total, its quantity
    * is fixed, and checkout refuses while it is there. */
   unavailable: boolean;
+  /** This product carries its own delivery. It only comes to anything when
+   * every buyable line in the cart says so -- see `freeDeliveryByProduct`. */
+  freeDelivery: boolean;
   /** `product.price` on this line is the *line's* price -- the variant's own
    * where it has one, the product's otherwise -- so every total downstream is
    * computed from what this line actually costs. */

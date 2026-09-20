@@ -1,4 +1,5 @@
 import { getDB } from "@/lib/db";
+import { freeDeliveryByProduct } from "@/lib/checkout";
 import { getReferencedProductsByIds, getStoreProductsByIds } from "@/lib/storefront";
 import { UNLIMITED_STOCK } from "@/lib/stockLimits";
 import type { CartItem } from "@/types";
@@ -19,6 +20,11 @@ interface CartRow {
   /** 0 when the product sells without a ceiling, so the line's quantity is not
    * weighed against a count. */
   track_inventory: number;
+  /** 1 when this product carries its own delivery. The whole cart has to be
+   * made of them before anything ships free -- `freeDeliveryByProduct` in
+   * `@/lib/checkout` is where that is decided, for the cart, the wizard and
+   * `placeOrder` alike. */
+  free_delivery: number;
 }
 
 export async function getCartItems(userId: string): Promise<CartItem[]> {
@@ -28,7 +34,8 @@ export async function getCartItems(userId: string): Promise<CartItem[]> {
       `SELECT c.id, c.product_id, c.variant_id, c.color, c.quantity,
               v.price AS variant_price, v.old_price AS variant_old_price,
               v.stock_quantity, v.reserved_quantity, v.is_active AS variant_active,
-              COALESCE(p.track_inventory, 1) AS track_inventory
+              COALESCE(p.track_inventory, 1) AS track_inventory,
+              COALESCE(p.free_delivery, 0) AS free_delivery
        FROM cart_items c
        LEFT JOIN product_variants v ON v.id = c.variant_id
        LEFT JOIN products p ON p.id = c.product_id
@@ -94,6 +101,7 @@ export async function getCartItems(userId: string): Promise<CartItem[]> {
         quantity: row.quantity,
         available,
         unavailable,
+        freeDelivery: row.free_delivery === 1,
         product: {
           id: product.id,
           name: product.name,
@@ -126,4 +134,13 @@ export function cartSubtotal(items: CartItem[]): number {
   return items
     .filter((item) => !item.unavailable)
     .reduce((sum, item) => sum + item.product.price * item.quantity, 0);
+}
+
+/** Whether this cart ships free on its products' own account.
+ *
+ * Mirrors `cartSubtotal` in what it ignores: a line that can no longer be
+ * bought is not part of the order, so it neither pays for delivery nor stands
+ * in the way of the free offer. */
+export function cartFreeDelivery(items: CartItem[]): boolean {
+  return freeDeliveryByProduct(items.filter((item) => !item.unavailable));
 }

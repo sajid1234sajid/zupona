@@ -30,6 +30,10 @@ export interface BuyNowLine {
   price: number;
   oldPrice: number;
   available: number;
+  /** This product carries its own delivery, so an order of it alone ships
+   * free. Checkout only quotes it; `placeOrder` reads the flag from the
+   * database before charging anything. */
+  freeDelivery: boolean;
 }
 
 export type BuyNowResult = { ok: true } | { ok: false; error: string };
@@ -121,6 +125,7 @@ export async function getBuyNowLine(userId: string): Promise<BuyNowLine | null> 
     price: selection.price,
     oldPrice: selection.oldPrice,
     available: selection.available,
+    freeDelivery: selection.freeDelivery,
   };
 }
 

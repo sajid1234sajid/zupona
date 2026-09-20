@@ -120,6 +120,18 @@ variant row even when it has no visible options, because that is what carries
 stock, SKU and any price override. A variant's `price` is `NULL` when it
 inherits the product price — read `effectivePrice`, not `price`.
 
+**Delivery is decided per order, with one per-product exception.** The shop
+charges `site_settings.delivery_fee` once per order and waives it above
+`free_shipping_threshold`; `orders.shipping_fee` is a single figure, split
+across sellers only for the suborder ledger. `products.free_delivery` is the
+exception: an order whose every line is such a product ships free whatever it
+comes to. A basket that also holds an ordinary product is priced the shop-wide
+way, because with one fee on the order there is no half of it to waive — and a
+cheap item added beside the promoted one would otherwise ride along for
+nothing. `freeDeliveryByProduct` in `src/lib/checkout.ts` is the only place
+that rule lives, so the cart, the wizard and `placeOrder` cannot disagree, and
+`placeOrder` reads the flag from D1 rather than trusting what the browser sent.
+
 **Stock has a ledger.** `product_variants.stock_quantity` is the fast current
 value and `inventory_movements` is the append-only audit trail behind it.
 Always change stock through `src/lib/inventory.ts` so the two agree.

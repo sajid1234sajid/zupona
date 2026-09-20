@@ -409,66 +409,6 @@ jobs:
       # Nothing here is secret: a signing certificate's fingerprint is meant to
       # be published.
       #
-      # It only commits when the certificate is one the file does not already
-      # name, which after the first stable build means never.
-      #
-      # Only the shop's job does this, though the statement covers both apps:
-      # one keystore signs both, so both fingerprints are the same one, and
-      # letting the second job commit it too would mean a push to rebase onto
-      # for no new information. `src/app/api/assetlinks/route.ts` names the
-      # right application id per host from this one list.
-      - name: Vouch for the certificate that signed this build
-        if: steps.signing.outputs.stable == 'true' && matrix.app.id == 'shop'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          SHA256: ${{ steps.fingerprint.outputs.sha256 }}
-        run: |
-          set -eu
-          file="src/lib/androidSigning.ts"
-
-          if grep -q "$SHA256" "$file"; then
-            echo "The site already vouches for this certificate."
-            exit 0
-          fi
-
-          node -e '
-            const fs = require("fs");
-            const file = process.argv[1];
-            const source = fs.readFileSync(file, "utf8");
-            const quoted = source.match(/"[0-9A-F]{2}(?::[0-9A-F]{2}){31}"/g) || [];
-            const known = quoted.map((entry) => entry.slice(1, -1));
-            // Newest first, and at most three: a rotation needs the previous
-            // fingerprint until every phone has the new build, and no longer.
-            const merged = [process.env.SHA256, ...known.filter((f) => f !== process.env.SHA256)]
-              .slice(0, 3);
-            const body = merged.map((f) => `\n  "${f}",`).join("") + "\n";
-            const replaced = source.replace(
-              /export const ANDROID_CERT_FINGERPRINTS: string\[\] = \[[^\]]*\];/,
-              `export const ANDROID_CERT_FINGERPRINTS: string[] = [${body}];`
-            );
-            if (replaced === source) throw new Error("the fingerprint list was not found in " + file);
-            fs.writeFileSync(file, replaced);
-            console.log("Vouching for", merged.length, "certificate(s).");
-          ' "$file"
-
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add "$file"
-          # Two -m flags rather than a heredoc: inside a YAML block the heredoc
-          # body cannot start at column zero, and its indentation would end up
-          # in the commit message.
-          git commit \
-            -m "Vouch for the certificate signing the Android app" \
-            -m "Written by the APK build for version 1.0.${{ github.run_number }}. Chrome hides its address bar inside the installed app only once the site names the certificate the APK was signed with."
-          git pull --rebase origin main
-          git push origin HEAD:main
-
-          # A push made with GITHUB_TOKEN deliberately starts no workflows, so
-          # the deploy that would publish this has to be asked for by name --
-          # otherwise the statement sits in the repository, true and unserved.
-          gh workflow run "Deploy to Cloudflare" --ref main
-          echo "Asked for a deploy so the site starts serving it."
-
       # Both APKs go into one release rather than one release each, because
       # GitHub's "latest" is a single release: publishing them separately would
       # make whichever finished second the latest one and start 404ing the
@@ -508,6 +448,94 @@ jobs:
               --title "Zupona apps 1.0.${{ github.run_number }}" \
               --notes-file notes.md
           fi
+
+      # It only commits when the certificate is one the file does not already
+      # name, which after the first stable build means never.
+      #
+      # Only the shop's job does this, though the statement covers both apps:
+      # one keystore signs both, so both fingerprints are the same one, and
+      # letting the second job commit it too would mean a push to rebase onto
+      # for no new information. `src/app/api/assetlinks/route.ts` names the
+      # right application id per host from this one list.
+      #
+      # It runs after the release rather than before it. In 1.0.7 this step
+      # failed and took the whole job with it, so the shop's APK was built,
+      # signed -- and never published, while the admin job's release became
+      # the latest one without it. Publishing first means a failure here costs
+      # the address bar, not the download.
+      - name: Vouch for the certificate that signed this build
+        if: steps.signing.outputs.stable == 'true' && matrix.app.id == 'shop'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA256: ${{ steps.fingerprint.outputs.sha256 }}
+        run: |
+          set -eu
+          file="src/lib/androidSigning.ts"
+
+          if grep -q "$SHA256" "$file"; then
+            echo "The site already vouches for this certificate."
+            exit 0
+          fi
+
+          node -e '
+            const fs = require("fs");
+            const file = process.argv[1];
+            const source = fs.readFileSync(file, "utf8");
+            const quoted = source.match(/"[0-9A-F]{2}(?::[0-9A-F]{2}){31}"/g) || [];
+            const known = quoted.map((entry) => entry.slice(1, -1));
+            // Newest first, and at most three: a rotation needs the previous
+            // fingerprint until every phone has the new build, and no longer.
+            const merged = [process.env.SHA256, ...known.filter((f) => f !== process.env.SHA256)]
+              .slice(0, 3);
+            const body = merged.map((f) => `\n  "${f}",`).join("") + "\n";
+            const replaced = source.replace(
+              /export const ANDROID_CERT_FINGERPRINTS: string\[\] = \[[^\]]*\];/,
+              `export const ANDROID_CERT_FINGERPRINTS: string[] = [${body}];`
+            );
+            if (replaced === source) throw new Error("the fingerprint list was not found in " + file);
+            fs.writeFileSync(file, replaced);
+            console.log("Vouching for", merged.length, "certificate(s).");
+          ' "$file"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "$file"
+
+          # The version stamp left this app's twa-manifest.json modified, and a
+          # rebase refuses to start on a dirty tree -- which is exactly how
+          # 1.0.7 died. Only the fingerprint is meant to be committed, so
+          # everything else goes back to what the index holds. Untracked debris
+          # (the keystore, the APK, build.log) does not stop a rebase.
+          git checkout -- .
+          git status --short
+
+          # Two -m flags rather than a heredoc: inside a YAML block the heredoc
+          # body cannot start at column zero, and its indentation would end up
+          # in the commit message.
+          git commit \
+            -m "Vouch for the certificate signing the Android apps" \
+            -m "Written by the APK build for version 1.0.${{ github.run_number }}. Chrome hides its address bar inside an installed app only once the site names the certificate the APK was signed with."
+
+          # A runner's logs need an authenticated session to read, so git's own
+          # message is put into an annotation -- the difference between knowing
+          # why a push was refused and guessing at it, as 1.0.7 had to be.
+          run_git() {
+            if ! output=$("$@" 2>&1); then
+              printf '::error title=%s failed::%s\n' "$2" \
+                "$(printf '%s' "$output" | sed 's/%/%25/g; s/\r//g' | awk '{printf "%s%%0A", $0}')"
+              return 1
+            fi
+            printf '%s\n' "$output"
+          }
+
+          run_git git pull --rebase origin main
+          run_git git push origin HEAD:main
+
+          # A push made with GITHUB_TOKEN deliberately starts no workflows, so
+          # the deploy that would publish this has to be asked for by name --
+          # otherwise the statement sits in the repository, true and unserved.
+          gh workflow run "Deploy to Cloudflare" --ref main
+          echo "Asked for a deploy so the site starts serving it."
 
       - name: Summarise the build
         if: always()

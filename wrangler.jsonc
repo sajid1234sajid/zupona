@@ -6,10 +6,17 @@
     "nodejs_compat"
   ],
   "main": "vinext/server/fetch-handler",
-  // The admin panel is served by this same Worker, chosen by Host header in
-  // src/proxy.ts -- `admin.zupona.com/products` is rewritten to `/admin/products`
-  // internally. Declaring it as a custom domain (rather than a route pattern)
-  // makes Cloudflare create the DNS record and the TLS certificate for it.
+  // The admin panel and the Seller Center are served by this same Worker,
+  // chosen by Host header in src/proxy.ts -- `admin.zupona.com/products` is
+  // rewritten to `/admin/products` internally, and `seller.zupona.com/settings`
+  // to `/seller/settings`. Declaring them as custom domains (rather than route
+  // patterns) makes Cloudflare create the DNS records and the TLS certificates
+  // for them.
+  //
+  // Every host here has to be listed, not only the ones that serve pages: the
+  // proxy redirects `/seller/*` on the apex to the seller subdomain, so a
+  // missing entry does not merely leave a subdomain unused -- it breaks the
+  // link that sends people there.
   //
   // The apex serves the storefront. It previously pointed at an older Worker
   // named "asdf", which is still deployed but no longer bound to any hostname
@@ -21,6 +28,10 @@
     },
     {
       "pattern": "admin.zupona.com",
+      "custom_domain": true
+    },
+    {
+      "pattern": "seller.zupona.com",
       "custom_domain": true
     }
   ],

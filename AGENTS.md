@@ -69,11 +69,22 @@ errors.
 `getCache()`), never by importing `cloudflare:workers` directly — the helpers
 fail with a clear message outside the Workers runtime.
 
-**The admin panel is the same Worker.** `src/proxy.ts` maps
-`admin.zupona.com/products` onto the internal `/admin/products`. That file is
-routing, not authorization; `requireAdmin()` in the admin layout and in every
-server action is what actually guards access, because anything reaching the
-origin another way bypasses a proxy check.
+**The admin panel and the Seller Center are the same Worker.** `src/proxy.ts`
+maps `admin.zupona.com/products` onto the internal `/admin/products`, and
+`seller.zupona.com/settings` onto `/seller/settings`. That file is routing, not
+authorization; `requireAdmin()` and `requireApprovedSeller()`, in each panel's
+layout and in every server action, are what actually guard access, because
+anything reaching the origin another way bypasses a proxy check. A new panel
+host also has to be added to `routes` in `wrangler.jsonc`, or the redirect that
+sends people to it lands on a hostname Cloudflare does not serve.
+
+**The two back offices are for two different jobs.** `admin.zupona.com` is the
+platform owner's control over the whole marketplace -- every seller, every
+order, commissions and approvals. `seller.zupona.com` is one merchant's view of
+their own shop, and its queries are scoped to the store `requireApprovedSeller()`
+reads from the session, never to a `seller_id` that arrived in a form. Nobody
+finds the Seller Center by typing its address, so `/sell` on the storefront is
+its one public door; if that link disappears the whole surface goes invisible.
 
 **Prices are whole Taka stored as integers.** There are no minor units to
 divide by; match `formatPrice()` in `src/lib/format.ts`.

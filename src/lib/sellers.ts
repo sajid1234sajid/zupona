@@ -5,8 +5,12 @@
  * `suborders` row per seller, which is what commission and payouts are
  * calculated from. */
 
+import { cache } from "react";
+
 import { getDB } from "@/lib/db";
-import type { Seller, SellerStatus } from "@/types";
+import { AuthorizationError } from "@/lib/admin";
+import { getCurrentUser } from "@/lib/session";
+import type { AuthUser, Seller, SellerStatus } from "@/types";
 
 interface SellerRow {
   id: string;
@@ -236,4 +240,48 @@ export async function getSellerStats(sellerId: string): Promise<SellerStats> {
  * Taka so payouts never carry fractions. */
 export function calcCommission(amount: number, commissionRate: number): number {
   return Math.round((amount * commissionRate) / 100);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Seller Center access                                                       */
+/* -------------------------------------------------------------------------- */
+
+export interface SellerSession {
+  user: AuthUser;
+  seller: Seller;
+}
+
+/** The signed-in user's store, memoised for the request.
+ *
+ * The Seller Center layout needs it to decide whether to render the panel at
+ * all, and every page inside it needs the same row to scope its own queries.
+ * Without the cache that is one extra Singapore round trip on every screen,
+ * for a row that cannot have changed in between. */
+export const getCurrentSeller = cache(async function getCurrentSeller(): Promise<Seller | null> {
+  const user = await getCurrentUser();
+  return user ? getSellerForUser(user.id) : null;
+});
+
+/** The approved store the signed-in user owns.
+ *
+ * Every Seller Center server action starts here rather than trusting a
+ * `seller_id` that arrived in a form: the store is read from the session, so
+ * one seller cannot act as another by editing a hidden field. The Seller
+ * Center layout makes the same checks to decide what to render, but a layout
+ * only guards rendering and a server action can be invoked directly.
+ *
+ * A store that is still pending, or has been suspended, is refused here as
+ * firmly as a stranger -- approval is what separates an application from a
+ * shop. */
+export async function requireApprovedSeller(): Promise<SellerSession> {
+  const user = await getCurrentUser();
+  if (!user) throw new AuthorizationError("You need to sign in first.");
+
+  const seller = await getCurrentSeller();
+  if (!seller) throw new AuthorizationError("This account doesn't have a store.");
+  if (seller.status !== "approved") {
+    throw new AuthorizationError("This store hasn't been approved for selling yet.");
+  }
+
+  return { user, seller };
 }

@@ -6,7 +6,7 @@ import { getDB } from "@/lib/db";
 import { rateLimit } from "@/lib/cache";
 import { verifyPassword } from "@/lib/password";
 import { createSession, destroySession } from "@/lib/session";
-import { adminUrl } from "@/lib/adminUrl";
+import { adminUrl } from "@/lib/panelUrl";
 import type { UserRole } from "@/types";
 
 export interface AdminAuthState {

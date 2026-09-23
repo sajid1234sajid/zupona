@@ -6,7 +6,7 @@ import { getDB } from "@/lib/db";
 import { invalidateCatalog } from "@/lib/cache";
 import { AuthorizationError, logAdminAction, requireAdmin } from "@/lib/admin";
 import { setProductStatus } from "@/lib/catalog";
-import { adminUrl } from "@/lib/adminUrl";
+import { adminUrl } from "@/lib/panelUrl";
 import { adjustStock } from "@/lib/inventory";
 import {
   OptionValidationError,

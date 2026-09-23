@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/session";
 import { getStaffAlerts } from "@/lib/adminData";
-import { adminUrl, storefrontOrigin } from "@/lib/adminUrl";
+import { adminUrl, storefrontOrigin } from "@/lib/panelUrl";
 import AdminShell from "@/components/admin/AdminShell";
 
 /** The gate.

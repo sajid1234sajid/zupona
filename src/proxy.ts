@@ -1,22 +1,61 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-/** Host-based routing for the admin panel.
+/** Host-based routing for the back-office panels.
  *
- * The admin panel and the storefront are one Cloudflare Worker, so which one a
- * request gets is decided here by the Host header rather than by deploying two
- * apps. Everything admin lives under `/admin/*` in the app router; this file
- * maps `admin.zupona.com/products` onto `/admin/products` so the internal
- * prefix never reaches the address bar.
+ * The storefront, the admin panel and the Seller Center are one Cloudflare
+ * Worker, so which one a request gets is decided here by the Host header
+ * rather than by deploying three apps. Each panel's pages live under their own
+ * prefix in the app router; this file maps `admin.zupona.com/products` onto
+ * `/admin/products`, and `seller.zupona.com/orders` onto `/seller/orders`, so
+ * the internal prefix never reaches the address bar.
  *
- * Locally there is no subdomain, so `localhost:3001/admin` is left to work
- * directly -- the host rules only fire for real domains.
+ * Locally there is no subdomain, so `localhost:3001/admin` and
+ * `localhost:3001/seller` are left to work directly -- the host rules only
+ * fire for real domains.
  *
- * This is routing, not authorization. Nothing here decides who may see the
- * panel: `requireAdmin()` in the layout and in every server action does that,
- * because a proxy check can be bypassed by anything that reaches the origin
- * another way. */
+ * This is routing, not authorization. Nothing here decides who may see a
+ * panel: `requireAdmin()` and the Seller Center's own guard, in the layouts and
+ * in every server action, do that -- because a proxy check can be bypassed by
+ * anything that reaches the origin another way. */
 
-const ADMIN_HOST_PREFIX = "admin.";
+interface Panel {
+  /** The subdomain this panel answers on, trailing dot included. */
+  hostPrefix: string;
+  /** The internal route prefix its pages live under. */
+  base: string;
+  /** The panel's own top-level sections.
+   *
+   * Only these are served from the root of the panel's host. Anything else --
+   * `/product/123`, `/cart`, `/wishlist` -- belongs to the storefront, and a
+   * link to it from inside the panel is sent to the main domain rather than
+   * being rewritten into a panel route that does not exist. */
+  segments: Set<string>;
+}
+
+const PANELS: Panel[] = [
+  {
+    hostPrefix: "admin.",
+    base: "/admin",
+    segments: new Set([
+      "login",
+      "products",
+      "categories",
+      "orders",
+      "customers",
+      "distributors",
+      "coupons",
+      "marketing",
+      "reports",
+      "settings",
+      "search",
+    ]),
+  },
+  {
+    hostPrefix: "seller.",
+    base: "/seller",
+    segments: new Set(["login", "apply", "pending", "settings"]),
+  },
+];
 
 /** Assets, server-action payloads and the media route must reach their real
  * paths untouched on every host. */
@@ -26,15 +65,15 @@ const PASS_THROUGH = [
   "/__vinext",
   "/favicon.ico",
   "/robots.txt",
-  // The installable-app files. Bouncing these to the apex from the admin host
+  // The installable-app files. Bouncing these to the apex from a panel host
   // would only turn them into cross-origin requests the browser then ignores.
   "/manifest.webmanifest",
   "/apple-touch-icon.png",
   "/icon-192.png",
   "/icon-512.png",
   "/icon-maskable-512.png",
-  // The panel's own installable-app files. These have to be served on the
-  // admin host rather than redirected to the apex: a redirect is what the
+  // The admin panel's own installable-app files. These have to be served on
+  // the admin host rather than redirected to the apex: a redirect is what the
   // Android build fetching them would fail on, and a manifest whose icons
   // live on another origin is not the panel's app.
   "/admin.webmanifest",
@@ -49,26 +88,6 @@ const PASS_THROUGH = [
 /** Android insists on this exact path; the handler lives under `/api`. */
 const ASSET_LINKS_PATH = "/.well-known/assetlinks.json";
 
-/** The panel's own top-level sections.
- *
- * Only these are served from the root of the admin host. Anything else --
- * `/product/123`, `/cart`, `/wishlist` -- belongs to the storefront, and a
- * link to it from inside the panel is sent to the main domain rather than
- * being rewritten into an admin route that does not exist. */
-const ADMIN_SEGMENTS = new Set([
-  "login",
-  "products",
-  "categories",
-  "orders",
-  "customers",
-  "distributors",
-  "coupons",
-  "marketing",
-  "reports",
-  "settings",
-  "search",
-]);
-
 /** A routable public domain: at least one dot and an alphabetic TLD.
  *
  * The alphabetic TLD is what rules out a bare IP -- `127.0.0.1` contains dots
@@ -80,10 +99,17 @@ function hostOf(request: NextRequest): string {
   return (request.headers.get("host") ?? "").split(":")[0].toLowerCase();
 }
 
-/** True for hostnames that have an admin subdomain to send people to. */
-function hasAdminSubdomain(host: string): boolean {
+/** True for hostnames that have panel subdomains to send people to. */
+function hasPanelSubdomains(host: string): boolean {
   if (!PUBLIC_DOMAIN.test(host)) return false;
   return !host.endsWith("workers.dev") && !host.endsWith("localhost");
+}
+
+/** The panel whose internal prefix this path carries, if any. */
+function panelForPath(pathname: string): Panel | undefined {
+  return PANELS.find(
+    (panel) => pathname === panel.base || pathname.startsWith(`${panel.base}/`)
+  );
 }
 
 export function proxy(request: NextRequest) {
@@ -100,28 +126,32 @@ export function proxy(request: NextRequest) {
   }
 
   const host = hostOf(request);
-  const isPrefixed = pathname === "/admin" || pathname.startsWith("/admin/");
+  const prefixed = panelForPath(pathname);
+  const panel = PANELS.find((entry) => host.startsWith(entry.hostPrefix));
 
-  if (host.startsWith(ADMIN_HOST_PREFIX)) {
+  if (panel) {
     // Anything that still hands out an internal `/admin/...` URL is bounced to
     // the clean equivalent, so the address bar shows admin.zupona.com/products.
-    if (isPrefixed) {
+    // Only this panel's own prefix is stripped: `/admin/...` reached on the
+    // seller host is not this panel's URL to rewrite, and falls through to the
+    // storefront redirect below.
+    if (prefixed === panel) {
       const target = request.nextUrl.clone();
-      target.pathname = pathname.slice("/admin".length) || "/";
+      target.pathname = pathname.slice(panel.base.length) || "/";
       return NextResponse.redirect(target);
     }
 
     const segment = pathname.split("/")[1] ?? "";
 
-    if (pathname === "/" || ADMIN_SEGMENTS.has(segment)) {
+    if (pathname === "/" || panel.segments.has(segment)) {
       const target = request.nextUrl.clone();
-      target.pathname = pathname === "/" ? "/admin" : `/admin${pathname}`;
+      target.pathname = pathname === "/" ? panel.base : `${panel.base}${pathname}`;
       return NextResponse.rewrite(target);
     }
 
-    // A storefront path reached on the admin host: send it to the main site,
+    // A storefront path reached on a panel host: send it to the main site,
     // which is what "View live" on a product means.
-    const apex = host.slice(ADMIN_HOST_PREFIX.length);
+    const apex = host.slice(panel.hostPrefix.length);
     if (PUBLIC_DOMAIN.test(apex)) {
       const target = new URL(request.url);
       target.hostname = apex;
@@ -132,13 +162,13 @@ export function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // On the storefront host, send /admin traffic to the subdomain so the panel
+  // On the storefront host, send panel traffic to its subdomain so each panel
   // has one canonical address. Skipped on localhost, raw IPs and *.workers.dev,
-  // where `/admin` is the only way in.
-  if (isPrefixed && hasAdminSubdomain(host)) {
+  // where the prefix is the only way in.
+  if (prefixed && hasPanelSubdomains(host)) {
     const target = new URL(request.url);
-    target.hostname = `${ADMIN_HOST_PREFIX}${host.replace(/^www\./, "")}`;
-    target.pathname = pathname.slice("/admin".length) || "/";
+    target.hostname = `${prefixed.hostPrefix}${host.replace(/^www\./, "")}`;
+    target.pathname = pathname.slice(prefixed.base.length) || "/";
     target.search = search;
     return NextResponse.redirect(target);
   }

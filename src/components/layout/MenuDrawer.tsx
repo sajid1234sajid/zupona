@@ -56,14 +56,10 @@ const SECTIONS: MenuSection[] = [
   {
     title: "More",
     links: [
-      // No seller onboarding page exists yet, and the account page already
-      // sends shoppers to this address, so both of these go to the one
-      // support inbox rather than to a route that would 404.
-      {
-        label: "Sell on Zupona",
-        href: "mailto:support@zupona.shop?subject=Selling%20on%20Zupona",
-        icon: Store,
-      },
+      // This is the Seller Center's one door on the shop. Nobody finds
+      // `seller.zupona.com` by typing it, so the onboarding page has to be
+      // reachable from the storefront or the whole surface is invisible.
+      { label: "Sell on Zupona", href: "/sell", icon: Store },
       { label: "Help", href: "mailto:support@zupona.shop", icon: LifeBuoy },
     ],
   },

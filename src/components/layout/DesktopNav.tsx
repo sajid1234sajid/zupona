@@ -60,12 +60,12 @@ export default function DesktopNav() {
           <MapPin className="h-3.5 w-3.5 text-brand" strokeWidth={2.25} />
           Delivering across Bangladesh
         </span>
-        <a
-          href="mailto:support@zupona.shop?subject=Selling%20on%20Zupona"
-          className="hover:text-brand-darkest"
-        >
+        {/* The Seller Center's door on the desktop header. It used to be a
+            mailto:, which on a machine with no mail client set up simply does
+            nothing when clicked. */}
+        <Link href="/sell" className="hover:text-brand-darkest">
           Sell on Zupona
-        </a>
+        </Link>
         <a href="mailto:support@zupona.shop" className="hover:text-brand-darkest">
           Help
         </a>

@@ -54,9 +54,20 @@ export const viewport: Viewport = {
  * already makes, which is served from KV at the edge, and the layout renders
  * alongside the page rather than before it, so the wait is not added to the
  * page's own. An unconfigured shop renders nothing at all: no component, no
- * stub, no script. */
+ * stub, no script.
+ *
+ * The read cannot be allowed to fail the render. This is the root layout, so
+ * whatever it throws takes down every page on the storefront -- including
+ * `/offline`, which is the one page that exists precisely for when things are
+ * unreachable. A settings read that fails costs the shop its pixel until the
+ * next request; it must never cost the shop its pages. */
 export default async function RootLayout({ children }: LayoutProps<"/">) {
-  const { facebookPixelId } = await getShopSettings();
+  let facebookPixelId: string | null = null;
+  try {
+    ({ facebookPixelId } = await getShopSettings());
+  } catch (error) {
+    console.error("shop settings unreadable in root layout", error);
+  }
 
   return (
     <html

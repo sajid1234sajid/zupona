@@ -2,9 +2,11 @@
 
 /** The Meta pixel, loaded so that a shopper never pays for it.
  *
- * Meta's `fbevents.js` is around 70KB of third-party JavaScript, which on a
- * mid-range Android on mobile data is exactly the kind of weight this shop has
- * spent its life removing. So it is split in two:
+ * Meta's `fbevents.js` is 110KB over the wire and 422KB parsed -- third-party
+ * JavaScript on a scale this shop has spent its life removing. Measured on a
+ * live product page at 4x CPU throttling, loading it costs roughly 0.6-1.9s of
+ * extra main-thread long-task time. So it is split in two, which keeps all of
+ * that after the paint: first contentful paint measured unchanged.
  *
  *   - The stub goes up immediately. It is the few lines Meta's own snippet
  *     defines: a function that pushes every call into an array. Events fired

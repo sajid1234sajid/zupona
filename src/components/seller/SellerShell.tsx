@@ -3,7 +3,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ExternalLink, Leaf, LogOut, Menu } from "lucide-react";
+import { ExternalLink, Leaf, LogOut, Menu, ShieldCheck } from "lucide-react";
 import { ICONS } from "@/components/admin/icons";
 import { SELLER_NAV, isSellerSectionActive } from "./nav";
 import { logOutSellerAction } from "@/app/seller/actions";
@@ -11,9 +11,12 @@ import ZuponaMark from "@/components/brand/ZuponaMark";
 
 interface SellerShellProps {
   storeName: string;
+  storeStatus: string;
   ownerName: string;
   /** Absolute origin of the shop, empty when links can stay relative. */
   storefrontUrl: string;
+  /** True when a platform admin is working on a shop they do not own. */
+  asAdmin: boolean;
   children: ReactNode;
 }
 
@@ -27,8 +30,10 @@ interface SellerShellProps {
  * to open. */
 export default function SellerShell({
   storeName,
+  storeStatus,
   ownerName,
   storefrontUrl,
+  asAdmin,
   children,
 }: SellerShellProps) {
   const pathname = usePathname();
@@ -148,6 +153,27 @@ export default function SellerShell({
             <span className="hidden sm:inline">Storefront</span>
           </a>
         </header>
+
+        {asAdmin ? (
+          // Deliberately loud, and on every screen rather than only the first.
+          // An admin editing a shop they do not own should never be in any
+          // doubt about whose data is in front of them.
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-amber-200 bg-amber-50 px-4 py-2.5 text-[13px] text-amber-800 lg:px-6">
+            <ShieldCheck className="h-4 w-4 shrink-0" />
+            <span>
+              Viewing <span className="font-semibold">{storeName}</span> as a Zupona admin
+              {storeStatus === "approved" ? null : (
+                <span className="font-semibold"> · this shop is {storeStatus}</span>
+              )}
+            </span>
+            <Link
+              href="/seller/stores"
+              className="font-semibold underline underline-offset-2 hover:text-amber-900"
+            >
+              Switch store
+            </Link>
+          </div>
+        ) : null}
 
         <main className="min-w-0 flex-1 px-4 py-5 lg:px-6 lg:py-6">{children}</main>
       </div>

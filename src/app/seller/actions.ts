@@ -6,7 +6,15 @@ import { getDB } from "@/lib/db";
 import { rateLimit } from "@/lib/cache";
 import { hashPassword, verifyPassword } from "@/lib/password";
 import { createSession, destroySession, getCurrentUser } from "@/lib/session";
-import { applyAsSeller, getSellerForUser, requireApprovedSeller, updateSellerProfile } from "@/lib/sellers";
+import {
+  applyAsSeller,
+  getSeller,
+  getSellerForUser,
+  requireApprovedSeller,
+  setSellerView,
+  updateSellerProfile,
+} from "@/lib/sellers";
+import { requireAdmin } from "@/lib/admin";
 import { sellerUrl } from "@/lib/panelUrl";
 
 export interface SellerAuthState {
@@ -231,6 +239,30 @@ export async function applySellerAction(
   }
 
   redirect(await sellerUrl("/seller/pending"));
+}
+
+/* -------------------------------------------------------------------------- */
+/* Working on a store as an admin                                             */
+/* -------------------------------------------------------------------------- */
+
+/** Points the admin's Seller Center at a store and opens it.
+ *
+ * Guarded by `requireAdmin()` rather than by a seller guard, because this is
+ * the one action in the panel only the platform can take: a seller has no
+ * store to choose between, and nothing here would be safe if one could. */
+export async function viewStoreAction(formData: FormData): Promise<void> {
+  await requireAdmin();
+
+  const sellerId = String(formData.get("sellerId") ?? "");
+  if (!sellerId) return;
+
+  // Looked up rather than taken on trust, so a made-up id cannot leave the
+  // panel pointed at a store that does not exist.
+  const seller = await getSeller(sellerId);
+  if (!seller) return;
+
+  await setSellerView(sellerId);
+  redirect(await sellerUrl("/seller"));
 }
 
 /* -------------------------------------------------------------------------- */

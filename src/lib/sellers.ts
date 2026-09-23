@@ -6,6 +6,7 @@
  * calculated from. */
 
 import { cache } from "react";
+import { cookies } from "next/headers";
 
 import { getDB } from "@/lib/db";
 import { AuthorizationError } from "@/lib/admin";
@@ -249,39 +250,83 @@ export function calcCommission(amount: number, commissionRate: number): number {
 export interface SellerSession {
   user: AuthUser;
   seller: Seller;
+  /** True when a platform admin is working on a store they do not own. */
+  asAdmin: boolean;
 }
 
-/** The signed-in user's store, memoised for the request.
+/** Which store an admin is currently looking at.
  *
- * The Seller Center layout needs it to decide whether to render the panel at
- * all, and every page inside it needs the same row to scope its own queries.
- * Without the cache that is one extra Singapore round trip on every screen,
- * for a row that cannot have changed in between. */
+ * An admin owns no store, so unlike a seller there is nothing in the database
+ * that answers "whose panel is this". The store picker writes the choice here
+ * instead. The cookie is only ever consulted for an admin, so a seller cannot
+ * hand themselves another shop by setting it in their own browser. */
+const VIEW_AS_COOKIE = "zupona_seller_view";
+
+/** Points an admin's Seller Center at a given store. */
+export async function setSellerView(sellerId: string): Promise<void> {
+  const cookieStore = await cookies();
+  cookieStore.set(VIEW_AS_COOKIE, sellerId, {
+    httpOnly: true,
+    secure: true,
+    sameSite: "lax",
+    path: "/",
+  });
+}
+
+/** The store the current visitor is working on, memoised for the request.
+ *
+ * A seller has exactly one, their own, and it is read from the session so that
+ * nothing the browser sends can change whose shop they are in.
+ *
+ * An admin has none of their own and may work on any of them. That is what
+ * lets the platform's own staff see precisely what a merchant sees when one
+ * writes in about a problem, rather than guessing from the admin panel's very
+ * different screens. It is the same rule `requireSellerOwnership()` in
+ * `admin.ts` already follows, where an admin passes every ownership check.
+ *
+ * The cache matters because the layout needs this row to decide whether to
+ * render the panel at all and every page inside needs it to scope its queries;
+ * without it that is one extra Singapore round trip per screen. */
 export const getCurrentSeller = cache(async function getCurrentSeller(): Promise<Seller | null> {
   const user = await getCurrentUser();
-  return user ? getSellerForUser(user.id) : null;
+  if (!user) return null;
+
+  if (user.role === "admin") {
+    const cookieStore = await cookies();
+    const chosen = cookieStore.get(VIEW_AS_COOKIE)?.value;
+    return chosen ? getSeller(chosen) : null;
+  }
+
+  return getSellerForUser(user.id);
 });
 
-/** The approved store the signed-in user owns.
+/** The store the caller is allowed to act on.
  *
  * Every Seller Center server action starts here rather than trusting a
- * `seller_id` that arrived in a form: the store is read from the session, so
- * one seller cannot act as another by editing a hidden field. The Seller
+ * `seller_id` that arrived in a form: the store comes from the session, or for
+ * an admin from a cookie that only an admin's own role unlocks. The Seller
  * Center layout makes the same checks to decide what to render, but a layout
  * only guards rendering and a server action can be invoked directly.
  *
- * A store that is still pending, or has been suspended, is refused here as
+ * For a seller, a store that is still pending or suspended is refused as
  * firmly as a stranger -- approval is what separates an application from a
- * shop. */
+ * shop. An admin is not held to that, because a shop that has not been
+ * approved is exactly the one they are most likely to be looking into. */
 export async function requireApprovedSeller(): Promise<SellerSession> {
   const user = await getCurrentUser();
   if (!user) throw new AuthorizationError("You need to sign in first.");
 
+  const asAdmin = user.role === "admin";
   const seller = await getCurrentSeller();
-  if (!seller) throw new AuthorizationError("This account doesn't have a store.");
-  if (seller.status !== "approved") {
+
+  if (!seller) {
+    throw new AuthorizationError(
+      asAdmin ? "Choose a store to work on first." : "This account doesn't have a store."
+    );
+  }
+  if (!asAdmin && seller.status !== "approved") {
     throw new AuthorizationError("This store hasn't been approved for selling yet.");
   }
 
-  return { user, seller };
+  return { user, seller, asAdmin };
 }

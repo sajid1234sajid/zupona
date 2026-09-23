@@ -37,6 +37,9 @@ const PROMISES = [
 export default async function SellerApplyPage() {
   const user = await getCurrentUser();
 
+  // An admin does not apply to sell; they pick which shop to work on.
+  if (user?.role === "admin") redirect(await sellerUrl("/seller/stores"));
+
   // Someone who already applied is sent to read their status: the form would
   // only refuse them, and the status screen is what they actually came for.
   if (user && (await getCurrentSeller())) {

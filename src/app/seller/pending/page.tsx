@@ -52,6 +52,9 @@ export default async function SellerPendingPage() {
   const user = await getCurrentUser();
   if (!user) redirect(await sellerUrl("/seller/login"));
 
+  // An admin has no application of their own waiting on a decision.
+  if (user.role === "admin") redirect(await sellerUrl("/seller/stores"));
+
   const seller = await getCurrentSeller();
   if (!seller) redirect(await sellerUrl("/seller/apply"));
   if (seller.status === "approved") redirect(await sellerUrl("/seller"));

@@ -231,6 +231,12 @@ export function StoreSettingsForm({
           subtitle="Lets Meta see which visits became orders, so a campaign can learn"
         />
         <div className="space-y-4">
+          {/* A text box sitting above a password box is what a browser reads
+              as a login form, and it will helpfully fill this one with the
+              admin's email address and the one below with a saved password.
+              Autofill is switched off on both, and the save refuses anything
+              that is not a pixel id or a token -- a wrong value saved here
+              would silently stop the shop reporting its sales. */}
           <Field
             label="Pixel (dataset) ID"
             hint="Events Manager -> your dataset -> the 15-16 digit number. Empty switches tracking off entirely."
@@ -238,6 +244,10 @@ export function StoreSettingsForm({
             <input
               name="facebook_pixel_id"
               inputMode="numeric"
+              autoComplete="off"
+              spellCheck={false}
+              data-lpignore="true"
+              data-1p-ignore=""
               defaultValue={settings.facebookPixelId ?? ""}
               placeholder="1234567890123456"
               className={fieldStyles}
@@ -254,7 +264,9 @@ export function StoreSettingsForm({
             <input
               name="meta_capi_token"
               type="password"
-              autoComplete="off"
+              autoComplete="new-password"
+              data-lpignore="true"
+              data-1p-ignore=""
               placeholder={capiTokenSet ? "Saved - leave blank to keep it" : "Paste the token"}
               className={fieldStyles}
             />

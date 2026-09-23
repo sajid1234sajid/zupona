@@ -83,6 +83,25 @@ export async function saveSettingsAction(
       // shop turns the feature off by emptying the pixel id instead.
       if (SECRETS.has(key) && value === "") continue;
 
+      /* Both Meta fields are checked before they are stored, because a wrong
+       * value here fails silently: the pixel simply stops reporting and the
+       * shop finds out weeks later from an ad campaign that learned nothing.
+       * The likeliest wrong value is not a typo but a browser's autofill,
+       * which reads a text box above a password box as a login form and puts
+       * an email address and a saved password into them. */
+      if (key === "facebook_pixel_id" && value !== "" && !/^\d{10,20}$/.test(value)) {
+        return {
+          error:
+            "The Pixel ID is the 15-16 digit number from Events Manager. Your browser may have filled that box with something else -- clear it and paste the number.",
+        };
+      }
+      if (key === "meta_capi_token" && (value.length < 20 || /\s/.test(value))) {
+        return {
+          error:
+            "That does not look like a Conversions API token -- they are long and have no spaces. If your browser filled the box with a saved password, clear it: an empty box keeps whatever is already stored.",
+        };
+      }
+
       if (kind === "number") {
         const parsed = Number.parseInt(value.replace(/[^\d-]/g, ""), 10);
         if (!Number.isFinite(parsed) || parsed < 0) {

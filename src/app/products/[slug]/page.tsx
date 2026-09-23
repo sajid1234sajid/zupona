@@ -11,6 +11,7 @@ import SimilarProducts from "@/components/product/dynamic/SimilarProducts";
 import type { DeliveryLine } from "@/components/product/dynamic/PurchaseInfo";
 import { getStoreProductBySlug, getStoreCategory, listStoreProducts } from "@/lib/storefront";
 import { getShopSettings } from "@/lib/shopSettings";
+import PixelEvent from "@/components/analytics/PixelEvent";
 import { DELIVERY_DAYS, deliveryOptionsFor } from "@/lib/checkout";
 import { formatPrice } from "@/lib/format";
 import { getCurrentUser } from "@/lib/session";
@@ -117,6 +118,19 @@ export default async function DynamicProductPage({ params }: PageProps<"/product
 
   return (
     <StoreShell withStickyActions>
+      {/* Tells Meta which product was looked at, which is what a campaign
+        * needs to know before it can find more people who look at that kind
+        * of thing. Draws nothing. */}
+      <PixelEvent
+        event="ViewContent"
+        params={{
+          content_ids: [product.id],
+          content_name: product.name,
+          content_type: "product",
+          currency: "BDT",
+          value: product.price,
+        }}
+      />
       <div className="tab:hidden">
         <ProductHeader />
       </div>

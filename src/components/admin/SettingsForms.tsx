@@ -59,11 +59,15 @@ export function StoreSettingsForm({
   settings,
   smsStatus,
   smsBalance,
+  capiTokenSet,
 }: {
   settings: ShopSettings;
   smsStatus: SmsGatewayStatus;
   /** What is left at the gateway, when the provider will say. */
   smsBalance: SmsBalance | null;
+  /** Whether a Conversions API token is stored. The token itself never
+   * reaches this component -- only whether there is one. */
+  capiTokenSet: boolean;
 }) {
   const balanceLow = smsBalance !== null && smsBalance.amount < LOW_BALANCE_TAKA;
   const [state, formAction, pending] = useActionState<SettingsFormState, FormData>(
@@ -218,6 +222,43 @@ export function StoreSettingsForm({
             detail="Shows a holding page to shoppers — the admin panel stays open"
             checked={settings.maintenanceMode}
           />
+        </div>
+      </Card>
+
+      <Card>
+        <CardHeader
+          title="Facebook Pixel"
+          subtitle="Lets Meta see which visits became orders, so a campaign can learn"
+        />
+        <div className="space-y-4">
+          <Field
+            label="Pixel (dataset) ID"
+            hint="Events Manager -> your dataset -> the 15-16 digit number. Empty switches tracking off entirely."
+          >
+            <input
+              name="facebook_pixel_id"
+              inputMode="numeric"
+              defaultValue={settings.facebookPixelId ?? ""}
+              placeholder="1234567890123456"
+              className={fieldStyles}
+            />
+          </Field>
+          <Field
+            label="Conversions API token"
+            hint={
+              capiTokenSet
+                ? "A token is saved. Leave this blank to keep it, or paste a new one to replace it."
+                : "Optional, and worth it: without it a blocked browser loses the purchase. Events Manager -> Settings -> Generate access token."
+            }
+          >
+            <input
+              name="meta_capi_token"
+              type="password"
+              autoComplete="off"
+              placeholder={capiTokenSet ? "Saved - leave blank to keep it" : "Paste the token"}
+              className={fieldStyles}
+            />
+          </Field>
         </div>
       </Card>
 

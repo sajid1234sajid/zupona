@@ -44,6 +44,13 @@ export interface ShopSettings {
    * is what sms.net.bd uses for non-masked traffic. The API key behind it is a
    * Worker secret and is never a setting. */
   smsSenderId: string | null;
+
+  /** The Meta (Facebook) pixel dataset id, pasted in from Events Manager.
+   * Null means no pixel: nothing loads and no event is sent, which is the
+   * state every shop starts in. The id is public by nature -- it appears in
+   * the page source of every site that has one -- so unlike the access token
+   * behind it, it travels with the rest of the settings. */
+  facebookPixelId: string | null;
 }
 
 /** What the storefront falls back to. These match the values that used to be
@@ -66,6 +73,7 @@ export const DEFAULT_SETTINGS: ShopSettings = {
   maintenanceMode: false,
   otpDemoMode: false,
   smsSenderId: null,
+  facebookPixelId: null,
 };
 
 function readInt(raw: string | undefined, fallback: number): number {
@@ -117,6 +125,7 @@ async function querySettings(): Promise<ShopSettings> {
     maintenanceMode: readFlag(map.get("maintenance_mode"), DEFAULT_SETTINGS.maintenanceMode),
     otpDemoMode: readFlag(map.get("otp_demo_mode"), DEFAULT_SETTINGS.otpDemoMode),
     smsSenderId: map.get("sms_sender_id")?.trim() || null,
+    facebookPixelId: map.get("facebook_pixel_id")?.trim() || null,
   };
 }
 

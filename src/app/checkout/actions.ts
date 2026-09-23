@@ -1,7 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { getDB } from "@/lib/db";
 import { rateLimit } from "@/lib/cache";
 import { claimGuest, createSession, getShopper } from "@/lib/session";
@@ -26,6 +26,7 @@ import { formatPrice } from "@/lib/format";
 import { reserveStock, releaseReservation } from "@/lib/inventory";
 import { getBuyNowLine, consumeBuyNowSession, clearBuyNowCookie } from "@/lib/buyNow";
 import { planSuborders, commissionRates, createSuborders } from "@/lib/suborders";
+import { sendPurchase } from "@/lib/analytics";
 
 export interface SendCodeState {
   error?: string;
@@ -533,6 +534,40 @@ export async function placeOrderAction(
     }
   } catch (error) {
     console.error("admin new-order notification failed", { orderId, error });
+  }
+
+  /* Report the sale to Meta once the order is safely written, and without
+   * making the shopper wait for it: `waitUntil` keeps the Worker alive for the
+   * request while the redirect is already on its way. Everything that can go
+   * wrong -- no pixel configured, a stale token, Meta being slow -- is handled
+   * inside `sendPurchase` and logged. An advert that learns late is a nuisance;
+   * an order that fails to complete is not. */
+  try {
+    const requestHeaders = await headers();
+    const jar = await cookies();
+    const { waitUntil } = await import("cloudflare:workers");
+
+    waitUntil(
+      sendPurchase({
+        orderId,
+        value: total,
+        lines: lines.map((line) => ({
+          productId: line.productId,
+          quantity: line.quantity,
+          price: line.price,
+        })),
+        phone,
+        sourceUrl: requestHeaders.get("referer"),
+        clientIp: requestHeaders.get("cf-connecting-ip"),
+        userAgent: requestHeaders.get("user-agent"),
+        /* Meta's own cookies, set by the pixel in the browser. They are what
+         * ties this server-sent event back to the person who saw the ad. */
+        fbp: jar.get("_fbp")?.value ?? null,
+        fbc: jar.get("_fbc")?.value ?? null,
+      })
+    );
+  } catch (error) {
+    console.error("meta purchase dispatch failed", { orderId, error });
   }
 
   await clearPhoneVerification();

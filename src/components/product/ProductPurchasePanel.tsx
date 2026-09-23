@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ShoppingCart, Zap, LoaderCircle } from "lucide-react";
 import type { ProductColor } from "@/types";
 import { addToCartAction } from "@/app/cart/actions";
+import { trackPixel } from "@/components/analytics/MetaPixel";
 
 export default function ProductPurchasePanel({
   productId,
@@ -24,6 +25,7 @@ export default function ProductPurchasePanel({
   function handleAddToCart() {
     startCartTransition(async () => {
       await addToCartAction(productId, selectedColor);
+      trackPixel("AddToCart", { content_ids: [productId], content_type: "product" });
       setAdded(true);
       router.refresh();
     });

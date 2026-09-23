@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Poppins } from "next/font/google";
 import ServiceWorkerRegistration from "@/components/app/ServiceWorkerRegistration";
+import MetaPixel from "@/components/analytics/MetaPixel";
+import { getShopSettings } from "@/lib/shopSettings";
 import "./globals.css";
 
 const poppins = Poppins({
@@ -47,7 +49,15 @@ export const viewport: Viewport = {
   themeColor: "#037e5b",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+/* The pixel id is read here rather than on each page because a page view is
+ * a thing every page has. It comes from the settings read the storefront
+ * already makes, which is served from KV at the edge, and the layout renders
+ * alongside the page rather than before it, so the wait is not added to the
+ * page's own. An unconfigured shop renders nothing at all: no component, no
+ * stub, no script. */
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  const { facebookPixelId } = await getShopSettings();
+
   return (
     <html
       lang="en"
@@ -56,6 +66,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="min-h-full flex flex-col bg-white">
         {children}
         <ServiceWorkerRegistration />
+        {facebookPixelId ? <MetaPixel pixelId={facebookPixelId} /> : null}
       </body>
     </html>
   );

@@ -8,6 +8,7 @@ import type { StoreProduct } from "@/lib/storefront";
 import { formatPrice } from "@/lib/format";
 import { addSelectionToCartAction, buyNowAction } from "@/app/cart/actions";
 import { callAction } from "@/lib/callAction";
+import { trackPixel } from "@/components/analytics/MetaPixel";
 import { toggleWishlistAction } from "@/app/wishlist/actions";
 import ProductMedia from "./ProductMedia";
 import OptionGroups from "./OptionGroups";
@@ -147,6 +148,17 @@ export default function ProductView({
       }
 
       setFeedback({ ok: true, message: "Added to your cart." });
+
+      // Reported from the browser, and only once the server has said yes: an
+      // add to cart Meta hears about that never happened teaches a campaign
+      // the wrong thing. The variant carries the price where it has one.
+      trackPixel("AddToCart", {
+        content_ids: [product.id],
+        content_name: product.name,
+        content_type: "product",
+        currency: "BDT",
+        value: (variant?.price ?? product.price) * quantity,
+      });
       // Refreshes the header's cart count from the server rather than guessing
       // it, so what the badge shows is what the database holds.
       router.refresh();

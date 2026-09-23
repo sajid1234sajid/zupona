@@ -25,6 +25,7 @@ import LeafBackdrop from "@/components/checkout/LeafBackdrop";
 import ZuponaMark from "@/components/brand/ZuponaMark";
 import SuccessBurst from "@/components/checkout/SuccessBurst";
 import OrderProgress from "@/components/order/OrderProgress";
+import PixelEvent from "@/components/analytics/PixelEvent";
 
 /** SQLite stores `YYYY-MM-DD HH:MM:SS` in UTC. */
 function parsePlacedAt(placedAt: string): Date {
@@ -77,6 +78,26 @@ export default async function OrderConfirmedPage({ params }: PageProps<"/checkou
   return (
     <div className="relative mx-auto flex min-h-screen w-full max-w-md flex-col overflow-hidden bg-brand-mist tab:max-w-2xl">
       <LeafBackdrop />
+
+      {/* The browser's half of the sale. The Worker sends the same event with
+        * the same id when the order is written, and Meta keeps whichever
+        * arrives first -- so a blocked browser costs nothing and an unblocked
+        * one is not counted twice. */}
+      <PixelEvent
+        event="Purchase"
+        eventId={order.id}
+        params={{
+          currency: "BDT",
+          value: order.total,
+          content_type: "product",
+          contents: order.items.map((item) => ({
+            id: item.productId,
+            quantity: item.quantity,
+            item_price: item.price,
+          })),
+          num_items: order.items.reduce((sum, item) => sum + item.quantity, 0),
+        }}
+      />
 
       <div className="relative flex flex-1 flex-col pb-8">
         <header className="flex items-center gap-2 px-4 pb-1 pt-4">

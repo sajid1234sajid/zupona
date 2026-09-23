@@ -38,7 +38,19 @@ const EDITABLE: Record<string, "text" | "number" | "boolean"> = {
   maintenance_mode: "boolean",
   otp_demo_mode: "boolean",
   sms_sender_id: "text",
+  facebook_pixel_id: "text",
+  meta_capi_token: "text",
 };
+
+/** Settings whose value must not be echoed back to the browser or written
+ * into a log.
+ *
+ * The Conversions API token can post events as this shop for as long as it
+ * lives, so the form only ever sends it when it is being changed: an empty
+ * box means "keep what is stored", not "clear it". The pixel id is the
+ * public half and is not a secret -- emptying it is how the shop turns the
+ * pixel off. */
+const SECRETS = new Set(["meta_capi_token"]);
 
 function toFormError(error: unknown): SettingsFormState {
   if (error instanceof AuthorizationError) return { error: error.message };
@@ -66,6 +78,11 @@ export async function saveSettingsAction(
       if (raw === null) continue;
 
       const value = String(raw).trim();
+      // An untouched secret box posts empty. Clearing one is done by typing a
+      // space, which trims to empty and is caught above as "no change" -- the
+      // shop turns the feature off by emptying the pixel id instead.
+      if (SECRETS.has(key) && value === "") continue;
+
       if (kind === "number") {
         const parsed = Number.parseInt(value.replace(/[^\d-]/g, ""), 10);
         if (!Number.isFinite(parsed) || parsed < 0) {
@@ -73,7 +90,7 @@ export async function saveSettingsAction(
         }
         changed[key] = String(parsed);
       } else {
-        changed[key] = value.slice(0, 200);
+        changed[key] = value.slice(0, SECRETS.has(key) ? 500 : 200);
       }
     }
 
@@ -83,7 +100,13 @@ export async function saveSettingsAction(
       await setSetting(key, value);
     }
 
-    await logAdminAction(admin.id, "settings.update", "settings", null, { after: changed });
+    /* The audit log keeps every privileged change forever, and a token
+     * written into it would outlive the token itself. A secret is recorded
+     * as having changed, never as what it changed to. */
+    const redacted = Object.fromEntries(
+      Object.entries(changed).map(([key, value]) => [key, SECRETS.has(key) ? "(updated)" : value])
+    );
+    await logAdminAction(admin.id, "settings.update", "settings", null, { after: redacted });
     await invalidate("settings:all");
     await invalidateCatalog();
   } catch (error) {

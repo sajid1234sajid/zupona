@@ -50,7 +50,7 @@ const BACKDROP_OVER = 0.03;
  * is what the owner found tiresome. A picture that does not match the frame
  * (a later slide of a different shape, or an upright one past 4:5) has the
  * space around it filled with a blurred copy of itself rather than bare
- * colour. That copy is the same URL at the same width, so it costs no bytes.
+ * colour -- the 64px version, a couple of kilobytes.
  *
  * The shape is known before the picture loads: the admin uploader writes each
  * picture's size into its URL (see `dimensionsFromUrl`). Pictures uploaded
@@ -279,9 +279,12 @@ export default function ProductMedia({
                         alt=""
                         aria-hidden
                         fill
-                        sizes="(min-width: 700px) 440px, 100vw"
-                        className="scale-110 blur-2xl brightness-90"
-                        priority={index === 0}
+                        // The 64px version, enlarged: soft already, so a light
+                        // blur finishes it. Blurring the full-size picture
+                        // measured as hundreds of milliseconds of paint on a
+                        // throttled phone.
+                        sizes="16px"
+                        className="scale-110 object-cover blur-md brightness-90"
                         unoptimized={isUploadedMedia(item.url)}
                       />
                     ) : null;

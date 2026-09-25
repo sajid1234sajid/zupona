@@ -87,16 +87,19 @@ export default function ProductCard({
           className="relative block aspect-[8/9] overflow-hidden bg-brand-mist"
         >
           {/* The whole picture, never cropped -- a cropped tile cut the
-              headline off the shop's banner-style photos. Where the picture is
-              not the tile's shape, the space around it is the same picture
-              blurred: same URL, same width, so it costs no extra bytes. */}
+              headline off the shop's banner-style photos. The space around it
+              is the same picture at 64px, stretched: a picture that small is
+              already soft when enlarged, so it needs only a light blur. A
+              heavy CSS blur of the full-size picture looked the same but cost
+              about 300ms of main-thread work across a grid on a throttled
+              phone; this costs a couple of kilobytes per tile instead. */}
           <Image
             src={product.image}
             alt=""
             aria-hidden
             fill
-            sizes="(max-width: 480px) 46vw, 200px"
-            className="scale-110 object-cover blur-xl brightness-90"
+            sizes="16px"
+            className="scale-110 object-cover blur-[6px] brightness-90"
             unoptimized={product.image.startsWith("/api/media/")}
           />
           <Image

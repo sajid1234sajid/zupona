@@ -63,6 +63,7 @@ export function StoreSettingsForm({
   capiTokenSet,
   aiStatus,
   aiKeysSet,
+  imageAutoFit,
 }: {
   settings: ShopSettings;
   smsStatus: SmsGatewayStatus;
@@ -76,6 +77,8 @@ export function StoreSettingsForm({
   /** Which vendors have a key stored. Same rule as the token: presence,
    * never the value itself. */
   aiKeysSet: Record<ProviderName, boolean>;
+  /** How product pictures are fitted to the 4:5 frame as they are uploaded. */
+  imageAutoFit: "off" | "blur" | "ai";
 }) {
   const balanceLow = smsBalance !== null && smsBalance.amount < LOW_BALANCE_TAKA;
   const [state, formAction, pending] = useActionState<SettingsFormState, FormData>(
@@ -280,6 +283,27 @@ export function StoreSettingsForm({
             />
           </Field>
         </div>
+      </Card>
+
+      <Card>
+        <CardHeader
+          title="Product Pictures"
+          subtitle="What happens to a picture that is not the 4:5 product shape"
+        />
+        {/* The fill is painted by Zupona Image Fit (fit.zupona.com). The AI
+            runs on the Cloudflare account's own allowance, not on the key
+            below, and when it cannot answer the uploader uses the blurred
+            fill instead of failing. */}
+        <Field
+          label="Auto-fit on upload"
+          hint="Nothing is ever cropped: the picture goes in whole and only the space around it is filled. Each fitted picture has an undo button in the gallery."
+        >
+          <select name="image_autofit" defaultValue={imageAutoFit} className={fieldStyles}>
+            <option value="ai">AI fill -- continues the picture's scene (falls back to blur)</option>
+            <option value="blur">Blurred fill -- instant, no AI</option>
+            <option value="off">Off -- upload pictures exactly as chosen</option>
+          </select>
+        </Field>
       </Card>
 
       <Card>

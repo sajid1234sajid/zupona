@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "@/components/ui/StoreImage";
 import { Crown } from "lucide-react";
 import type { StoreMediaItem } from "@/lib/storefront";
+import { dimensionsFromUrl } from "@/lib/image";
 import ProductLightbox from "./ProductLightbox";
 
 /** Admin uploads are served by our own /api/media route, which the Next image
@@ -22,19 +23,40 @@ const SLIDE_DWELL_MS = 2000;
  * swiped back to the picture they wanted to look at. */
 const RESUME_AFTER_MS = 5000;
 
+/** The frame's shape before anything is known about the picture, and the
+ * tallest it is ever allowed to be: an upright picture past 4:5 would bring
+ * back the whole-screen photograph the owner asked to be rid of. */
+const TALLEST_FRAME = 4 / 5;
+
+/** The widest the frame goes. A panorama past 16:9 would leave a strip too
+ * thin to show anything, so it is contained in a 16:9 frame instead. */
+const WIDEST_FRAME = 16 / 9;
+
+/** How far a picture's shape may differ from the frame's before the empty
+ * space around it is filled with a blurred copy rather than left bare. */
+const BACKDROP_OVER = 0.03;
+
 /** The gallery: one picture at a time, dots across its foot, and a tap opens
  * the full-screen viewer.
  *
  * Pictures only. Clips and the thumbnail strip were taken out of the gallery
  * at the owner's request, so the dots count exactly the product's images.
  *
- * The frame is a 4:5 portrait and each picture is contained in it, never
- * cropped: the owner wants every part of a product picture on screen. It was
- * 2:3 until the owner found a picture filling the whole phone screen tiresome;
- * 4:5 leaves the product's name in view below it, and a taller upload simply
- * shows whole with a thin band of the frame's colour at its sides. On a
- * computer the frame is held to 440px wide, or its height would run far below
- * the fold.
+ * The frame takes the shape of the product's first picture, and every
+ * picture is contained in it, never cropped: the owner wants every part of a
+ * product picture on screen. A wide banner therefore gets a wide, short frame
+ * instead of a tall one it would sit in the middle of, and an upright picture
+ * gets 4:5 -- never taller, because a 2:3 frame filling the whole phone screen
+ * is what the owner found tiresome. A picture that does not match the frame
+ * (a later slide of a different shape, or an upright one past 4:5) has the
+ * space around it filled with a blurred copy of itself rather than bare
+ * colour. That copy is the same URL at the same width, so it costs no bytes.
+ *
+ * The shape is known before the picture loads: the admin uploader writes each
+ * picture's size into its URL (see `dimensionsFromUrl`). Pictures uploaded
+ * before that start at 4:5 and settle to their own shape once they arrive.
+ * On a computer the frame is held to 440px wide, or its height would run far
+ * below the fold.
  *
  * Every picture sits in one scroll-snap track rather than in a carousel
  * library, which is what makes the hero swipeable: the browser does the
@@ -84,6 +106,34 @@ export default function ProductMedia({
    * leaves has paid for pictures nobody looked at. It only ever grows, so
    * nothing already on screen is torn down. */
   const [reached, setReached] = useState(0);
+
+  /** Each picture's width over height: read from its URL where the uploader
+   * recorded it, otherwise measured when it loads. */
+  const [measured, setMeasured] = useState<Record<string, number>>({});
+  const shapeOf = useCallback(
+    (item: StoreMediaItem): number | null => {
+      const known = dimensionsFromUrl(item.url);
+      return known ? known.width / known.height : (measured[item.id] ?? null);
+    },
+    [measured]
+  );
+  const firstShape = pictures[0] ? shapeOf(pictures[0]) : null;
+  const frameShape = Math.min(WIDEST_FRAME, Math.max(TALLEST_FRAME, firstShape ?? TALLEST_FRAME));
+
+  // A picture the server rendered can finish loading before this component
+  // hydrates, and then its onLoad never reaches React. Anything already
+  // complete by the time it mounts is measured here instead.
+  useEffect(() => {
+    const images = trackRef.current?.querySelectorAll<HTMLImageElement>("img[data-picture-id]");
+    const found: Record<string, number> = {};
+    images?.forEach((image) => {
+      const id = image.dataset.pictureId;
+      if (!id || !image.complete || !image.naturalWidth || !image.naturalHeight) return;
+      if (dimensionsFromUrl(image.currentSrc || image.src)) return;
+      found[id] = image.naturalWidth / image.naturalHeight;
+    });
+    if (Object.keys(found).length > 0) setMeasured((current) => ({ ...found, ...current }));
+  }, []);
 
   /** The slide the track is actually parked on, or -1 before it has a width. */
   const parkedIndex = useCallback(() => {
@@ -190,7 +240,10 @@ export default function ProductMedia({
 
   return (
     <div>
-      <div className="relative mx-auto aspect-[4/5] w-full overflow-hidden rounded-2xl bg-mint tab:max-w-[440px]">
+      <div
+        className="relative mx-auto w-full overflow-hidden rounded-2xl bg-mint tab:max-w-[440px]"
+        style={{ aspectRatio: frameShape }}
+      >
         <div
           ref={trackRef}
           onScroll={handleScroll}
@@ -214,6 +267,25 @@ export default function ProductMedia({
                   aria-label={`View picture ${index + 1} of ${pictures.length} full screen`}
                   className="relative block h-full w-full cursor-zoom-in focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand"
                 >
+                  {(() => {
+                    // Drawn only where the picture leaves space to fill. Not
+                    // yet known counts as leaving space, so an older upload
+                    // never flashes bare colour while it is measured.
+                    const shape = shapeOf(item);
+                    return shape === null ||
+                      Math.abs(shape - frameShape) / frameShape > BACKDROP_OVER ? (
+                      <Image
+                        src={item.url}
+                        alt=""
+                        aria-hidden
+                        fill
+                        sizes="(min-width: 700px) 440px, 100vw"
+                        className="scale-110 blur-2xl brightness-90"
+                        priority={index === 0}
+                        unoptimized={isUploadedMedia(item.url)}
+                      />
+                    ) : null;
+                  })()}
                   <Image
                     src={item.url}
                     alt={item.alt}
@@ -224,6 +296,16 @@ export default function ProductMedia({
                     // one is mounted lazily, one ahead of where the shopper is.
                     priority={index === 0}
                     unoptimized={isUploadedMedia(item.url)}
+                    data-picture-id={item.id}
+                    onLoad={(event) => {
+                      if (dimensionsFromUrl(item.url)) return;
+                      const { naturalWidth, naturalHeight } = event.currentTarget;
+                      if (!naturalWidth || !naturalHeight) return;
+                      const shape = naturalWidth / naturalHeight;
+                      setMeasured((current) =>
+                        current[item.id] === shape ? current : { ...current, [item.id]: shape }
+                      );
+                    }}
                   />
                 </button>
               )}

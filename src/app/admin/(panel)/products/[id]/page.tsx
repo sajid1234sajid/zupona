@@ -7,6 +7,7 @@ import { listCategoryOptions } from "@/lib/adminData";
 import ProductForm from "@/components/admin/ProductForm";
 import { cellsFromVariants, groupsFromProduct } from "@/components/admin/optionBuilder";
 import { PageHeader, buttonStyles } from "@/components/admin/ui";
+import { getAutoFitMode } from "@/lib/imageFit";
 import { updateProductAction } from "../actions";
 
 export async function generateMetadata(props: PageProps<"/admin/products/[id]">) {
@@ -19,10 +20,11 @@ export default async function EditProductPage(props: PageProps<"/admin/products/
   const { id } = await props.params;
   const searchParams = await props.searchParams;
 
-  const [product, categories, brands] = await Promise.all([
+  const [product, categories, brands, autoFit] = await Promise.all([
     getProductForEdit(id),
     listCategoryOptions(),
     listBrands(),
+    getAutoFitMode(),
   ]);
 
   if (!product) notFound();
@@ -76,6 +78,7 @@ export default async function EditProductPage(props: PageProps<"/admin/products/
       <ProductForm
         mode="edit"
         action={updateProductAction}
+        autoFit={autoFit}
         categories={categories.map((option) => ({ id: option.id, label: option.label }))}
         brands={brands.map((brand) => ({ id: brand.id, label: brand.name }))}
         showStockFields={false}

@@ -2,12 +2,17 @@ import { listBrands } from "@/lib/catalog";
 import { listCategoryOptions } from "@/lib/adminData";
 import { PageHeader } from "@/components/admin/ui";
 import ProductForm from "@/components/admin/ProductForm";
+import { getAutoFitMode } from "@/lib/imageFit";
 import { createProductAction } from "../actions";
 
 export const metadata = { title: "Add Product" };
 
 export default async function NewProductPage() {
-  const [categories, brands] = await Promise.all([listCategoryOptions(), listBrands()]);
+  const [categories, brands, autoFit] = await Promise.all([
+    listCategoryOptions(),
+    listBrands(),
+    getAutoFitMode(),
+  ]);
 
   return (
     <>
@@ -20,6 +25,7 @@ export default async function NewProductPage() {
       <ProductForm
         mode="create"
         action={createProductAction}
+        autoFit={autoFit}
         categories={categories.map((option) => ({ id: option.id, label: option.label }))}
         brands={brands.map((brand) => ({ id: brand.id, label: brand.name }))}
         values={{

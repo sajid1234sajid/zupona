@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useActionState, useMemo, useState } from "react";
 import { Info, Loader2, Save, Sparkles } from "lucide-react";
 import ChipInput from "./ChipInput";
-import ImageUploader from "./ImageUploader";
+import ImageUploader, { type AutoFitMode } from "./ImageUploader";
 import VideoUploader from "./VideoUploader";
 import OptionGroupBuilder from "./OptionGroupBuilder";
 import VariantMatrix from "./VariantMatrix";
@@ -76,6 +76,8 @@ interface ProductFormProps {
   /** Stock is edited per variant once a product exists, so the create form
    * owns it and the edit form defers to the variants panel. */
   showStockFields?: boolean;
+  /** How gallery pictures are fitted to the product frame, from Settings. */
+  autoFit?: AutoFitMode;
 }
 
 export default function ProductForm({
@@ -85,6 +87,7 @@ export default function ProductForm({
   brands,
   values,
   showStockFields = true,
+  autoFit = "off",
 }: ProductFormProps) {
   const [state, formAction, pending] = useActionState<ProductFormState, FormData>(action, {});
   // Moves forward with every successful save, so saving twice from the same
@@ -298,6 +301,7 @@ export default function ProductForm({
             max={8}
             label="Gallery"
             onChange={setGallery}
+            autoFit={autoFit}
           />
         </Card>
 

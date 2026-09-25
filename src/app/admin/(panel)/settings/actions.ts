@@ -45,6 +45,7 @@ const EDITABLE: Record<string, "text" | "number" | "boolean"> = {
   anthropic_api_key: "text",
   openai_api_key: "text",
   google_api_key: "text",
+  image_autofit: "text",
 };
 
 /** Settings whose value must not be echoed back to the browser or written
@@ -123,6 +124,10 @@ export async function saveSettingsAction(
       } else {
         changed[key] = value.slice(0, SECRETS.has(key) ? 500 : 200);
       }
+    }
+
+    if ("image_autofit" in changed && !["ai", "blur", "off"].includes(changed.image_autofit)) {
+      return { error: "Choose one of the auto-fit options." };
     }
 
     if (Object.keys(changed).length === 0) return { error: "Nothing to save." };

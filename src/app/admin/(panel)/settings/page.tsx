@@ -5,6 +5,7 @@ import { capiTokenConfigured } from "@/lib/analytics";
 import { providerStatus, storedKeys } from "@/lib/ai/provider";
 import { recentSmsSends, smsBalance, smsGatewayStatus } from "@/lib/sms";
 import { getCurrentUser } from "@/lib/session";
+import { getAutoFitMode } from "@/lib/imageFit";
 import { formatDateTime } from "@/lib/format";
 import { PasswordForm, SmsTestForm, StoreSettingsForm } from "@/components/admin/SettingsForms";
 import { Avatar, Card, CardHeader, PageHeader, StatusPill } from "@/components/admin/ui";
@@ -12,8 +13,18 @@ import { Avatar, Card, CardHeader, PageHeader, StatusPill } from "@/components/a
 export const metadata = { title: "Settings" };
 
 export default async function SettingsPage() {
-  const [settings, audit, user, smsStatus, smsLog, balance, capiTokenSet, aiStatus, aiKeysSet] =
-    await Promise.all([
+  const [
+    settings,
+    audit,
+    user,
+    smsStatus,
+    smsLog,
+    balance,
+    capiTokenSet,
+    aiStatus,
+    aiKeysSet,
+    imageAutoFit,
+  ] = await Promise.all([
       getShopSettings(),
       listAuditLog({ limit: 25 }),
       getCurrentUser(),
@@ -23,6 +34,7 @@ export default async function SettingsPage() {
       capiTokenConfigured(),
       providerStatus(),
       storedKeys(),
+      getAutoFitMode(),
     ]);
 
   return (
@@ -42,6 +54,7 @@ export default async function SettingsPage() {
             capiTokenSet={capiTokenSet}
             aiStatus={aiStatus}
             aiKeysSet={aiKeysSet}
+            imageAutoFit={imageAutoFit}
           />
         </div>
 

@@ -60,6 +60,20 @@ export async function POST(request: NextRequest) {
 
     const declaredSize = Number(request.headers.get("content-length") ?? "0");
 
+    // The picture's size as the uploader measured it. Kept only as a plausible
+    // pair of whole numbers, because it becomes part of a storage key.
+    const width = Number(request.nextUrl.searchParams.get("w"));
+    const height = Number(request.nextUrl.searchParams.get("h"));
+    const dimensions =
+      Number.isInteger(width) &&
+      Number.isInteger(height) &&
+      width > 0 &&
+      height > 0 &&
+      width <= 20000 &&
+      height <= 20000
+        ? { width, height }
+        : null;
+
     try {
       const result = await uploadMediaStream(
         request.body,
@@ -68,7 +82,8 @@ export async function POST(request: NextRequest) {
         contentType.split(";")[0].trim(),
         declaredSize,
         folder,
-        user.id
+        user.id,
+        dimensions
       );
       return NextResponse.json({
         url: `/api/media/${result.key}`,

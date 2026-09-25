@@ -86,12 +86,25 @@ export default function ProductCard({
           href={`/product/${product.id}`}
           className="relative block aspect-[8/9] overflow-hidden bg-brand-mist"
         >
+          {/* The whole picture, never cropped -- a cropped tile cut the
+              headline off the shop's banner-style photos. Where the picture is
+              not the tile's shape, the space around it is the same picture
+              blurred: same URL, same width, so it costs no extra bytes. */}
+          <Image
+            src={product.image}
+            alt=""
+            aria-hidden
+            fill
+            sizes="(max-width: 480px) 46vw, 200px"
+            className="scale-110 object-cover blur-xl brightness-90"
+            unoptimized={product.image.startsWith("/api/media/")}
+          />
           <Image
             src={product.image}
             alt={product.name}
             fill
             sizes="(max-width: 480px) 46vw, 200px"
-            className="object-cover"
+            style={{ objectFit: "contain" }}
             // An admin upload is served by /api/media, which the image
             // optimizer cannot fetch: it answers 404 and the tile shows a
             // broken image. Those files are already stored at a sane size.

@@ -81,5 +81,16 @@
       "binding": "CACHE",
       "id": "d42d285e3d8a4f86a6bb8ea882fca621"
     }
+  ],
+  // Zupona Image Fit (apps/image-fit, fit.zupona.com): paints the space
+  // around a product picture so it fills the 4:5 frame. Reached over RPC, so
+  // it is never exposed to the internet through this Worker and needs no key.
+  // That Worker must exist before this one deploys with the binding.
+  "services": [
+    {
+      "binding": "IMAGE_FIT",
+      "service": "zupona-image-fit",
+      "entrypoint": "ImageFit"
+    }
   ]
 }

@@ -92,3 +92,21 @@ export function resizedSrcSet(url: string, maxDisplayWidth: number): string | un
 
   return widths.map((width) => `${resizedSrc(url, width)} ${width}w`).join(", ");
 }
+
+/** A picture's pixel size, read out of its own URL.
+ *
+ * The admin uploader measures every picture before it goes up and the upload
+ * route writes the measurement into the object key -- `.../<id>-1200x800.webp`
+ * -- so a page knows a picture's shape before a byte of it arrives. That is
+ * what lets the product gallery draw its frame at the picture's own shape
+ * without the page jumping once the picture loads, and it needed no database
+ * column: every URL the shop already passes around carries it.
+ *
+ * Null for anything uploaded before this existed, or from anywhere else. */
+export function dimensionsFromUrl(url: string): { width: number; height: number } | null {
+  const match = /-(\d{2,5})x(\d{2,5})\.[a-z0-9]+$/i.exec(url.split("?")[0]);
+  if (!match) return null;
+  const width = Number(match[1]);
+  const height = Number(match[2]);
+  return width > 0 && height > 0 ? { width, height } : null;
+}

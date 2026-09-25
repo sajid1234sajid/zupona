@@ -125,7 +125,10 @@ export async function uploadMediaStream(
   contentType: string,
   declaredSize: number,
   folder: MediaFolder,
-  ownerId: string
+  ownerId: string,
+  /** A picture's pixel size as the uploader measured it. Written into the
+   * key, where `dimensionsFromUrl()` reads it back; see there for why. */
+  dimensions?: { width: number; height: number } | null
 ): Promise<UploadResult> {
   if (!Number.isFinite(declaredSize) || declaredSize <= 0) {
     throw new Error("Upload is empty.");
@@ -146,7 +149,11 @@ export async function uploadMediaStream(
     throw new Error(`Unsupported file type: ${contentType || "unknown"}.`);
   }
 
-  const key = `${folder}/${ownerId}/${crypto.randomUUID()}.${extensionFor(contentType)}`;
+  const size =
+    dimensions && contentType.startsWith("image/")
+      ? `-${dimensions.width}x${dimensions.height}`
+      : "";
+  const key = `${folder}/${ownerId}/${crypto.randomUUID()}${size}.${extensionFor(contentType)}`;
   const bucket = await getMedia();
 
   await bucket.put(key, body, {

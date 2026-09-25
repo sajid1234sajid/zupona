@@ -28,12 +28,13 @@ const RESUME_AFTER_MS = 5000;
  * Pictures only. Clips and the thumbnail strip were taken out of the gallery
  * at the owner's request, so the dots count exactly the product's images.
  *
- * The frame is a 2:3 portrait and each picture is contained in it, never
- * cropped: the owner wants every part of a product picture on screen. The
- * uploads are mostly portraits between 3:5 and 3:4, which 2:3 sits in the
- * middle of, so they fill it bar a thin band; anything wider shows whole with
- * the frame's colour above and below. On a computer the frame is held to
- * 440px wide, or its 2:3 height would run far below the fold.
+ * The frame is a 4:5 portrait and each picture is contained in it, never
+ * cropped: the owner wants every part of a product picture on screen. It was
+ * 2:3 until the owner found a picture filling the whole phone screen tiresome;
+ * 4:5 leaves the product's name in view below it, and a taller upload simply
+ * shows whole with a thin band of the frame's colour at its sides. On a
+ * computer the frame is held to 440px wide, or its height would run far below
+ * the fold.
  *
  * Every picture sits in one scroll-snap track rather than in a carousel
  * library, which is what makes the hero swipeable: the browser does the
@@ -189,7 +190,7 @@ export default function ProductMedia({
 
   return (
     <div>
-      <div className="relative mx-auto aspect-[2/3] w-full overflow-hidden rounded-2xl bg-mint tab:max-w-[440px]">
+      <div className="relative mx-auto aspect-[4/5] w-full overflow-hidden rounded-2xl bg-mint tab:max-w-[440px]">
         <div
           ref={trackRef}
           onScroll={handleScroll}

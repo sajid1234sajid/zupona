@@ -1,4 +1,15 @@
-import { Eye, EyeOff, Image as ImageIcon, Plus, Power, Trash2, Zap } from "lucide-react";
+import Link from "next/link";
+import {
+  ChevronRight,
+  Eye,
+  EyeOff,
+  Image as ImageIcon,
+  Plus,
+  Power,
+  Sparkles,
+  Trash2,
+  Zap,
+} from "lucide-react";
 import { listBanners, listFlashSales, listProductOptions } from "@/lib/adminData";
 import { formatDateTime, formatPrice } from "@/lib/format";
 import { BannerForm, BroadcastForm, FlashSaleForm } from "@/components/admin/MarketingForms";
@@ -40,6 +51,29 @@ export default async function MarketingPage() {
         subtitle="Banners, flash sales and customer announcements"
         breadcrumb={["Marketing"]}
       />
+
+      {/* This page is the shop's own merchandising; advertising lives next
+          door. The two were easy to confuse once the Command Center existed,
+          because this is still what /marketing opens on -- so the door is
+          drawn here rather than left to the sidebar to explain. */}
+      <Link
+        href="/admin/marketing/ai"
+        className="mb-5 flex items-center gap-3.5 rounded-2xl border border-brand/30 bg-brand-tint/40 px-4 py-3.5 transition hover:border-brand/60 hover:bg-brand-tint/60"
+      >
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white shadow-sm">
+          <Sparkles className="h-5 w-5 text-brand" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-[13.5px] font-bold text-neutral-800">
+            AI Command Center
+          </span>
+          <span className="block text-[12px] text-neutral-500">
+            Say what you want to achieve and get back a campaign plan — research, advert
+            concepts and a budget, waiting for your approval
+          </span>
+        </span>
+        <ChevronRight className="h-5 w-5 shrink-0 text-brand" />
+      </Link>
 
       <div className="grid gap-5 xl:grid-cols-12">
         <div className="min-w-0 space-y-4 xl:col-span-8">

@@ -25,7 +25,7 @@ import {
   type ProductBrief,
 } from "./data";
 import { creatives, parseCommand, research, strategy } from "./agents";
-import { getTextProvider, type TextProvider } from "./provider";
+import { getTextProvider, type TextProvider } from "@/lib/ai/provider";
 import { clampBudget, clampDays } from "./safety";
 import { demoPlan } from "./demo";
 

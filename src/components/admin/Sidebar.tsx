@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { ChevronDown, Leaf, LogOut } from "lucide-react";
 import { ICONS } from "./icons";
-import { NAV_ITEMS, isActive } from "./nav";
+import { NAV_ITEMS, isActive, toAdminPath } from "./nav";
 import { logOutAdminAction } from "@/app/admin/actions";
 import ZuponaMark from "@/components/brand/ZuponaMark";
 
@@ -105,7 +105,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
               {expanded ? (
                 <div className="mt-1 space-y-0.5 pl-4">
                   {item.children.map((child) => {
-                    const childActive = pathname === child.href;
+                    const childActive = toAdminPath(pathname) === child.href;
                     return (
                       <Link
                         key={child.href}

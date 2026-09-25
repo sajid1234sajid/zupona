@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { BadgeCheck, Banknote, Bot, Megaphone, ShoppingBag, TriangleAlert } from "lucide-react";
 import { getMarketingOverview } from "@/lib/marketing/campaigns";
-import { textProviderConfigured } from "@/lib/marketing/provider";
+import { textProviderConfigured } from "@/lib/ai/provider";
 import { formatDateTime, formatPrice } from "@/lib/format";
 import CommandCenter from "@/components/admin/marketing/CommandCenter";
 import {

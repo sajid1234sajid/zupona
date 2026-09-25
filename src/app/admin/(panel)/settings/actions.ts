@@ -40,7 +40,11 @@ const EDITABLE: Record<string, "text" | "number" | "boolean"> = {
   sms_sender_id: "text",
   facebook_pixel_id: "text",
   meta_capi_token: "text",
+  ai_provider: "text",
+  ai_model: "text",
   anthropic_api_key: "text",
+  openai_api_key: "text",
+  google_api_key: "text",
 };
 
 /** Settings whose value must not be echoed back to the browser or written
@@ -50,9 +54,15 @@ const EDITABLE: Record<string, "text" | "number" | "boolean"> = {
  * lives, so the form only ever sends it when it is being changed: an empty
  * box means "keep what is stored", not "clear it". The pixel id is the
  * public half and is not a secret -- emptying it is how the shop turns the
- * pixel off. The AI key is the same shape of thing: it can spend money
- * against this shop's account, so it is written and never read back. */
-const SECRETS = new Set(["meta_capi_token", "anthropic_api_key"]);
+ * pixel off. Every AI key is the same shape of thing: each one can spend
+ * money against this shop's account, so they are written and never read
+ * back. The chosen vendor and model are not secrets and are shown normally. */
+const SECRETS = new Set([
+  "meta_capi_token",
+  "anthropic_api_key",
+  "openai_api_key",
+  "google_api_key",
+]);
 
 function toFormError(error: unknown): SettingsFormState {
   if (error instanceof AuthorizationError) return { error: error.message };

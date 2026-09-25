@@ -14,7 +14,7 @@ import { revalidatePath } from "next/cache";
 import { getDB } from "@/lib/db";
 import { AuthorizationError, logAdminAction, requireAdmin } from "@/lib/admin";
 import { advanceRun, getRunView, startRun, type RunView } from "@/lib/marketing/runs";
-import { ProviderFailed, ProviderNotConfigured } from "@/lib/marketing/provider";
+import { ProviderFailed, ProviderNotConfigured } from "@/lib/ai/provider";
 
 export interface CommandState {
   error?: string;

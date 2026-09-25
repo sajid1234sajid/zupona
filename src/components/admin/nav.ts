@@ -49,21 +49,42 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "Settings", href: "/admin/settings", icon: "settings" },
 ];
 
+/** Puts a browser path back into the form these hrefs are written in.
+ *
+ * The panel's pages live under `/admin/*`, but on `admin.zupona.com` the proxy
+ * serves them from the root -- so the address bar, and therefore
+ * `usePathname()`, says `/marketing` where this file says `/admin/marketing`.
+ * Every comparison below was failing on the real domain as a result: nothing
+ * was ever lit, no group opened itself, and the breadcrumb said "Dashboard" on
+ * every screen. It looked correct in development only because localhost has no
+ * subdomain to strip.
+ *
+ * Prefixing rather than stripping is what keeps both hosts working, and it is
+ * safe here because this menu belongs to the admin panel alone -- the Seller
+ * Center has its own. */
+export function toAdminPath(pathname: string): string {
+  if (pathname === "/admin" || pathname.startsWith("/admin/")) return pathname;
+  return pathname === "/" ? "/admin" : `/admin${pathname}`;
+}
+
 /** Whether a nav entry should read as the current section.
  *
  * `/admin` is special-cased: as a prefix it matches every admin page, so the
  * dashboard would otherwise stay lit on every screen. */
 export function isActive(pathname: string, href: string): boolean {
-  if (href === "/admin") return pathname === "/admin";
-  return pathname === href || pathname.startsWith(`${href}/`);
+  const path = toAdminPath(pathname);
+  if (href === "/admin") return path === "/admin";
+  return path === href || path.startsWith(`${href}/`);
 }
 
 /** Human trail for the header, e.g. Products › Add Product. */
 export function breadcrumbFor(pathname: string): string[] {
+  const path = toAdminPath(pathname);
+
   for (const item of NAV_ITEMS) {
-    const child = item.children?.find((entry) => entry.href === pathname);
+    const child = item.children?.find((entry) => entry.href === path);
     if (child) return [item.label, child.label];
-    if (isActive(pathname, item.href)) return [item.label];
+    if (isActive(path, item.href)) return [item.label];
   }
   return ["Dashboard"];
 }

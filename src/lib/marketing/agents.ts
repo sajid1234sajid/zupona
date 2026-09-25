@@ -18,7 +18,7 @@ import {
   type TextProvider,
   type TextResult,
   ProviderNotConfigured,
-} from "./provider";
+} from "@/lib/ai/provider";
 import { fence, UNTRUSTED_CONTENT_RULE, HONESTY_RULE, text } from "./safety";
 import type { AudienceShape, MarketableProduct, PriorLesson, ProductBrief } from "./data";
 

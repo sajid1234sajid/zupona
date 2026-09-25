@@ -9,6 +9,7 @@ import {
   sendTestSmsAction,
   type SettingsFormState,
 } from "@/app/admin/(panel)/settings/actions";
+import { PROVIDERS, type ProviderChoice, type ProviderName } from "@/lib/ai/catalog";
 import type { ShopSettings } from "@/lib/shopSettings";
 import type { SmsBalance, SmsGatewayStatus } from "@/lib/sms";
 
@@ -60,7 +61,8 @@ export function StoreSettingsForm({
   smsStatus,
   smsBalance,
   capiTokenSet,
-  aiKeySet,
+  aiStatus,
+  aiKeysSet,
 }: {
   settings: ShopSettings;
   smsStatus: SmsGatewayStatus;
@@ -69,8 +71,11 @@ export function StoreSettingsForm({
   /** Whether a Conversions API token is stored. The token itself never
    * reaches this component -- only whether there is one. */
   capiTokenSet: boolean;
-  /** Whether an AI provider key is stored. Same rule: presence, never value. */
-  aiKeySet: boolean;
+  /** The chosen provider and model. Not secrets, so these are shown. */
+  aiStatus: ProviderChoice;
+  /** Which vendors have a key stored. Same rule as the token: presence,
+   * never the value itself. */
+  aiKeysSet: Record<ProviderName, boolean>;
 }) {
   const balanceLow = smsBalance !== null && smsBalance.amount < LOW_BALANCE_TAKA;
   const [state, formAction, pending] = useActionState<SettingsFormState, FormData>(
@@ -279,28 +284,70 @@ export function StoreSettingsForm({
 
       <Card>
         <CardHeader
-          title="AI Marketing"
-          subtitle="The key the Marketing Command Center thinks with"
+          title="Artificial Intelligence"
+          subtitle="Which provider Zupona thinks with, and the key it uses"
         />
         <div className="space-y-4">
-          <Field
-            label="Anthropic API key"
-            hint={
-              aiKeySet
-                ? "A key is saved. Leave this blank to keep it, or paste a new one to replace it."
-                : "Without a key the Marketing Command Center runs in Demo Mode: every screen works, nothing is generated and nothing is spent. Get a key at console.anthropic.com."
-            }
-          >
-            <input
-              name="anthropic_api_key"
-              type="password"
-              autoComplete="new-password"
-              data-lpignore="true"
-              data-1p-ignore=""
-              placeholder={aiKeySet ? "Saved - leave blank to keep it" : "sk-ant-..."}
-              className={fieldStyles}
-            />
-          </Field>
+          {/* Keys for all three can be stored at once. Only the chosen one is
+              ever used, so switching vendor -- because of price, quality or
+              an outage -- is a dropdown rather than a re-paste. */}
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Provider" hint="The one Zupona will use">
+              <select name="ai_provider" defaultValue={aiStatus.provider} className={fieldStyles}>
+                {Object.entries(PROVIDERS).map(([value, meta]) => (
+                  <option key={value} value={value}>
+                    {meta.label}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field
+              label="Model"
+              hint={`Leave blank for ${PROVIDERS[aiStatus.provider].defaultModel}`}
+            >
+              <input
+                name="ai_model"
+                autoComplete="off"
+                spellCheck={false}
+                defaultValue={aiStatus.model}
+                placeholder={PROVIDERS[aiStatus.provider].defaultModel}
+                className={fieldStyles}
+              />
+            </Field>
+          </div>
+
+          {(Object.keys(PROVIDERS) as (keyof typeof PROVIDERS)[]).map((name) => {
+            const meta = PROVIDERS[name];
+            const saved = aiKeysSet[name];
+            return (
+              <Field
+                key={name}
+                label={`${meta.label} key`}
+                hint={
+                  saved
+                    ? "A key is saved. Leave this blank to keep it, or paste a new one to replace it."
+                    : meta.keyHint
+                }
+              >
+                <input
+                  name={meta.settingKey}
+                  type="password"
+                  autoComplete="new-password"
+                  data-lpignore="true"
+                  data-1p-ignore=""
+                  placeholder={saved ? "Saved - leave blank to keep it" : "Paste the key"}
+                  className={fieldStyles}
+                />
+              </Field>
+            );
+          })}
+
+          {!aiKeysSet[aiStatus.provider] ? (
+            <p className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-[12px] text-amber-900">
+              No key is saved for the selected provider, so anything AI-powered runs in Demo
+              Mode: every screen works, nothing is generated and nothing is spent.
+            </p>
+          ) : null}
         </div>
       </Card>
 

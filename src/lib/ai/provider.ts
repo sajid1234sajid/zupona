@@ -176,6 +176,80 @@ export async function textProviderConfigured(): Promise<boolean> {
 }
 
 /* -------------------------------------------------------------------------- */
+/* Asking a vendor what it actually offers                                    */
+/* -------------------------------------------------------------------------- */
+
+/** What to reach for, best first, when nobody has named a model.
+ *
+ * Matched as substrings against whatever the vendor reports, rather than
+ * compared exactly -- model names carry dates and suffixes that change
+ * without warning, and a hardcoded exact name is a bug with a delay on it.
+ * That is not hypothetical: this file shipped with `gemini-1.5-pro` as a
+ * default and Google had already stopped serving it. */
+const PREFERRED: Record<ProviderName, string[]> = {
+  anthropic: ["claude-opus-5", "claude-sonnet-5", "claude-opus", "claude-sonnet", "claude"],
+  openai: ["gpt-5", "gpt-4.1", "gpt-4o", "gpt-4"],
+  google: ["gemini-2.5-pro", "gemini-2.5-flash", "gemini-2.0-flash", "gemini-pro", "gemini"],
+};
+
+/** Every model this key can generate text with, newest-looking first.
+ *
+ * Returns an empty list rather than throwing: a vendor that will not say what
+ * it has is a reason to fall back to the configured name, not a reason to
+ * fail the question the owner asked. */
+export async function listModels(provider: ProviderName, apiKey: string): Promise<string[]> {
+  try {
+    if (provider === "google") {
+      const response = await fetch(
+        "https://generativelanguage.googleapis.com/v1beta/models",
+        { headers: { "x-goog-api-key": apiKey }, signal: AbortSignal.timeout(15_000) }
+      );
+      if (!response.ok) return [];
+      const body = (await response.json()) as {
+        models?: { name?: string; supportedGenerationMethods?: string[] }[];
+      };
+      return (body.models ?? [])
+        .filter((model) => model.supportedGenerationMethods?.includes("generateContent"))
+        .map((model) => (model.name ?? "").replace(/^models\//, ""))
+        .filter(Boolean);
+    }
+
+    if (provider === "openai") {
+      const response = await fetch("https://api.openai.com/v1/models", {
+        headers: { authorization: `Bearer ${apiKey}` },
+        signal: AbortSignal.timeout(15_000),
+      });
+      if (!response.ok) return [];
+      const body = (await response.json()) as { data?: { id?: string }[] };
+      return (body.data ?? []).map((model) => model.id ?? "").filter(Boolean);
+    }
+
+    const response = await fetch("https://api.anthropic.com/v1/models", {
+      headers: {
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+      },
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (!response.ok) return [];
+    const body = (await response.json()) as { data?: { id?: string }[] };
+    return (body.data ?? []).map((model) => model.id ?? "").filter(Boolean);
+  } catch (error) {
+    console.error("model listing failed", { provider, error });
+    return [];
+  }
+}
+
+/** Picks the best of what the account actually has. */
+export function chooseModel(provider: ProviderName, available: string[]): string | null {
+  for (const wanted of PREFERRED[provider]) {
+    const match = available.find((name) => name.includes(wanted));
+    if (match) return match;
+  }
+  return available[0] ?? null;
+}
+
+/* -------------------------------------------------------------------------- */
 /* Anthropic                                                                  */
 /* -------------------------------------------------------------------------- */
 
@@ -306,6 +380,40 @@ function parseJson<T>(raw: string, vendor: string): T {
   }
 }
 
+/** Writes the working model back to Settings after a recovery.
+ *
+ * Without this the correction is rediscovered on every question: a failed
+ * call, a model listing, then the real one, for as long as the stale name
+ * sits in the database. Remembering it turns that into a single one-off.
+ *
+ * Failing to remember is not worth failing the answer over -- the question
+ * has already been answered by the time this runs.
+ */
+async function rememberModel(model: string): Promise<void> {
+  try {
+    const db = await getDB();
+    await db
+      .prepare(
+        `INSERT INTO site_settings (key, value, updated_at)
+         VALUES ('ai_model', ?, datetime('now'))
+         ON CONFLICT (key) DO UPDATE SET value = excluded.value,
+                                         updated_at = datetime('now')`
+      )
+      .bind(model)
+      .run();
+  } catch (error) {
+    console.error("could not remember the working model", error);
+  }
+}
+
+/** Whether a vendor refused because the model name is wrong rather than
+ * because anything is broken. Both OpenAI and Google answer 404 with the name
+ * in the body, which is what makes recovering from it possible. */
+function isModelMissing(error: unknown): boolean {
+  if (!(error instanceof ProviderFailed)) return false;
+  return /404|NOT_FOUND|does not exist|is not found|model_not_found/i.test(error.message);
+}
+
 /* -------------------------------------------------------------------------- */
 /* OpenAI                                                                     */
 /* -------------------------------------------------------------------------- */
@@ -318,11 +426,11 @@ class OpenAiProvider implements TextProvider {
     readonly model: string
   ) {}
 
-  async generate<T>(request: TextRequest): Promise<TextResult<T>> {
+  private async call<T>(model: string, request: TextRequest): Promise<TextResult<T>> {
     const payload = await postJson(
       "https://api.openai.com/v1/chat/completions",
       {
-        model: this.model,
+        model,
         max_completion_tokens: request.maxTokens ?? 16000,
         messages: [
           { role: "system", content: request.system },
@@ -349,10 +457,34 @@ class OpenAiProvider implements TextProvider {
 
     return {
       value: parseJson<T>(content, "OpenAI"),
-      model: String(payload.model ?? this.model),
+      model: String(payload.model ?? model),
       inputTokens: usage.prompt_tokens ?? 0,
       outputTokens: usage.completion_tokens ?? 0,
     };
+  }
+
+  async generate<T>(request: TextRequest): Promise<TextResult<T>> {
+    try {
+      return await this.call<T>(this.model, request);
+    } catch (error) {
+      if (!isModelMissing(error)) throw error;
+
+      const available = await listModels("openai", this.apiKey);
+      const replacement = chooseModel("openai", available);
+
+      if (!replacement || replacement === this.model) {
+        throw new ProviderFailed(
+          available.length
+            ? `OpenAI has no model called "${this.model}". Available: ${available.slice(0, 6).join(", ")}. Set one in Settings.`
+            : `OpenAI has no model called "${this.model}", and would not list what it does have. Check the key in Settings.`,
+          false
+        );
+      }
+
+      const result = await this.call<T>(replacement, request);
+      await rememberModel(replacement);
+      return result;
+    }
   }
 }
 
@@ -392,10 +524,10 @@ class GoogleProvider implements TextProvider {
     readonly model: string
   ) {}
 
-  async generate<T>(request: TextRequest): Promise<TextResult<T>> {
+  private async call<T>(model: string, request: TextRequest): Promise<TextResult<T>> {
     const payload = await postJson(
       `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(
-        this.model
+        model
       )}:generateContent`,
       {
         systemInstruction: { parts: [{ text: request.system }] },
@@ -423,10 +555,37 @@ class GoogleProvider implements TextProvider {
 
     return {
       value: parseJson<T>(content, "Google"),
-      model: this.model,
+      model,
       inputTokens: usage.promptTokenCount ?? 0,
       outputTokens: usage.candidatesTokenCount ?? 0,
     };
+  }
+
+  async generate<T>(request: TextRequest): Promise<TextResult<T>> {
+    try {
+      return await this.call<T>(this.model, request);
+    } catch (error) {
+      if (!isModelMissing(error)) throw error;
+
+      // The configured name is gone or was never right. Ask the account what
+      // it actually has and use that, rather than handing the owner a vendor
+      // error about a name they never chose.
+      const available = await listModels("google", this.apiKey);
+      const replacement = chooseModel("google", available);
+
+      if (!replacement || replacement === this.model) {
+        throw new ProviderFailed(
+          available.length
+            ? `Google has no model called "${this.model}". Available: ${available.slice(0, 6).join(", ")}. Set one in Settings.`
+            : `Google has no model called "${this.model}", and would not list what it does have. Check the key in Settings.`,
+          false
+        );
+      }
+
+      const result = await this.call<T>(replacement, request);
+      await rememberModel(replacement);
+      return result;
+    }
   }
 }
 

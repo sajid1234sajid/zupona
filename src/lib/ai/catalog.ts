@@ -15,7 +15,12 @@ export interface ProviderMeta {
   label: string;
   /** The `site_settings` row that holds this vendor's key. */
   settingKey: string;
-  /** What runs when the shop has not named a model. */
+  /** What runs when the shop has not named a model.
+   *
+   * A starting point, not a promise: vendors retire names without warning --
+   * this file shipped with `gemini-1.5-pro` after Google had stopped serving
+   * it -- so a name that no longer exists is replaced at call time with one
+   * the account actually has, and the working name is written back here. */
   defaultModel: string;
   /** Where to get a key, in one line. */
   keyHint: string;
@@ -37,7 +42,7 @@ export const PROVIDERS: Record<ProviderName, ProviderMeta> = {
   google: {
     label: "Google (Gemini)",
     settingKey: "google_api_key",
-    defaultModel: "gemini-1.5-pro",
+    defaultModel: "gemini-2.5-pro",
     keyHint: "aistudio.google.com → Get API key",
   },
 };

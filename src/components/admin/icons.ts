@@ -6,6 +6,7 @@
 
 import {
   BarChart3,
+  Bot,
   FolderTree,
   LayoutDashboard,
   Megaphone,
@@ -20,6 +21,7 @@ import {
 
 export const ICONS: Record<string, LucideIcon> = {
   dashboard: LayoutDashboard,
+  assistant: Bot,
   products: Package,
   categories: FolderTree,
   orders: ShoppingCart,

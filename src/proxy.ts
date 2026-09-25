@@ -38,6 +38,7 @@ const PANELS: Panel[] = [
     base: "/admin",
     segments: new Set([
       "login",
+      "assistant",
       "products",
       "categories",
       "orders",

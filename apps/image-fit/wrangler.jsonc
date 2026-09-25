@@ -1,0 +1,25 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "zupona-image-fit",
+  "main": "src/worker.ts",
+  "compatibility_date": "2026-09-06",
+  "routes": [
+    {
+      "pattern": "fit.zupona.com",
+      "custom_domain": true
+    }
+  ],
+  // The page and its bundled script. `npm run build` in this folder writes
+  // public/app.js from web/app.ts.
+  "assets": {
+    "directory": "public",
+    // /api/* reaches the Worker; everything else is a static file.
+    "run_worker_first": ["/api/*"]
+  },
+  "ai": {
+    "binding": "AI"
+  },
+  "observability": {
+    "enabled": true
+  }
+}

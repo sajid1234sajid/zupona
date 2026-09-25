@@ -1,0 +1,42 @@
+# Deploys Zupona Image Fit (apps/image-fit, fit.zupona.com) whenever it
+# changes. Separate from the shop's own deploy because it is a separate
+# Worker; the shop reaches it over a service binding, so a change here needs
+# no shop deploy and a shop deploy needs nothing from here.
+name: Deploy Image Fit
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - apps/image-fit/**
+      - .github/workflows/deploy-image-fit.yml
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-image-fit
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      # esbuild and wrangler come from the shop's own dependencies.
+      - run: npm ci
+
+      - run: npx esbuild web/app.ts --bundle --format=esm --target=es2020 --minify --outfile=public/app.js
+        working-directory: apps/image-fit
+
+      # `-c` names this folder's config explicitly; without it wrangler can
+      # pick up the shop's generated deploy config from the repository root.
+      - run: npx wrangler deploy -c wrangler.jsonc
+        working-directory: apps/image-fit
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: 14743b3b6de704c99ed06b7b67c65903

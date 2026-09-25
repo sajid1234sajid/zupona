@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="bn">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Zupona Image Fit</title>
+  <meta name="robots" content="noindex">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --brand: #037e5b; --brand-dark: #02604a; --brand-tint: #e3f5ef; --mist: #f4fbf9;
+      --heading: #00231c; --ink: #334155; --muted: #64748b; --line: #dbe7e3;
+      --warn-bg: #fff7e6; --warn: #92400e; --danger: #b42318; --card: #ffffff;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--mist); color: var(--ink);
+      font-family: "Hind Siliguri", system-ui, sans-serif; font-size: 15px; line-height: 1.5; }
+    header { background: var(--heading); color: #fff; padding: 18px 16px; }
+    header .wrap { display: flex; align-items: center; gap: 12px; }
+    header h1 { margin: 0; font-size: 20px; font-weight: 700; }
+    header p { margin: 2px 0 0; font-size: 13px; color: #a7d8c8; }
+    .logo { width: 38px; height: 38px; border-radius: 10px; background: var(--brand);
+      display: grid; place-items: center; font-weight: 700; font-size: 18px; }
+    .wrap { max-width: 1080px; margin: 0 auto; }
+    main { padding: 16px; }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; margin-bottom: 14px; }
+    .card h2 { margin: 0 0 10px; font-size: 16px; color: var(--heading); }
+    .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+    .choice { display: flex; flex-wrap: wrap; gap: 8px; }
+    .choice label { border: 1.5px solid var(--line); border-radius: 10px; padding: 8px 12px; cursor: pointer;
+      background: #fff; font-weight: 500; }
+    .choice input { accent-color: var(--brand); margin-right: 4px; }
+    .choice label:has(input:checked) { border-color: var(--brand); background: var(--brand-tint); }
+    .hint { color: var(--muted); font-size: 13px; margin: 6px 0 0; }
+    input[type=password], input[type=text] { font: inherit; padding: 8px 10px; border: 1.5px solid var(--line);
+      border-radius: 10px; min-width: 0; flex: 1 1 200px; }
+    button { font: inherit; font-weight: 600; border: 0; border-radius: 10px; padding: 9px 14px; cursor: pointer;
+      background: var(--brand); color: #fff; }
+    button.ghost { background: #fff; color: var(--brand-dark); border: 1.5px solid var(--brand); }
+    button:disabled { opacity: .5; cursor: default; }
+    #drop { border: 2px dashed var(--brand); border-radius: 14px; background: #fff; padding: 28px 16px;
+      text-align: center; cursor: pointer; }
+    #drop.over { background: var(--brand-tint); }
+    #drop strong { color: var(--heading); font-size: 17px; display: block; }
+    #results { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
+    .result .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; align-items: start; }
+    .result figure { margin: 0; }
+    .result figcaption { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+    .result img { width: 100%; display: block; border-radius: 8px; border: 1px solid var(--line); background: var(--mist); }
+    .result .name { font-weight: 600; color: var(--heading); font-size: 14px; margin: 0 0 8px;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .result .actions { display: flex; gap: 8px; margin-top: 10px; }
+    .note { border-radius: 8px; padding: 6px 10px; font-size: 13px; margin-top: 8px; }
+    .note.warn { background: var(--warn-bg); color: var(--warn); }
+    .note.error { background: #fee4e2; color: var(--danger); }
+    .note.ok { background: var(--brand-tint); color: var(--brand-dark); }
+    .busy { display: grid; place-items: center; aspect-ratio: 4/5; border-radius: 8px; border: 1px dashed var(--line);
+      color: var(--muted); font-size: 13px; background: var(--mist); }
+    @media (max-width: 480px) { #results { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <div class="logo">Z</div>
+      <div>
+        <h1>Zupona Image Fit</h1>
+        <p>ছবি দিন, product-এর মাপে বানিয়ে দেবে। কোনো অংশ কাটা পড়বে না।</p>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="card">
+      <h2>১. কোন মাপে বানাবেন?</h2>
+      <div class="choice" id="ratio">
+        <label><input type="radio" name="ratio" value="0.8" checked>Product page (4:5)</label>
+        <label><input type="radio" name="ratio" value="0.8888889">Product card (8:9)</label>
+        <label><input type="radio" name="ratio" value="1">চারকোনা (1:1)</label>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>২. ফাঁকা জায়গা কী দিয়ে ভরবে?</h2>
+      <div class="choice" id="mode">
+        <label><input type="radio" name="mode" value="blur" checked>ঝাপসা ছবি (সাথে সাথে, ফ্রি)</label>
+        <label><input type="radio" name="mode" value="ai">AI দিয়ে আঁকা (৫-১৫ সেকেন্ড, প্রতিটা)</label>
+      </div>
+      <div id="keyRow" class="row" style="margin-top:10px" hidden>
+        <input type="password" id="key" placeholder="Access key" autocomplete="off">
+        <button type="button" class="ghost" id="saveKey">রাখুন</button>
+      </div>
+      <p class="hint" id="keyHint" hidden>AI ব্যবহার করতে access key লাগে। একবার দিলে এই browser মনে রাখবে।</p>
+    </section>
+
+    <section class="card">
+      <h2>৩. ছবি দিন</h2>
+      <div id="drop" tabindex="0" role="button">
+        <strong>এখানে ছবি টেনে আনুন, বা চাপ দিয়ে বেছে নিন</strong>
+        <span class="hint">একসাথে অনেকগুলো দেওয়া যাবে · JPG, PNG, WebP</span>
+      </div>
+      <input type="file" id="files" accept="image/*" multiple hidden>
+      <div class="row" style="margin-top:12px">
+        <button type="button" id="downloadAll" disabled>সব download করুন</button>
+        <button type="button" class="ghost" id="clear" disabled>সব মুছুন</button>
+      </div>
+    </section>
+
+    <section id="results" aria-live="polite"></section>
+  </main>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

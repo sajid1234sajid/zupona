@@ -1,0 +1,10 @@
+{
+  "name": "zupona-image-fit",
+  "private": true,
+  "description": "Fits product pictures to the Zupona frame without cutting any of them. Lives at fit.zupona.com.",
+  "scripts": {
+    "build": "esbuild web/app.ts --bundle --format=esm --target=es2020 --minify --outfile=public/app.js",
+    "dev": "npm run build && wrangler dev -c wrangler.jsonc",
+    "deploy": "npm run build && wrangler deploy -c wrangler.jsonc"
+  }
+}

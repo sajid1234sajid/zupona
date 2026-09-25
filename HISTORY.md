@@ -11,6 +11,7 @@ hosting or accounts.
 | --- | --- |
 | Storefront | https://zupona.com |
 | Admin panel | https://admin.zupona.com (same Worker, routed by Host header) |
+| Image Fit | https://fit.zupona.com — Worker `zupona-image-fit`, code in `apps/image-fit/` |
 | GitHub repository | `sajid1234sajid/zupona` (**public**) |
 | Cloudflare account | sajedaakter589@gmail.com |
 | Worker | `zupona` |
@@ -18,7 +19,7 @@ hosting or accounts.
 | R2 bucket | `zupona-product-media` |
 | KV namespace | `CACHE` |
 
-Resource IDs live in `wrangler.jsonc`; `npx wrangler d1 list`, `kv namespace
+Every app with its links is listed in [APPS.md](APPS.md). Resource IDs live in `wrangler.jsonc`; `npx wrangler d1 list`, `kv namespace
 list` and `r2 bucket list` show what the account actually holds.
 
 ### Older things deliberately left alone

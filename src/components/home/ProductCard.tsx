@@ -69,10 +69,13 @@ export default function ProductCard({
   }
 
   return (
-    <article className="flex min-w-0 flex-col overflow-hidden rounded-xl border border-line bg-white">
+    <article className="@container flex min-w-0 flex-col overflow-hidden rounded-xl border border-line bg-white">
       <div className="relative">
-        {/* A square photo that scales with the column, so the tile is the same
-            shape in every two-column grid instead of a fixed-height strip. */}
+        {/* A photo that scales with the column, so the tile is the same shape
+            in every two-column grid instead of a fixed-height strip. It is a
+            little taller than square because the shop's photos are portrait
+            (2:3 to 3:4) and a square cut their headlines off; the height came
+            out of the text below, so the tile as a whole is the size it was. */}
         <Link
           // A grid draws dozens of these, and each one prefetching costs an
           // RSC round trip for a product nobody has asked for yet. Measured on
@@ -81,7 +84,7 @@ export default function ProductCard({
           // the shopper actually wanted. The tap itself is what fetches.
           prefetch={false}
           href={`/product/${product.id}`}
-          className="relative block aspect-square overflow-hidden bg-brand-mist"
+          className="relative block aspect-[8/9] overflow-hidden bg-brand-mist"
         >
           <Image
             src={product.image}
@@ -96,19 +99,15 @@ export default function ProductCard({
           />
         </Link>
 
-        {product.discountPercent > 0 && (
-          <span className="pointer-events-none absolute left-1.5 top-1.5 rounded-full bg-brand px-1.5 py-[2px] text-[10px] font-bold leading-none text-white">
-            -{product.discountPercent}%
-          </span>
-        )}
-
+        {/* Bottom corner rather than top: the top of a product photo is where
+            its headline is printed, and the discount lives beside the price. */}
         <button
           type="button"
           aria-label={wishlisted ? "Remove from wishlist" : "Add to wishlist"}
           aria-pressed={wishlisted}
           onClick={handleWishlistToggle}
           disabled={wishlistPending}
-          className="absolute right-1.5 top-1.5 grid h-7 w-7 place-items-center rounded-full bg-white/95 shadow-card"
+          className="absolute bottom-1.5 right-1.5 grid h-7 w-7 place-items-center rounded-full bg-white/95 shadow-card"
         >
           <Heart
             className={`h-3.5 w-3.5 ${
@@ -124,25 +123,42 @@ export default function ProductCard({
           <h3 className="line-clamp-2 min-h-[2.5em] text-[12px] font-semibold leading-[1.25] text-heading">
             {product.name}
           </h3>
-          <span className="mt-1 flex items-center gap-0.5">
-            <Star className="h-3 w-3 fill-gold text-gold" />
-            <span className="text-[10.5px] font-medium text-ink-slate">
-              {product.rating} ({product.reviews})
-            </span>
-          </span>
         </Link>
 
         {/* Price and Add always share one row, the button bottom-right. The old
             price sits under the new one so the row stays narrow enough for the
             categories pane on a 320px phone without cutting the price off. */}
-        <div className="mt-auto flex items-end justify-between gap-0.5 pt-1.5">
+        <div className="mt-auto flex items-end justify-between gap-0.5 pt-1">
           <span className="flex min-w-0 flex-col">
-            <span className="whitespace-nowrap text-[13px] font-extrabold leading-tight text-brand-darkest">
-              {formatPrice(product.price)}
+            {/* The stars ride on the price line rather than a row of their
+                own, which is the height the photo was given; they appear once
+                there is a review, since "0 (0)" on every tile said nothing. */}
+            <span className="flex items-center gap-1">
+              <span className="whitespace-nowrap text-[13px] font-extrabold leading-tight text-brand-darkest">
+                {formatPrice(product.price)}
+              </span>
+              {product.reviews > 0 && (
+                <span className="flex min-w-0 items-center gap-0.5 text-[10px] font-medium leading-none text-ink-slate">
+                  <Star className="h-2.5 w-2.5 shrink-0 fill-gold text-gold" />
+                  {product.rating}
+                </span>
+              )}
             </span>
             {product.oldPrice > product.price && (
-              <span className="whitespace-nowrap text-[10px] leading-tight text-ink-slate line-through">
-                {formatPrice(product.oldPrice)}
+              <span className="flex flex-wrap items-baseline gap-x-1 text-[10px] leading-tight">
+                <span className="whitespace-nowrap text-ink-slate line-through">
+                  {formatPrice(product.oldPrice)}
+                </span>
+                {/* The categories pane draws this tile 100px wide, where the
+                    full wording runs under the Add button; there it is short. */}
+                {product.discountPercent > 0 && (
+                  <span className="whitespace-nowrap font-bold text-[#e8590c]">
+                    <span className="@[150px]:hidden">-{product.discountPercent}%</span>
+                    <span className="hidden @[150px]:inline">
+                      ({product.discountPercent}% OFF)
+                    </span>
+                  </span>
+                )}
               </span>
             )}
           </span>

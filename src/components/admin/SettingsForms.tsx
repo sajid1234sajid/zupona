@@ -60,6 +60,7 @@ export function StoreSettingsForm({
   smsStatus,
   smsBalance,
   capiTokenSet,
+  aiKeySet,
 }: {
   settings: ShopSettings;
   smsStatus: SmsGatewayStatus;
@@ -68,6 +69,8 @@ export function StoreSettingsForm({
   /** Whether a Conversions API token is stored. The token itself never
    * reaches this component -- only whether there is one. */
   capiTokenSet: boolean;
+  /** Whether an AI provider key is stored. Same rule: presence, never value. */
+  aiKeySet: boolean;
 }) {
   const balanceLow = smsBalance !== null && smsBalance.amount < LOW_BALANCE_TAKA;
   const [state, formAction, pending] = useActionState<SettingsFormState, FormData>(
@@ -268,6 +271,33 @@ export function StoreSettingsForm({
               data-lpignore="true"
               data-1p-ignore=""
               placeholder={capiTokenSet ? "Saved - leave blank to keep it" : "Paste the token"}
+              className={fieldStyles}
+            />
+          </Field>
+        </div>
+      </Card>
+
+      <Card>
+        <CardHeader
+          title="AI Marketing"
+          subtitle="The key the Marketing Command Center thinks with"
+        />
+        <div className="space-y-4">
+          <Field
+            label="Anthropic API key"
+            hint={
+              aiKeySet
+                ? "A key is saved. Leave this blank to keep it, or paste a new one to replace it."
+                : "Without a key the Marketing Command Center runs in Demo Mode: every screen works, nothing is generated and nothing is spent. Get a key at console.anthropic.com."
+            }
+          >
+            <input
+              name="anthropic_api_key"
+              type="password"
+              autoComplete="new-password"
+              data-lpignore="true"
+              data-1p-ignore=""
+              placeholder={aiKeySet ? "Saved - leave blank to keep it" : "sk-ant-..."}
               className={fieldStyles}
             />
           </Field>

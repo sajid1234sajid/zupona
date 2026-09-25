@@ -35,7 +35,16 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "Customers", href: "/admin/customers", icon: "customers" },
   { label: "Distributors", href: "/admin/distributors", icon: "distributors" },
   { label: "Coupons", href: "/admin/coupons", icon: "coupons" },
-  { label: "Marketing", href: "/admin/marketing", icon: "marketing" },
+  {
+    label: "Marketing",
+    href: "/admin/marketing",
+    icon: "marketing",
+    children: [
+      { label: "AI Command Center", href: "/admin/marketing/ai" },
+      { label: "Campaigns", href: "/admin/marketing/campaigns" },
+      { label: "Banners & Sales", href: "/admin/marketing" },
+    ],
+  },
   { label: "Reports", href: "/admin/reports", icon: "reports" },
   { label: "Settings", href: "/admin/settings", icon: "settings" },
 ];

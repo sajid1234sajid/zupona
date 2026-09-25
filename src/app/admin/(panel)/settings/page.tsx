@@ -2,6 +2,7 @@ import { MessageSquare, ScrollText } from "lucide-react";
 import { listAuditLog } from "@/lib/admin";
 import { getShopSettings } from "@/lib/shopSettings";
 import { capiTokenConfigured } from "@/lib/analytics";
+import { textProviderConfigured } from "@/lib/marketing/provider";
 import { recentSmsSends, smsBalance, smsGatewayStatus } from "@/lib/sms";
 import { getCurrentUser } from "@/lib/session";
 import { formatDateTime } from "@/lib/format";
@@ -11,15 +12,17 @@ import { Avatar, Card, CardHeader, PageHeader, StatusPill } from "@/components/a
 export const metadata = { title: "Settings" };
 
 export default async function SettingsPage() {
-  const [settings, audit, user, smsStatus, smsLog, balance, capiTokenSet] = await Promise.all([
-    getShopSettings(),
-    listAuditLog({ limit: 25 }),
-    getCurrentUser(),
-    smsGatewayStatus(),
-    recentSmsSends(8),
-    smsBalance(),
-    capiTokenConfigured(),
-  ]);
+  const [settings, audit, user, smsStatus, smsLog, balance, capiTokenSet, aiKeySet] =
+    await Promise.all([
+      getShopSettings(),
+      listAuditLog({ limit: 25 }),
+      getCurrentUser(),
+      smsGatewayStatus(),
+      recentSmsSends(8),
+      smsBalance(),
+      capiTokenConfigured(),
+      textProviderConfigured(),
+    ]);
 
   return (
     <>
@@ -36,6 +39,7 @@ export default async function SettingsPage() {
             smsStatus={smsStatus}
             smsBalance={balance}
             capiTokenSet={capiTokenSet}
+            aiKeySet={aiKeySet}
           />
         </div>
 

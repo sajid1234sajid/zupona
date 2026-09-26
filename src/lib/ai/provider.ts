@@ -406,6 +406,19 @@ async function rememberModel(model: string): Promise<void> {
   }
 }
 
+/** Whether a vendor refused the request's shape rather than its content.
+ * Gemini answers 400 INVALID_ARGUMENT and names the offending field. */
+function isSchemaRejected(error: unknown): boolean {
+  if (!(error instanceof ProviderFailed)) return false;
+  // A missing model also says "not supported for generateContent", and is a
+  // different problem with a different fix -- so it is ruled out first rather
+  // than being retried against a model that does not exist.
+  if (isModelMissing(error)) return false;
+  return /400|INVALID_ARGUMENT|invalid.{0,20}schema|unknown name|not supported/i.test(
+    error.message
+  );
+}
+
 /** Whether a vendor refused because the model name is wrong rather than
  * because anything is broken. Both OpenAI and Google answer 404 with the name
  * in the body, which is what makes recovering from it possible. */
@@ -496,13 +509,31 @@ class OpenAiProvider implements TextProvider {
  * keys it does not know -- `additionalProperties` and `strict` among them,
  * which the other two vendors require. Rather than keep three versions of
  * every schema, the unsupported keys are stripped on the way out. */
+const GEMINI_SCHEMA_KEYS = new Set([
+  "type",
+  "format",
+  "description",
+  "nullable",
+  "enum",
+  "items",
+  "properties",
+  "required",
+  "minimum",
+  "maximum",
+]);
+
 function forGoogle(schema: unknown): unknown {
   if (Array.isArray(schema)) return schema.map(forGoogle);
   if (schema === null || typeof schema !== "object") return schema;
 
   const out: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(schema as Record<string, unknown>)) {
-    if (key === "additionalProperties" || key === "strict" || key === "$schema") continue;
+    // A whitelist rather than a list of known-bad keys: Gemini rejects the
+    // whole request over one field it does not recognise, and the schemas
+    // here are written for three vendors at once, so the set of keys it has
+    // never heard of is open-ended.
+    if (!GEMINI_SCHEMA_KEYS.has(key)) continue;
+
     // Gemini wants a single type, so a nullable field is declared by its type
     // plus a nullable flag rather than by a list of two.
     if (key === "type" && Array.isArray(value)) {
@@ -524,18 +555,33 @@ class GoogleProvider implements TextProvider {
     readonly model: string
   ) {}
 
-  private async call<T>(model: string, request: TextRequest): Promise<TextResult<T>> {
+  private async call<T>(
+    model: string,
+    request: TextRequest,
+    useSchema: boolean
+  ): Promise<TextResult<T>> {
+    // Without the schema, the shape has to be asked for in words instead.
+    // JSON mode still guarantees it parses; what it cannot guarantee is that
+    // the fields are the ones we wanted -- which is why every caller of this
+    // provider already treats missing and mistyped fields defensively.
+    const system = useSchema
+      ? request.system
+      : `${request.system}
+
+Answer with JSON only -- no prose, no code fence -- matching exactly this JSON Schema:
+${JSON.stringify(request.schema)}`;
+
     const payload = await postJson(
       `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(
         model
       )}:generateContent`,
       {
-        systemInstruction: { parts: [{ text: request.system }] },
+        systemInstruction: { parts: [{ text: system }] },
         contents: [{ role: "user", parts: [{ text: request.prompt }] }],
         generationConfig: {
           maxOutputTokens: request.maxTokens ?? 16000,
           responseMimeType: "application/json",
-          responseSchema: forGoogle(request.schema),
+          ...(useSchema ? { responseSchema: forGoogle(request.schema) } : {}),
         },
       },
       { "x-goog-api-key": this.apiKey },
@@ -561,9 +607,28 @@ class GoogleProvider implements TextProvider {
     };
   }
 
+  /** One attempt, falling back from the schema to plain JSON mode.
+   *
+   * Gemini accepts a narrower schema dialect than the other two vendors and
+   * rejects the whole request over a single field it does not recognise. The
+   * shape these schemas describe matters more than the mechanism that
+   * enforces it, so a rejected schema becomes an instruction in words rather
+   * than a failed answer. */
+  private async attempt<T>(model: string, request: TextRequest): Promise<TextResult<T>> {
+    try {
+      return await this.call<T>(model, request, true);
+    } catch (error) {
+      if (!isSchemaRejected(error)) throw error;
+      console.error("gemini rejected the schema; retrying in plain JSON mode", {
+        shape: request.shapeName,
+      });
+      return this.call<T>(model, request, false);
+    }
+  }
+
   async generate<T>(request: TextRequest): Promise<TextResult<T>> {
     try {
-      return await this.call<T>(this.model, request);
+      return await this.attempt<T>(this.model, request);
     } catch (error) {
       if (!isModelMissing(error)) throw error;
 
@@ -582,7 +647,7 @@ class GoogleProvider implements TextProvider {
         );
       }
 
-      const result = await this.call<T>(replacement, request);
+      const result = await this.attempt<T>(replacement, request);
       await rememberModel(replacement);
       return result;
     }

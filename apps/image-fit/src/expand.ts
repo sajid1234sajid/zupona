@@ -23,12 +23,16 @@ export const MODEL = "@cf/black-forest-labs/flux-2-klein-9b";
  * picture rather than any one of them. Specific nouns ("the house, the sky")
  * help the model, but those would have to come from a second model reading the
  * picture first, and the generic wording below was already enough in testing. */
+/** "Frame" is deliberately not a word in it: an earlier wording asked for
+ * "a frame of a different shape" and the model drew a literal picture frame --
+ * a gold octagon, wooden edges -- around the photograph. */
 const PROMPT =
-  "Show this exact photograph in a frame of a different shape. Keep the original picture " +
-  "at the same size in the centre, unchanged, and extend its scene naturally beyond its " +
-  "edges to fill the extra space, as if the camera had captured a wider view of the same " +
-  "place. Photorealistic, sharp, seamless. Do not add any text, letters, logos, people or " +
-  "extra products in the extended areas.";
+  "Outpaint this photograph onto a larger canvas. Keep the original photograph at the same " +
+  "size in the centre, unchanged, and continue its scene naturally into the new space " +
+  "around it, as if the camera had captured a wider view of the same place: the same " +
+  "walls, floor, sky, plants and background carrying on past the edges. Photorealistic, " +
+  "sharp, seamless. No borders, no picture frames, no panels, no text, no letters, no " +
+  "logos, no people and no extra products in the new space.";
 
 /** Bounds on what is accepted, so one request cannot run up the bill. */
 const MIN_EDGE = 256;

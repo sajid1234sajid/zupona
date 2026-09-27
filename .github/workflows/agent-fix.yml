@@ -1,0 +1,167 @@
+name: Agent fix
+
+# The Zupona AI agent as a developer. Every hour it takes ONE recommendation
+# the owner approved on WhatsApp, has Claude Code implement it on its own
+# branch, checks that the site still builds, and opens a pull request.
+#
+# It never pushes to main, never runs database migrations and never deploys.
+# Merging the pull request is the owner's decision (and merging deploys).
+#
+# Needs: secrets CLAUDE_CODE_OAUTH_TOKEN and AGENT_FIX_TOKEN, variable
+# AGENT_RELAY_URL, and "Allow GitHub Actions to create and approve pull
+# requests" in Settings > Actions > General.
+
+on:
+  schedule:
+    - cron: "20 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: agent-fix
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  fix:
+    if: vars.AGENT_RELAY_URL != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      RELAY: ${{ vars.AGENT_RELAY_URL }}
+      FIX_TOKEN: ${{ secrets.AGENT_FIX_TOKEN }}
+    steps:
+      - name: Take the next approved fix
+        id: claim
+        env:
+          HAS_CLAUDE: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN != '' && '1' || '' }}
+        run: |
+          # Without Claude nothing could be fixed: leave the approvals queued instead of failing them.
+          if [ -z "$HAS_CLAUDE" ]; then echo "::warning::CLAUDE_CODE_OAUTH_TOKEN is not set; approved fixes stay queued."; echo "found=false" >> "$GITHUB_OUTPUT"; exit 0; fi
+          code=$(curl -sS -o "$RUNNER_TEMP/claim.json" -w '%{http_code}' -X POST -H "Authorization: Bearer $FIX_TOKEN" "$RELAY/fix/claim")
+          if [ "$code" = "204" ]; then echo "Nothing approved is waiting."; echo "found=false" >> "$GITHUB_OUTPUT"; exit 0; fi
+          if [ "$code" != "200" ]; then echo "::error::the relay answered $code"; cat "$RUNNER_TEMP/claim.json"; exit 1; fi
+          {
+            echo "found=true"
+            echo "fix_id=$(jq -r .fixId "$RUNNER_TEMP/claim.json")"
+            echo "rec_id=$(jq -r .recommendationId "$RUNNER_TEMP/claim.json")"
+          } >> "$GITHUB_OUTPUT"
+          jq -r '"Recommendation #\(.recommendationId): \(.detail.title)"' "$RUNNER_TEMP/claim.json"
+
+      - uses: actions/checkout@v7
+        if: steps.claim.outputs.found == 'true'
+        with:
+          # Claude must not be able to push: credentials are not left in .git.
+          persist-credentials: false
+
+      - uses: actions/setup-node@v7
+        if: steps.claim.outputs.found == 'true'
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      - name: Install dependencies and Claude Code
+        if: steps.claim.outputs.found == 'true'
+        run: |
+          npm ci
+          npm install -g @anthropic-ai/claude-code
+          claude --version
+
+      - name: Implement the fix with Claude Code
+        if: steps.claim.outputs.found == 'true'
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+        run: |
+          jq -r '
+            "You are working in the Zupona storefront repository (zupona.com, a Bangladeshi e-commerce site).\n" +
+            "The owner approved this recommendation from the Zupona AI agent, which audits the live site read-only:\n\n" +
+            "# \(.detail.title)\n\n" +
+            "Problem: \(.detail.problem)\n\n" +
+            "Proposed solution: \(.detail.proposedSolution)\n\n" +
+            "Expected impact: \(.detail.expectedImpact)\n" +
+            "Risk: \(.detail.risk). Difficulty: \(.detail.difficulty).\n\n" +
+            "Evidence from the audit:\n" + ([.detail.evidence[] | "- " + .] | join("\n")) + "\n\n" +
+            "Pages: " + (.detail.urls | join(", ")) + "\n\n" +
+            (if .detail.guidance then "What the agent has learned about the owner and this site (follow it):\n\(.detail.guidance)\n\n" else "" end) +
+            "Implement the smallest change that solves this, following CLAUDE.md and AGENTS.md. Rules:\n" +
+            "- Change only what this fix needs. Do not touch .github/, wrangler.jsonc or deployment settings.\n" +
+            "- Do not add dependencies. If the fix needs one, stop and explain.\n" +
+            "- If it needs a database change, add a new migration file in the existing migrations folder but never apply it.\n" +
+            "- Keep the site building: run npm run build before you finish.\n" +
+            "- If the recommendation is unclear, already solved, or unsafe to do, make no change and explain why.\n" +
+            "Finish with a short summary for the pull request."
+          ' "$RUNNER_TEMP/claim.json" > "$RUNNER_TEMP/prompt.md"
+          claude -p "$(cat "$RUNNER_TEMP/prompt.md")" \
+            --output-format json \
+            --json-schema '{"type":"object","additionalProperties":false,"required":["changed","summary","testing","risks"],"properties":{"changed":{"type":"boolean"},"summary":{"type":"string"},"testing":{"type":"string"},"risks":{"type":"string"}}}' \
+            --permission-mode acceptEdits \
+            --permission-prompts none \
+            --allowedTools "Read,Edit,Write,Glob,Grep,Bash(npm run build),Bash(npm run lint*),Bash(npx tsc *),Bash(git diff*),Bash(git status*),Bash(ls *)" \
+            --disallowedTools "WebFetch,WebSearch,Bash(git push*),Bash(git commit*),Bash(git remote*),Bash(npm install*),Bash(npx wrangler*),Bash(wrangler *),Bash(npm run db:*),Bash(curl *)" \
+            --max-turns 80 \
+            --no-session-persistence > "$RUNNER_TEMP/claude.json"
+          jq -e '.subtype == "success" and (.is_error | not) and .structured_output != null' "$RUNNER_TEMP/claude.json" > /dev/null \
+            || { echo "::error::Claude did not finish"; jq -r '.result // .' "$RUNNER_TEMP/claude.json" | head -c 2000; exit 1; }
+          jq '.structured_output' "$RUNNER_TEMP/claude.json" > "$RUNNER_TEMP/outcome.json"
+          cat "$RUNNER_TEMP/outcome.json"
+
+      - name: Check the change
+        if: steps.claim.outputs.found == 'true'
+        run: |
+          if [ "$(jq -r .changed "$RUNNER_TEMP/outcome.json")" != "true" ] || [ -z "$(git status --porcelain)" ]; then
+            echo "::error::no change was made: $(jq -r .summary "$RUNNER_TEMP/outcome.json")"
+            exit 1
+          fi
+          if git status --porcelain | grep -E '(^| )\.github/|wrangler\.json' ; then
+            echo "::error::the change touches CI or deployment files, which the developer agent may not change"
+            exit 1
+          fi
+          # Do not trust the claim that it builds: build it here.
+          npm run build
+
+      - name: Open the pull request
+        id: pr
+        if: steps.claim.outputs.found == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REC: ${{ steps.claim.outputs.rec_id }}
+          FIX: ${{ steps.claim.outputs.fix_id }}
+        run: |
+          title="$(jq -r .detail.title "$RUNNER_TEMP/claim.json" | head -c 100)"
+          branch="agent/fix-${REC}-${FIX}"
+          migrations="$(git status --porcelain | grep -i migration || true)"
+          {
+            echo "Recommendation **#${REC}** from the Zupona AI agent, approved by the owner on WhatsApp."
+            echo
+            echo "### Problem"; jq -r .detail.problem "$RUNNER_TEMP/claim.json"
+            echo; echo "### Evidence (from the read-only audit)"; jq -r '.detail.evidence[] | "- " + .' "$RUNNER_TEMP/claim.json"
+            echo; echo "### What changed"; jq -r .summary "$RUNNER_TEMP/outcome.json"
+            echo; echo "### Testing"; jq -r .testing "$RUNNER_TEMP/outcome.json"; echo "- \`npm run build\` passed in this workflow."
+            echo; echo "### Risks"; jq -r .risks "$RUNNER_TEMP/outcome.json"
+            if [ -n "$migrations" ]; then echo; echo "> **Contains a database migration.** It was NOT applied. Apply it by hand (d1-migrate) after merging."; fi
+            echo; echo "---"
+            echo "Opened by the developer agent. Nothing was deployed and no migration was run. **Merging deploys zupona.com.**"
+          } > "$RUNNER_TEMP/body.md"
+          git config user.name "zupona-agent"
+          git config user.email "zupona-agent@users.noreply.github.com"
+          git switch -c "$branch"
+          git add -A
+          git commit -q -m "Fix #${REC}: ${title}" -m "Implemented by the Zupona AI developer agent from an approved recommendation."
+          git push -q "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" "$branch"
+          url="$(gh pr create --base main --head "$branch" --title "Agent fix #${REC}: ${title}" --body-file "$RUNNER_TEMP/body.md")"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "Opened $url"
+
+      - name: Tell the owner
+        if: steps.claim.outputs.found == 'true' && steps.pr.outputs.url != ''
+        run: |
+          jq -n --arg url "${{ steps.pr.outputs.url }}" '{status: "pr_opened", prUrl: $url}' \
+            | curl -fsS -X POST -H "Authorization: Bearer $FIX_TOKEN" -H "content-type: application/json" --data @- "$RELAY/fix/${{ steps.claim.outputs.fix_id }}/result"
+
+      - name: Report the failure
+        if: failure() && steps.claim.outputs.found == 'true'
+        run: |
+          jq -n --arg msg "No pull request was opened. Details: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" '{status: "failed", message: $msg}' \
+            | curl -fsS -X POST -H "Authorization: Bearer $FIX_TOKEN" -H "content-type: application/json" --data @- "$RELAY/fix/${{ steps.claim.outputs.fix_id }}/result"

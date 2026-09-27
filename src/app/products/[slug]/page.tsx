@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import ProductHeader from "@/components/layout/ProductHeader";
 import DesktopHeader from "@/components/layout/DesktopHeader";
 import BottomNav from "@/components/layout/BottomNav";
+import SiteFooter from "@/components/layout/SiteFooter";
 import StoreShell, { StoreContainer } from "@/components/layout/StoreShell";
 import ProductView from "@/components/product/dynamic/ProductView";
 import ProductDescription from "@/components/product/dynamic/ProductDescription";
@@ -166,6 +167,7 @@ export default async function DynamicProductPage({ params }: PageProps<"/product
           </div>
         </StoreContainer>
       </main>
+      <SiteFooter />
       {/* The tab bar is a phone affordance; above 700px the page has room for
           real navigation and the buy buttons sit beside the product instead. */}
       <div className="tab:hidden">

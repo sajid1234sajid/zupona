@@ -3,6 +3,7 @@ import { ShoppingCart } from "lucide-react";
 import ProductHeader from "@/components/layout/ProductHeader";
 import DesktopHeader from "@/components/layout/DesktopHeader";
 import BottomNav from "@/components/layout/BottomNav";
+import SiteFooter from "@/components/layout/SiteFooter";
 import CartItemRow from "@/components/cart/CartItemRow";
 import { removeUnavailableItemsAction } from "./actions";
 import { getShopper } from "@/lib/session";
@@ -112,6 +113,8 @@ export default async function CartPage() {
           </div>
         )}
       </main>
+
+      <SiteFooter />
 
       {items.length > 0 && (
         <div className="fixed inset-x-0 bottom-16 z-10 mx-auto max-w-md border-t border-line bg-white px-4 py-3 tab:hidden">

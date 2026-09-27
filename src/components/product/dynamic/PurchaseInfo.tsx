@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { CalendarClock, RefreshCw, RotateCcw, ShieldCheck, Truck, Wallet } from "lucide-react";
 
 export interface DeliveryLine {
@@ -43,14 +44,22 @@ export default function PurchaseInfo({
   ].filter(Boolean) as { icon: typeof Truck; label: string; value: string }[];
 
   return (
-    <dl aria-label="Delivery and returns" className="space-y-2">
-      {rows.map(({ icon: Icon, label, value }) => (
-        <div key={label} className="flex items-start gap-2 text-[13px] leading-snug">
-          <Icon className="mt-[1px] h-4 w-4 shrink-0 text-brand" aria-hidden />
-          <dt className="shrink-0 text-ink-muted">{label} :</dt>
-          <dd className="min-w-0 font-semibold text-heading">{value}</dd>
-        </div>
-      ))}
-    </dl>
+    <div className="space-y-2">
+      <dl aria-label="Delivery and returns" className="space-y-2">
+        {rows.map(({ icon: Icon, label, value }) => (
+          <div key={label} className="flex items-start gap-2 text-[13px] leading-snug">
+            <Icon className="mt-[1px] h-4 w-4 shrink-0 text-brand" aria-hidden />
+            <dt className="shrink-0 text-ink-muted">{label} :</dt>
+            <dd className="min-w-0 font-semibold text-heading">{value}</dd>
+          </div>
+        ))}
+      </dl>
+      <Link
+        href="/returns-policy"
+        className="inline-block text-[12px] font-semibold text-brand hover:text-brand-darkest"
+      >
+        Read the full return &amp; refund policy →
+      </Link>
+    </div>
   );
 }

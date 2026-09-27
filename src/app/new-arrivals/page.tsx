@@ -4,6 +4,7 @@ import { Sparkles } from "lucide-react";
 import ProductHeader from "@/components/layout/ProductHeader";
 import DesktopHeader from "@/components/layout/DesktopHeader";
 import BottomNav from "@/components/layout/BottomNav";
+import SiteFooter from "@/components/layout/SiteFooter";
 import PagedProductGrid from "@/components/product/PagedProductGrid";
 import { listStoreProducts } from "@/lib/storefront";
 import { getCurrentUser } from "@/lib/session";
@@ -68,6 +69,7 @@ export default async function NewArrivalsPage() {
           />
         )}
       </main>
+      <SiteFooter />
       <BottomNav />
     </div>
   );

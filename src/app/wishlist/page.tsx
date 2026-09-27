@@ -4,6 +4,7 @@ import Link from "next/link";
 import ProductHeader from "@/components/layout/ProductHeader";
 import DesktopHeader from "@/components/layout/DesktopHeader";
 import BottomNav from "@/components/layout/BottomNav";
+import SiteFooter from "@/components/layout/SiteFooter";
 import WishlistClient from "@/components/wishlist/WishlistClient";
 import { getCurrentUser } from "@/lib/session";
 import { getWishlistEntries, wishlistSavings, wishlistTotal } from "@/lib/wishlist";
@@ -128,6 +129,7 @@ export default async function WishlistPage({ searchParams }: PageProps<"/wishlis
           </>
         )}
       </main>
+      <SiteFooter />
       <BottomNav />
     </div>
   );

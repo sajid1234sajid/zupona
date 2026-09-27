@@ -1,5 +1,6 @@
 import Header from "@/components/layout/Header";
 import BottomNav from "@/components/layout/BottomNav";
+import SiteFooter from "@/components/layout/SiteFooter";
 import HeroBanner from "@/components/home/HeroBanner";
 import CategoryGrid from "@/components/home/CategoryGrid";
 import PromoBanners from "@/components/home/PromoBanners";
@@ -65,6 +66,7 @@ export default async function Home() {
             isSignedIn={Boolean(user)}
           />
         </main>
+        <SiteFooter />
         <BottomNav />
       </div>
     </SearchProvider>

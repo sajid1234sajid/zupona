@@ -4,6 +4,7 @@ import { Flame, PiggyBank, Tag, Truck } from "lucide-react";
 import ProductHeader from "@/components/layout/ProductHeader";
 import DesktopHeader from "@/components/layout/DesktopHeader";
 import BottomNav from "@/components/layout/BottomNav";
+import SiteFooter from "@/components/layout/SiteFooter";
 import PagedProductGrid from "@/components/product/PagedProductGrid";
 import FlashSaleTimer from "@/components/offers/FlashSaleTimer";
 import FlashSaleCard from "@/components/offers/FlashSaleCard";
@@ -190,6 +191,7 @@ export default async function OffersPage({ searchParams }: PageProps<"/offers">)
         </section>
       </main>
 
+      <SiteFooter />
       <BottomNav />
     </div>
   );

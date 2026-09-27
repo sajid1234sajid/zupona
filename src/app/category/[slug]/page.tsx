@@ -5,6 +5,7 @@ import { ChevronLeft, PackageSearch } from "lucide-react";
 import ProductHeader from "@/components/layout/ProductHeader";
 import DesktopHeader from "@/components/layout/DesktopHeader";
 import BottomNav from "@/components/layout/BottomNav";
+import SiteFooter from "@/components/layout/SiteFooter";
 import ProductCard from "@/components/home/ProductCard";
 import CategoryToolbar from "@/components/category/CategoryToolbar";
 import {
@@ -164,6 +165,7 @@ export default async function CategoryPage({
         )}
       </main>
 
+      <SiteFooter />
       <BottomNav />
     </div>
   );

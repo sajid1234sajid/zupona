@@ -16,5 +16,10 @@ declare namespace Cloudflare {
     /** Overrides the provider's endpoint; required for SMS_PROVIDER=custom,
      * where it is a URL template — see src/lib/sms.ts. */
     SMS_ENDPOINT?: string;
+    /** The Zupona AI agent's relay — see src/lib/aiAgent.ts. */
+    AGENT_RELAY_URL?: string;
+    /** Lets the admin panel read the agent's recommendations and record the
+     * owner's decisions, and nothing else. */
+    AGENT_ADMIN_TOKEN?: string;
   }
 }

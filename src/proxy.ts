@@ -39,6 +39,7 @@ const PANELS: Panel[] = [
     segments: new Set([
       "login",
       "assistant",
+      "ai-agent",
       "products",
       "categories",
       "orders",

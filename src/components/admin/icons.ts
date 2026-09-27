@@ -11,6 +11,7 @@ import {
   LayoutDashboard,
   Megaphone,
   Package,
+  ScanSearch,
   Settings,
   ShoppingCart,
   Store,
@@ -22,6 +23,7 @@ import {
 export const ICONS: Record<string, LucideIcon> = {
   dashboard: LayoutDashboard,
   assistant: Bot,
+  agent: ScanSearch,
   products: Package,
   categories: FolderTree,
   orders: ShoppingCart,

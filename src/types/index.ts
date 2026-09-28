@@ -105,6 +105,8 @@ export interface PaymentMethod {
  * which React cannot serialize across the server/client boundary. */
 export interface ProductSummary {
   id: string;
+  /** The public `/products/<slug>` address. */
+  slug: string;
   name: string;
   image: string;
   price: number;

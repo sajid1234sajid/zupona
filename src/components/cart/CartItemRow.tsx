@@ -35,13 +35,13 @@ export default function CartItemRow({ item }: { item: CartItem }) {
         gone ? "border border-dashed border-line" : ""
       }`}
     >
-      <Link href={`/product/${item.productId}`} className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-brand-mist">
+      <Link href={`/products/${item.product.slug}`} className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-brand-mist">
         <Image src={item.product.image} alt={item.product.name} fill sizes="80px" className="object-cover" />
       </Link>
 
       <div className="flex flex-1 flex-col justify-between min-w-0">
         <div>
-          <Link href={`/product/${item.productId}`} className="line-clamp-1 text-sm font-semibold text-heading">
+          <Link href={`/products/${item.product.slug}`} className="line-clamp-1 text-sm font-semibold text-heading">
             {item.product.name}
           </Link>
           {item.color && <p className="mt-0.5 text-xs text-ink-slate">Color: {item.color}</p>}

@@ -21,7 +21,7 @@ function SimilarCard({
   const router = useRouter();
   const [wishlisted, setWishlisted] = useState(initiallyWishlisted);
   const [pending, startTransition] = useTransition();
-  const href = `/product/${product.id}`;
+  const href = `/products/${product.slug}`;
 
   function toggleWishlist() {
     // A redirect thrown inside the action is not followed from a click handler,

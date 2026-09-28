@@ -104,6 +104,7 @@ export async function getCartItems(userId: string): Promise<CartItem[]> {
         freeDelivery: row.free_delivery === 1,
         product: {
           id: product.id,
+          slug: product.slug,
           name: product.name,
           image: product.image,
           price,

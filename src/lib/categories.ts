@@ -62,6 +62,7 @@ export async function categoryName(categoryId: string | null): Promise<string> {
 export function toSummary(product: StoreProductCard): ProductSummary {
   return {
     id: product.id,
+    slug: product.slug,
     name: product.name,
     image: product.image,
     price: product.price,

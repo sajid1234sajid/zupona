@@ -67,6 +67,7 @@ interface SaleItemRow {
   sale_price: number;
   stock_limit: number | null;
   sold_count: number;
+  slug: string;
   name: string;
   price: number;
   old_price: number;
@@ -83,7 +84,7 @@ async function runningSaleItems(): Promise<SaleItemRow[]> {
   const { results } = await db
     .prepare(
       `SELECT f.product_id, f.sale_price, f.stock_limit, f.sold_count,
-              p.name, p.price, p.old_price, p.rating_avg, p.rating_count,
+              p.slug, p.name, p.price, p.old_price, p.rating_avg, p.rating_count,
               (SELECT url FROM product_images i WHERE i.product_id = p.id
                 ORDER BY i.is_primary DESC, i.sort_order ASC LIMIT 1) AS image
        FROM flash_sale_items f
@@ -110,6 +111,7 @@ export async function flashSaleItems(): Promise<FlashSaleItem[]> {
     return {
       product: {
         id: row.product_id,
+        slug: row.slug,
         name: row.name,
         image: row.image ?? "",
         price: row.price,

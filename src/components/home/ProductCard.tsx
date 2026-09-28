@@ -83,7 +83,7 @@ export default function ProductCard({
           // single tab change, competing for a phone's bandwidth with the page
           // the shopper actually wanted. The tap itself is what fetches.
           prefetch={false}
-          href={`/product/${product.id}`}
+          href={`/products/${product.slug}`}
           className="relative block aspect-[8/9] overflow-hidden bg-brand-mist"
         >
           {/* The whole picture, never cropped -- a cropped tile cut the
@@ -135,7 +135,7 @@ export default function ProductCard({
       </div>
 
       <div className="flex flex-1 flex-col p-1.5">
-        <Link prefetch={false} href={`/product/${product.id}`} className="block">
+        <Link prefetch={false} href={`/products/${product.slug}`} className="block">
           <h3 className="line-clamp-2 min-h-[2.5em] text-[12px] font-semibold leading-[1.25] text-heading">
             {product.name}
           </h3>

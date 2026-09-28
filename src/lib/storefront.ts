@@ -28,6 +28,7 @@ import { UNLIMITED_STOCK } from "@/lib/stockLimits";
 
 export interface StoreProductCard {
   id: string;
+  slug: string;
   name: string;
   image: string;
   price: number;
@@ -118,7 +119,6 @@ export interface StoreVariant {
 }
 
 export interface StoreProduct extends StoreProductCard {
-  slug: string;
   brand: string | null;
   description: string | null;
   heroHeadline: string | null;
@@ -217,6 +217,7 @@ const PLACEHOLDER_IMAGE =
 
 interface CardRow {
   id: string;
+  slug: string;
   name: string;
   price: number;
   old_price: number;
@@ -245,6 +246,7 @@ function toCard(row: CardRow): StoreProductCard {
 
   return {
     id: row.id,
+    slug: row.slug,
     name: row.name,
     image: row.image ?? PLACEHOLDER_IMAGE,
     price: row.price,
@@ -267,7 +269,7 @@ function toCard(row: CardRow): StoreProductCard {
 /** Every column a product card needs, plus the parent join that separates
  * department from subcategory. */
 const CARD_SELECT = `
-  SELECT p.id, p.name, p.price, p.old_price, p.rating_avg, p.rating_count,
+  SELECT p.id, p.slug, p.name, p.price, p.old_price, p.rating_avg, p.rating_count,
          p.is_best_seller, p.is_featured, p.category_id, p.track_inventory, c.parent_id,
          (SELECT url FROM product_images i WHERE i.product_id = p.id
            ORDER BY i.is_primary DESC, i.sort_order ASC LIMIT 1) AS image,

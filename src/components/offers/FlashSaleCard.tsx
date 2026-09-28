@@ -17,7 +17,7 @@ export default function FlashSaleCard({ item }: { item: FlashSaleItem }) {
   return (
     <Link
       prefetch={false}
-      href={`/product/${product.id}`}
+      href={`/products/${product.slug}`}
       className="w-[112px] shrink-0 rounded-lg bg-white p-1.5 shadow-card tab:w-[150px]"
     >
       <div className="relative h-[92px] overflow-hidden rounded-md bg-brand-mist tab:h-[124px]">

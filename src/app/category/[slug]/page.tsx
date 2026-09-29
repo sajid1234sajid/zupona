@@ -21,10 +21,20 @@ import { getWishlistProductIds } from "@/lib/wishlist";
 
 export async function generateMetadata({
   params,
+  searchParams,
 }: PageProps<"/category/[slug]">): Promise<Metadata> {
   const { slug } = await params;
-  const category = await getCategory(slug);
+  const [category, query] = await Promise.all([getCategory(slug), searchParams]);
   if (!category) return { title: "Category not found — Zupona" };
+
+  const sub = Array.isArray(query.sub) ? query.sub[0] : query.sub;
+  const subcategory = sub ? await getSubcategory(slug, sub) : undefined;
+  if (subcategory) {
+    return {
+      title: `${subcategory.name} — ${category.name} — Zupona`,
+      description: `Shop ${subcategory.name} in ${category.name} on Zupona.`,
+    };
+  }
 
   return {
     title: `${category.name} — Zupona`,

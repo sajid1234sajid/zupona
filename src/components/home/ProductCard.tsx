@@ -72,10 +72,11 @@ export default function ProductCard({
     <article className="@container flex min-w-0 flex-col overflow-hidden rounded-xl border border-line bg-white">
       <div className="relative">
         {/* A photo that scales with the column, so the tile is the same shape
-            in every two-column grid instead of a fixed-height strip. It is a
-            little taller than square because the shop's photos are portrait
-            (2:3 to 3:4) and a square cut their headlines off; the height came
-            out of the text below, so the tile as a whole is the size it was. */}
+            in every two-column grid instead of a fixed-height strip. It is 4:5,
+            the same shape as the product page's frame and the shape the admin
+            uploader fits pictures to, so one picture fills both edge to edge.
+            At 8:9 a picture fitted to 4:5 still showed a blurred band down
+            each side of the tile. */}
         <Link
           // A grid draws dozens of these, and each one prefetching costs an
           // RSC round trip for a product nobody has asked for yet. Measured on
@@ -84,7 +85,7 @@ export default function ProductCard({
           // the shopper actually wanted. The tap itself is what fetches.
           prefetch={false}
           href={`/products/${product.slug}`}
-          className="relative block aspect-[8/9] overflow-hidden bg-brand-mist"
+          className="relative block aspect-[4/5] overflow-hidden bg-brand-mist"
         >
           {/* The whole picture, never cropped -- a cropped tile cut the
               headline off the shop's banner-style photos. The space around it

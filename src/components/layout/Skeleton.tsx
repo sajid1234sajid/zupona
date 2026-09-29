@@ -47,7 +47,7 @@ export function ProductGridBone({ count = 6 }: { count?: number }) {
     <div className="mt-2 grid grid-cols-2 gap-1.5 tab:mt-4 tab:grid-cols-3 tab:gap-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
       {Array.from({ length: count }, (_, index) => (
         <div key={index} className="overflow-hidden rounded-xl border border-line bg-white">
-          <Bone className="aspect-square w-full rounded-none" />
+          <Bone className="aspect-[4/5] w-full rounded-none" />
           <div className="flex flex-col gap-1.5 p-2">
             <Bone className="h-[10px] w-[88%]" />
             <Bone className="h-[10px] w-[60%]" />

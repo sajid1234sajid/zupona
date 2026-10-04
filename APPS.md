@@ -60,6 +60,17 @@ repository is public.
 
 Built by the *Build Android app* workflow; see [`android/README.md`](android/README.md).
 
+## 6. Zupona AI agent — run the whole shop from WhatsApp
+
+| | |
+| --- | --- |
+| What it is | Write to the agent's WhatsApp number in Bangla, or send pictures and files. Claude (Opus) answers, researches, reads the shop's real data, and does the work: prices, stock, orders, coupons, banners, products, design and code changes. Every morning it also audits the site and sends recommendations |
+| How a change happens | ✅ before anything changes. Data changes go live at once. A code or design change is first previewed on the real site, invisible to customers; before/after pictures come to WhatsApp, and it goes live only on **🚀 চালু করো** |
+| Useful words | `কাজ` (tasks waiting for a tap), `list`, `report`, `help` |
+| Code | https://github.com/sajid123sajid/zupona-ai-agent (chat, audit, WhatsApp relay) and [`.github/workflows/agent-task.yml`](.github/workflows/agent-task.yml) with [`scripts/agent-task/`](scripts/agent-task/) in this repository (the work itself) |
+| Runs on | The relay is a Cloudflare Worker in the agent's own Cloudflare account; the work runs on GitHub Actions in this repository |
+| Inside the admin | https://admin.zupona.com/ai-agent: the agent's recommendations and decisions |
+
 ---
 
 ## Where the machinery lives

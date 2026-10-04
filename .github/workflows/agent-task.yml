@@ -1,0 +1,316 @@
+name: Agent task
+
+# The owner runs Zupona from WhatsApp, with Claude Code (Opus) doing the work.
+#
+# The owner writes on WhatsApp; the AI agent's relay (zupona-ai-agent) turns
+# it into a task, and this workflow does it:
+#
+#   ask     A question. Starts at once, READ-ONLY: code, a SELECT-only database
+#           script, screenshots, web research. Answers with text, pictures, files.
+#   change  Only after the owner's ✅. Data (prices, stock, orders, coupons…) is
+#           changed on the live database at once. Code and design changes are
+#           previewed on zupona.com at 0% traffic, checked by screenshot, and
+#           opened as a pull request; the owner gets before/after pictures and
+#           a 🚀 button. Nothing in the code goes live yet.
+#   ship    The owner tapped 🚀: merge that pull request, apply any new
+#           migration, deploy, report.
+#   drop    The owner tapped ❌ instead: close it and remove the preview.
+#
+# Claude Code never gets every tool: each kind has an explicit allow-list, and
+# it can never commit, push, merge or deploy. Those happen in the steps below,
+# and only for what the owner tapped.
+#
+# The relay starts this at once when it holds a token that may dispatch
+# workflows here (SHOP_DISPATCH_TOKEN); otherwise the schedule finds the task
+# within a few minutes. A run with nothing waiting ends in seconds.
+#
+# Needs: secrets CLAUDE_CODE_OAUTH_TOKEN, AGENT_FIX_TOKEN, CLOUDFLARE_API_TOKEN;
+# variable AGENT_RELAY_URL. All already exist for agent-fix.yml and deploy.yml.
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  # One task at a time: two changes racing on the database or on main is how things break.
+  group: agent-task
+  cancel-in-progress: false
+
+permissions:
+  contents: write # push the task's branch; merge it on 🚀
+  pull-requests: write # open the pull request; merge or close it
+  actions: write # start deploy.yml (a merge by this token starts nothing), and this workflow for the next task
+
+jobs:
+  task:
+    if: vars.AGENT_RELAY_URL != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      RELAY: ${{ vars.AGENT_RELAY_URL }}
+      FIX_TOKEN: ${{ secrets.AGENT_FIX_TOKEN }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      CLOUDFLARE_ACCOUNT_ID: 14743b3b6de704c99ed06b7b67c65903
+      WRANGLER_SEND_METRICS: "false"
+    steps:
+      - name: Take the owner's next task
+        id: claim
+        env:
+          HAS_CLAUDE: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN != '' && '1' || '' }}
+        run: |
+          if [ -z "$HAS_CLAUDE" ]; then echo "::warning::CLAUDE_CODE_OAUTH_TOKEN is not set; tasks stay queued."; echo "found=false" >> "$GITHUB_OUTPUT"; exit 0; fi
+          WORK="$RUNNER_TEMP/agent"
+          mkdir -p "$WORK/attachments" "$WORK/out"
+          { echo "WORK=$WORK"; echo "AGENT_WORK=$WORK"; echo "AGENT_OUT=$WORK/out"; } >> "$GITHUB_ENV"
+          code=$(jq -n --arg run "$RUN_URL" '{runUrl: $run}' | curl -sS -o "$WORK/claim.json" -w '%{http_code}' -X POST \
+            -H "Authorization: Bearer $FIX_TOKEN" -H "content-type: application/json" --data @- "$RELAY/task/claim")
+          if [ "$code" = "204" ]; then echo "Nothing is waiting."; echo "found=false" >> "$GITHUB_OUTPUT"; exit 0; fi
+          if [ "$code" != "200" ]; then echo "::error::the relay answered $code"; cat "$WORK/claim.json"; exit 1; fi
+          kind=$(jq -r .kind "$WORK/claim.json")
+          pr=$(jq -r '.prUrl // ""' "$WORK/claim.json")
+          # A ship or drop acts on a pull request of THIS repository, nothing else.
+          if [ "$kind" = ship ] || [ "$kind" = drop ]; then
+            case "$pr" in "${{ github.server_url }}/${{ github.repository }}/pull/"*) ;; *) echo "::error::not a pull request of this repository: $pr"; exit 1 ;; esac
+          fi
+          { echo "found=true"; echo "id=$(jq -r .taskId "$WORK/claim.json")"; echo "kind=$kind"; echo "pr=$pr"; } >> "$GITHUB_OUTPUT"
+          jq -r '"Task #\(.taskId) (\(.kind)): \(.plan)"' "$WORK/claim.json"
+
+      - uses: actions/checkout@v4
+        if: steps.claim.outputs.found == 'true'
+        with:
+          # History for "undo that"; no credentials left in .git.
+          fetch-depth: 50
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        if: steps.claim.outputs.found == 'true'
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      - name: Install dependencies
+        if: steps.claim.outputs.found == 'true'
+        run: npm ci
+
+      - name: Install a browser and Claude Code
+        if: steps.claim.outputs.kind == 'ask' || steps.claim.outputs.kind == 'change'
+        run: |
+          npx playwright install --with-deps chromium
+          npm install -g @anthropic-ai/claude-code
+          claude --version
+
+      - name: Fetch the owner's pictures and files
+        if: steps.claim.outputs.kind == 'ask' || steps.claim.outputs.kind == 'change'
+        run: |
+          i=0
+          jq -c '.attachments[]' "$WORK/claim.json" | while read -r a; do
+            i=$((i + 1))
+            id=$(jq -r .mediaId <<< "$a")
+            name=$(jq -r '.filename // ""' <<< "$a" | tr -c 'A-Za-z0-9._-' '_' | head -c 80)
+            if [ -z "$name" ]; then
+              case "$(jq -r .mimeType <<< "$a")" in
+                image/jpeg) name=photo.jpg ;; image/png) name=photo.png ;; image/webp) name=photo.webp ;;
+                video/mp4) name=video.mp4 ;; application/pdf) name=file.pdf ;; *) name=file.bin ;;
+              esac
+            fi
+            curl -fsS -H "Authorization: Bearer $FIX_TOKEN" "$RELAY/task/media/$id" -o "$WORK/attachments/$(printf %02d "$i")-$name" \
+              || echo "::warning::could not fetch attachment $id"
+          done
+          ls -la "$WORK/attachments"
+
+      - name: Claude Code does the task
+        id: claude
+        if: steps.claim.outputs.kind == 'ask' || steps.claim.outputs.kind == 'change'
+        env:
+          KIND: ${{ steps.claim.outputs.kind }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          CLAUDE_MODEL: ${{ vars.CLAUDE_CODE_MODEL || 'opus' }}
+          # The live database and media, and staging a preview version. In a question only shop-sql.mjs (SELECT only) runs.
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          node scripts/agent-task/prompt.mjs "$WORK/claim.json" "$WORK" > "$WORK/prompt.md"
+          echo "start=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          schema='{"type":"object","additionalProperties":false,"required":["message","changed_code","commit_message","files"],"properties":{"message":{"type":"string"},"changed_code":{"type":"boolean"},"commit_message":{"type":"string"},"files":{"type":"array","items":{"type":"object","additionalProperties":false,"required":["path","caption"],"properties":{"path":{"type":"string"},"caption":{"type":"string"}}}}}}'
+          if [ "$KIND" = "change" ]; then
+            # Confirmed by the owner's ✅. Everything it needs, named one by one; no push, merge or deploy.
+            tools="Read,Glob,Grep,Edit,Write,WebSearch,WebFetch,Bash"
+            allowed="Read,Glob,Grep,Edit,Write,WebSearch,WebFetch"
+            allowed+=",Bash(npx wrangler d1 execute zupona-v3-db --remote *)"
+            allowed+=",Bash(npx wrangler r2 object put zupona-product-media/*),Bash(npx wrangler r2 object get zupona-product-media/*)"
+            allowed+=",Bash(node scripts/agent-task/shop-sql.mjs *),Bash(node scripts/agent-task/shot.mjs *),Bash(node scripts/agent-task/preview.mjs)"
+            allowed+=",Bash(npm run build),Bash(npm run lint*),Bash(npx tsc *)"
+            allowed+=",Bash(git diff*),Bash(git status*),Bash(git log*),Bash(git show *),Bash(git revert --no-commit *)"
+            allowed+=",Bash(convert *),Bash(magick *),Bash(identify *),Bash(ls *),Bash(mkdir *),Bash(cp *),Bash(mv *)"
+            denied="Edit(.github/**),Write(.github/**),Edit(scripts/agent-task/**),Write(scripts/agent-task/**),Edit(wrangler.jsonc),Write(wrangler.jsonc)"
+            denied+=",Bash(git push*),Bash(git commit*),Bash(git remote*),Bash(npx wrangler deploy*),Bash(npx wrangler versions deploy*),Bash(npx wrangler secret*),Bash(npm run deploy*),Bash(curl *)"
+            turns=250
+          else
+            # A question: read, research and screenshot only.
+            tools="Read,Glob,Grep,WebSearch,WebFetch,Bash"
+            allowed="Read,Glob,Grep,WebSearch,WebFetch,Bash(node scripts/agent-task/shop-sql.mjs *),Bash(node scripts/agent-task/shot.mjs *)"
+            denied="Edit,Write"
+            turns=80
+          fi
+          claude -p "$(cat "$WORK/prompt.md")" \
+            --model "$CLAUDE_MODEL" \
+            --add-dir "$WORK" \
+            --tools "$tools" \
+            --allowedTools "$allowed" \
+            --disallowedTools "$denied" \
+            --permission-prompts none \
+            --max-turns "$turns" \
+            --output-format json \
+            --json-schema "$schema" \
+            --no-session-persistence > "$WORK/claude.json" || true
+          if ! jq -e '.subtype == "success" and (.is_error | not) and .structured_output != null' "$WORK/claude.json" > /dev/null 2>&1; then
+            echo "::error::Claude did not finish"
+            jq -r '.result // .subtype // .' "$WORK/claude.json" 2>/dev/null | head -c 3000 || head -c 3000 "$WORK/claude.json"
+            exit 1
+          fi
+          jq '.structured_output' "$WORK/claude.json" > "$WORK/outcome.json"
+          cat "$WORK/outcome.json"
+
+      - name: Open the pull request for the code change
+        id: pr
+        if: steps.claim.outputs.kind == 'change' && steps.claude.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TASK: ${{ steps.claim.outputs.id }}
+        run: |
+          git add -A
+          if git diff --cached --quiet; then echo "No code changed (data only, or nothing to do)."; exit 0; fi
+          if git diff --cached --name-only | grep -E '^(\.github/|scripts/agent-task/|wrangler\.jsonc$)'; then
+            echo "::error::the change touches files this workflow may not change"; exit 1
+          fi
+          # Do not trust that it builds: build it here.
+          npm run build
+          msg="$(jq -r '.commit_message // ""' "$WORK/outcome.json")"
+          [ -n "$msg" ] || msg="Owner's WhatsApp task #$TASK"
+          branch="agent/task-$TASK"
+          git config user.name "zupona-agent"
+          git config user.email "zupona-agent@users.noreply.github.com"
+          git switch -q -c "$branch"
+          git commit -q -m "$msg" -m "Asked on WhatsApp as task #$TASK and confirmed by the owner; done by Claude Code. $RUN_URL"
+          git push -q "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" "$branch"
+          {
+            echo "Asked by the owner on WhatsApp (task **#$TASK**) and confirmed with ✅. Done by Claude Code."
+            echo
+            echo "### What the owner said"; jq -r .request "$WORK/claim.json"
+            echo; echo "### Plan"; jq -r .plan "$WORK/claim.json"
+            echo; echo "### Report to the owner"; jq -r .message "$WORK/outcome.json"
+            if git diff --name-only HEAD~1 | grep -q '^db/migrations/'; then echo; echo "> Contains a migration: it is applied to the remote database right before the deploy when the owner taps 🚀."; fi
+            echo; echo "---"; echo "**Goes live when the owner taps 🚀 on WhatsApp** (merge, migration, deploy). ❌ closes it. $RUN_URL"
+          } > "$WORK/body.md"
+          url="$(gh pr create --base main --head "$branch" --title "WhatsApp task #$TASK: $(head -c 80 <<< "$msg")" --body-file "$WORK/body.md")"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "Opened $url"
+
+      - name: Remove a preview that will not go live
+        if: always() && steps.claim.outputs.kind == 'change' && steps.pr.outputs.url == ''
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: if [ -f "$WORK/preview-version" ]; then node scripts/agent-task/preview.mjs --clear; fi
+
+      - name: Merge, migrate and deploy (🚀)
+        id: ship
+        if: steps.claim.outputs.kind == 'ship'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR: ${{ steps.claim.outputs.pr }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_D1_TOKEN || secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          state="$(gh pr view "$PR" --json state --jq .state)"
+          if [ "$state" = "OPEN" ]; then gh pr merge "$PR" --squash --delete-branch; elif [ "$state" != "MERGED" ]; then echo "::error::the pull request is $state"; exit 1; fi
+          git fetch -q origin main && git checkout -q origin/main
+          # Migration first, deploy second (AGENTS.md): code that expects a column must not go live before it.
+          for f in $(gh pr diff "$PR" --name-only | grep -E '^db/migrations/[0-9]{4}_[a-z0-9_]+\.sql$' | sort); do
+            echo "Applying $f"
+            npx wrangler d1 execute zupona-v3-db --remote --file "./$f" -y
+          done
+          sha="$(git rev-parse HEAD)"
+          echo "commit_url=${{ github.server_url }}/${{ github.repository }}/commit/$sha" >> "$GITHUB_OUTPUT"
+          gh workflow run deploy.yml --ref main
+          run_id=""
+          for _ in $(seq 1 30); do
+            sleep 6
+            run_id="$(gh run list --workflow deploy.yml --branch main --limit 10 --json databaseId,headSha --jq "map(select(.headSha == \"$sha\"))[0].databaseId // empty")"
+            [ -n "$run_id" ] && break
+          done
+          if [ -z "$run_id" ]; then echo "::error::could not find the deploy run"; exit 1; fi
+          gh run watch "$run_id" --exit-status --interval 15 > /dev/null
+          curl -fsS -o /dev/null https://zupona.com/
+
+      - name: Close the pull request (❌)
+        if: steps.claim.outputs.kind == 'drop'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR: ${{ steps.claim.outputs.pr }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          if [ "$(gh pr view "$PR" --json state --jq .state)" = "OPEN" ]; then
+            gh pr close "$PR" --delete-branch --comment "The owner tapped ❌ on WhatsApp."
+          fi
+          node scripts/agent-task/preview.mjs --clear
+
+      - name: Send the owner's files
+        if: always() && steps.claude.outcome == 'success'
+        env:
+          TASK: ${{ steps.claim.outputs.id }}
+        run: |
+          jq -c '.files[]?' "$WORK/outcome.json" | head -n 10 | while read -r f; do
+            p="$(jq -r .path <<< "$f")"
+            real="$(realpath -e -- "$p" 2>/dev/null || realpath -e -- "$AGENT_OUT/$p" 2>/dev/null || true)"
+            # Only files made for the owner, or the owner's own attachments: never anything else on the runner.
+            case "$real" in "$WORK/out/"*|"$WORK/attachments/"*) ;; *) echo "::warning::skipped $p"; continue ;; esac
+            caption="$(jq -r '.caption // ""' <<< "$f")"
+            curl -fsS -X POST -H "Authorization: Bearer $FIX_TOKEN" -H "content-type: $(file --mime-type -b "$real")" \
+              --data-binary @"$real" \
+              "$RELAY/task/$TASK/file?filename=$(jq -rn --arg v "$(basename "$real")" '$v|@uri')&caption=$(jq -rn --arg v "$caption" '$v|@uri')" \
+              || echo "::warning::could not send $p"
+            echo
+          done
+
+      - name: Tell the owner
+        if: always() && steps.claim.outputs.found == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # So the message is cut by characters, not bytes: Bangla is several bytes per letter.
+          LC_ALL: C.UTF-8
+          TASK: ${{ steps.claim.outputs.id }}
+          KIND: ${{ steps.claim.outputs.kind }}
+          CLAUDE_OK: ${{ steps.claude.outcome }}
+          PR_OK: ${{ steps.pr.outcome }}
+          PR_URL: ${{ steps.pr.outputs.url }}
+          SHIP_OK: ${{ steps.ship.outcome }}
+          JOB_OK: ${{ job.status }}
+          COMMIT_URL: ${{ steps.ship.outputs.commit_url }}
+        run: |
+          status=done
+          commit=""
+          case "$KIND" in
+            ship)
+              if [ "$SHIP_OK" = "success" ]; then message="zupona.com-এ চালু হয়ে গেছে।"; commit="$COMMIT_URL"
+              else status=failed; message="চালু করা যায়নি (merge, migration বা deploy-এ সমস্যা)। সাইট আগের মতোই আছে কিনা দেখতে বিস্তারিত লিংকটা দেখুন, বা আমাকে জিজ্ঞেস করুন।"; fi ;;
+            drop)
+              if [ "$JOB_OK" = "success" ]; then message="বদলটা বাদ দিয়েছি; সাইট যেমন ছিল তেমনই আছে।"
+              else status=failed; message="বদলটা বাদ দিতে সমস্যা হয়েছে, তবে এটা সাইটে চালু হয়নি।"; fi ;;
+            *)
+              message="$(jq -r '.message // ""' "$WORK/outcome.json" 2>/dev/null || true)"
+              if [ "$CLAUDE_OK" != "success" ] || [ -z "$message" ]; then
+                status=failed
+                message="কাজটা শেষ করতে পারিনি (Claude Code থেমে গেছে)। কিছু বদলেছে কিনা দেখতে বিস্তারিত লিংকটা দেখুন, বা আমাকে জিজ্ঞেস করুন।"
+              elif [ "$PR_OK" = "failure" ]; then
+                status=failed
+                message="$message"$'\n\n'"⚠️ কিন্তু কোড/ডিজাইনের বদলটা build হয়নি, তাই চালু করার জন্য তৈরি করা যায়নি। (ডেটার বদল, যদি থাকে, হয়ে গেছে।)"
+              fi ;;
+          esac
+          jq -n --arg status "$status" --arg message "${message:0:3400}" --arg commit "$commit" --arg pr "$PR_URL" --arg run "$RUN_URL" \
+            '{status: $status, message: $message, runUrl: $run}
+             + (if $commit != "" then {commitUrl: $commit} else {} end)
+             + (if $pr != "" and $status == "done" then {prUrl: $pr} else {} end)' \
+            | curl -fsS -X POST -H "Authorization: Bearer $FIX_TOKEN" -H "content-type: application/json" --data @- "$RELAY/task/$TASK/result" \
+            | tee "$WORK/reported.json"
+          echo
+          # More waiting? Take the next one now rather than at the next schedule.
+          if [ "$(jq -r '.queued // 0' "$WORK/reported.json" 2>/dev/null)" -gt 0 ]; then gh workflow run agent-task.yml --ref main || true; fi

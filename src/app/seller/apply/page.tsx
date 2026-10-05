@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { BadgeCheck, Leaf, Truck, Wallet } from "lucide-react";
+import { ArrowRight, BadgeCheck, Leaf, LogOut, ShieldCheck, Truck, Wallet } from "lucide-react";
 import { getCurrentUser } from "@/lib/session";
 import { getCurrentSeller } from "@/lib/sellers";
 import { sellerUrl } from "@/lib/panelUrl";
@@ -37,12 +37,16 @@ const PROMISES = [
 export default async function SellerApplyPage() {
   const user = await getCurrentUser();
 
-  // An admin does not apply to sell; they pick which shop to work on.
-  if (user?.role === "admin") redirect(await sellerUrl("/seller/stores"));
+  // An admin does not apply to sell -- their account runs the marketplace.
+  // They used to be sent straight to the store picker, which read as "Open a
+  // shop is broken" to an owner checking the page from a phone still signed
+  // in as admin. Now they see the page and are told why the form is not
+  // theirs, with the way to it one tap away.
+  const asAdmin = user?.role === "admin";
 
   // Someone who already applied is sent to read their status: the form would
   // only refuse them, and the status screen is what they actually came for.
-  if (user && (await getCurrentSeller())) {
+  if (user && !asAdmin && (await getCurrentSeller())) {
     redirect(await sellerUrl("/seller/pending"));
   }
 
@@ -84,7 +88,44 @@ export default async function SellerApplyPage() {
         </div>
 
         <div className="mt-4 rounded-2xl border border-neutral-200/70 bg-white p-5 shadow-sm lg:p-6">
-          <ApplyForm signedInAs={user?.email ?? user?.name ?? null} />
+          {asAdmin ? (
+            <div className="text-center">
+              <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-50">
+                <ShieldCheck className="h-6 w-6 text-amber-600" />
+              </span>
+              <h2 className="mt-3 text-lg font-bold text-neutral-900">
+                You&rsquo;re signed in as the Zupona admin
+              </h2>
+              <p className="mx-auto mt-1.5 max-w-[440px] text-sm leading-relaxed text-neutral-500">
+                This phone is signed in to{" "}
+                <span className="font-semibold text-neutral-700">{user?.email ?? user?.name}</span>,
+                the account that runs the marketplace, so it can&rsquo;t apply to sell. A new
+                seller sees the application form here. To fill it in yourself, sign out first.
+              </p>
+              <div className="mt-5 flex flex-col items-stretch justify-center gap-2.5 sm:flex-row">
+                {/* A plain POST to a route handler, not a server action: see
+                    src/app/api/seller/sign-out/route.ts for why. */}
+                <form method="post" action="/api/seller/sign-out">
+                  <button
+                    type="submit"
+                    className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-brand px-5 text-sm font-bold text-white transition hover:bg-brand-dark"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    Sign out and apply as a new seller
+                  </button>
+                </form>
+                <Link
+                  href="/seller/stores"
+                  className="inline-flex h-12 items-center justify-center gap-2 rounded-xl border border-neutral-200 px-5 text-sm font-semibold text-neutral-700 transition hover:border-brand hover:text-brand"
+                >
+                  Open a store as admin
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              </div>
+            </div>
+          ) : (
+            <ApplyForm signedInAs={user?.email ?? user?.name ?? null} />
+          )}
         </div>
 
         {user ? null : (

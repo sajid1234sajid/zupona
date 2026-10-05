@@ -98,6 +98,17 @@ export default async function SellerStorePickerPage() {
             </ul>
           )}
 
+          <form
+            method="post"
+            action="/api/seller/sign-out"
+            className="mt-4 rounded-xl bg-neutral-50 px-4 py-3 text-[13px] text-neutral-500"
+          >
+            Want to see what a new seller sees?{" "}
+            <button type="submit" className="font-semibold text-brand hover:underline">
+              Sign out and open the application form
+            </button>
+          </form>
+
           <div className="mt-5 flex items-center justify-between gap-3 border-t border-neutral-100 pt-4">
             <a
               href={`${storefront}/admin/distributors`}

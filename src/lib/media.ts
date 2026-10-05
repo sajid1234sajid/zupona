@@ -167,6 +167,89 @@ export async function uploadMediaStream(
   return { key, size: declaredSize, contentType };
 }
 
+/** Largest clip the chunked path will store. Each piece of it is a request of
+ * its own, so the Workers body limit no longer applies; this is what a shopper
+ * on mobile data can reasonably be asked to stream, and the picker shrinks
+ * nearly everything far below it first. */
+export const MAX_CHUNKED_VIDEO_BYTES = 200 * 1024 * 1024; // 200 MB
+
+/** Size of every piece but the last. R2 wants them all equal, and at least
+ * 5 MiB; small enough that a dropped piece costs seconds to resend on mobile
+ * data, not the whole clip. */
+export const VIDEO_PART_BYTES = 8 * 1024 * 1024;
+
+/** Opens a chunked upload for a video and returns where it will land.
+ *
+ * A phone video sent as one request is one long connection that any handover
+ * between towers kills, and the whole clip has to start again. In pieces, only
+ * the piece in flight is lost and the uploader resends just that. */
+export async function startVideoUpload(
+  contentType: string,
+  declaredSize: number,
+  ownerId: string
+): Promise<{ key: string; uploadId: string }> {
+  if (!Number.isFinite(declaredSize) || declaredSize <= 0) throw new Error("Upload is empty.");
+  if (declaredSize > MAX_CHUNKED_VIDEO_BYTES) {
+    throw new Error(`File is larger than ${MAX_CHUNKED_VIDEO_BYTES / 1024 / 1024} MB.`);
+  }
+  if (!ALLOWED_VIDEO_TYPES.has(contentType)) {
+    throw new Error(`Unsupported file type: ${contentType || "unknown"}.`);
+  }
+
+  const key = `videos/${ownerId}/${crypto.randomUUID()}.${extensionFor(contentType)}`;
+  const bucket = await getMedia();
+  const upload = await bucket.createMultipartUpload(key, {
+    httpMetadata: { contentType, cacheControl: "public, max-age=31536000, immutable" },
+    customMetadata: { ownerId, folder: "videos" },
+  });
+  return { key, uploadId: upload.uploadId };
+}
+
+/** True when `key` is a video this owner's chunked upload could have made.
+ * Every later step takes the key from the client, so this is what stops one
+ * admin writing into an object another one opened. */
+export function isOwnVideoKey(key: string, ownerId: string): boolean {
+  return /^videos\/[^/]+\/[0-9a-f-]{36}\.(mp4|webm|ogv|mov)$/.test(key) &&
+    key.startsWith(`videos/${ownerId}/`);
+}
+
+/** Streams one piece of a chunked upload into R2. */
+export async function putVideoPart(
+  key: string,
+  uploadId: string,
+  partNumber: number,
+  body: ReadableStream
+): Promise<R2UploadedPart> {
+  const bucket = await getMedia();
+  return bucket.resumeMultipartUpload(key, uploadId).uploadPart(partNumber, body);
+}
+
+/** Joins the pieces into the stored object. A result over the cap -- which a
+ * client could only reach by lying about the size it declared -- is deleted
+ * rather than kept. */
+export async function finishVideoUpload(
+  key: string,
+  uploadId: string,
+  parts: R2UploadedPart[]
+): Promise<UploadResult> {
+  const bucket = await getMedia();
+  const object = await bucket.resumeMultipartUpload(key, uploadId).complete(parts);
+  if (object.size > MAX_CHUNKED_VIDEO_BYTES) {
+    await bucket.delete(key);
+    throw new Error(`File is larger than ${MAX_CHUNKED_VIDEO_BYTES / 1024 / 1024} MB.`);
+  }
+  return {
+    key,
+    size: object.size,
+    contentType: object.httpMetadata?.contentType ?? "video/mp4",
+  };
+}
+
+export async function abortVideoUpload(key: string, uploadId: string): Promise<void> {
+  const bucket = await getMedia();
+  await bucket.resumeMultipartUpload(key, uploadId).abort();
+}
+
 /** Fetches a stored object, optionally only part of it.
  *
  * `options` is passed through to R2 so the media route can answer a Range

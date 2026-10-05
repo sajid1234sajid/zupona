@@ -2,6 +2,13 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import { Film, Loader2, Play, Star, Trash2, Video } from "lucide-react";
+import {
+  compressVideo,
+  contentTypeOf,
+  uploadVideo,
+  videoPoster,
+  warmVideoTools,
+} from "./videoUpload";
 
 interface VideoUploaderProps {
   /** Form field each video URL is posted under, once per clip. */
@@ -25,56 +32,25 @@ interface Clip {
 interface Pending {
   id: number;
   fileName: string;
-  /** 0-100 bytes-sent progress. */
+  /** What is happening to it: shrunk on the phone first, then sent. */
+  stage: "waiting" | "shrinking" | "uploading";
+  /** 0-100 through the current stage. */
   percent: number;
 }
 
-const MAX_MB = 50;
+/** Largest file the picker accepts. It is read in place rather than loaded,
+ * so this only bounds how long the shrinking takes; what is stored is capped
+ * separately, at `MAX_STORED_MB`. */
+const MAX_PICKED_MB = 1024;
+const MAX_STORED_MB = 200;
 
-/** Windows hands over some files -- .mov especially -- with an empty `type`,
- * and an upload with no content type is rejected by the server. The extension
- * is the only thing left to go on at that point. */
-function contentTypeOf(file: File): string {
-  if (file.type) return file.type;
-
-  const extension = file.name.split(".").pop()?.toLowerCase();
-  const byExtension: Record<string, string> = {
-    mp4: "video/mp4",
-    m4v: "video/mp4",
-    webm: "video/webm",
-    ogv: "video/ogg",
-    mov: "video/quicktime",
-    qt: "video/quicktime",
-  };
-
-  return byExtension[extension ?? ""] ?? "application/octet-stream";
-}
-
-/** Posts one file and resolves with the stored URL.
- *
- * XMLHttpRequest rather than fetch purely for `upload.onprogress` -- fetch
- * still cannot report request-body progress, and a 40 MB clip on a slow line
- * needs a bar that actually moves or the admin assumes the page has hung. */
-function uploadWithProgress(
-  file: File,
-  folder: string,
-  onProgress: (percent: number) => void
-): Promise<string> {
+/** Posts the poster still and resolves with its URL. The clip itself goes
+ * through `uploadVideo`, in pieces. */
+function uploadPoster(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const request = new XMLHttpRequest();
-    // Sent as a raw body rather than multipart: the server can then stream it
-    // to storage instead of parsing it, which is what makes a large clip
-    // survive the Worker's per-request CPU budget.
-    request.open("POST", `/api/admin/upload?folder=${encodeURIComponent(folder)}`);
+    request.open("POST", "/api/admin/upload?folder=products");
     request.setRequestHeader("content-type", contentTypeOf(file));
-
-    request.upload.onprogress = (event) => {
-      if (event.lengthComputable) {
-        // Held just under 100 until the server answers: bytes sent is not the
-        // same thing as the object being stored.
-        onProgress(Math.min(99, Math.round((event.loaded / event.total) * 100)));
-      }
-    };
 
     request.onload = () => {
       let payload: { url?: string; error?: string } = {};
@@ -85,7 +61,6 @@ function uploadWithProgress(
       }
 
       if (request.status >= 200 && request.status < 300 && payload.url) {
-        onProgress(100);
         resolve(payload.url);
         return;
       }
@@ -172,9 +147,13 @@ function capturePoster(file: File): Promise<File | null> {
  *
  * Mirrors ImageUploader: files go to R2 the moment they are chosen and the
  * form posts back plain URLs, so saving a product never carries tens of
- * megabytes of multipart body. What it adds over the image version is the
- * progress bar -- clips are large enough that silence reads as a hang -- and
- * the poster frame captured client-side. */
+ * megabytes of multipart body. Each clip is shrunk on the phone first and
+ * then sent in pieces -- see `videoUpload.ts` -- and the bar shows both
+ * stages, because a clip is large enough that silence reads as a hang.
+ *
+ * Clips are handled one after another, like pictures: two re-encodes at once
+ * would fight over the phone's single hardware encoder, and two uploads would
+ * split its uplink. */
 export default function VideoUploader({
   name,
   posterName,
@@ -182,7 +161,7 @@ export default function VideoUploader({
   initialPosters = [],
   max = 3,
   label = "Product Videos",
-  hint = `MP4, WEBM or MOV · up to ${MAX_MB} MB each`,
+  hint = "MP4 or MOV straight from the phone · shrunk to 720p before it goes up",
 }: VideoUploaderProps) {
   const [clips, setClips] = useState<Clip[]>(() =>
     initialUrls.map((url, index) => ({ url, poster: initialPosters[index] ?? "" }))
@@ -215,51 +194,71 @@ export default function VideoUploader({
 
     setError(null);
 
-    await Promise.all(
-      chosen.map(async (file) => {
-        // Checked here as well as on the server so an oversized file fails at
-        // once instead of after a long doomed upload.
-        if (file.size > MAX_MB * 1024 * 1024) {
-          setError(`"${file.name}" is larger than ${MAX_MB} MB.`);
-          return;
+    const queued = chosen.map((file) => ({ file, id: nextPendingId.current++ }));
+    setPending((current) => [
+      ...current,
+      ...queued.map(({ file, id }) => ({
+        id,
+        fileName: file.name,
+        stage: "waiting" as const,
+        percent: 0,
+      })),
+    ]);
+
+    const update = (id: number, stage: Pending["stage"], percent: number) => {
+      if (!mounted.current) return;
+      setPending((current) =>
+        current.map((item) => (item.id === id ? { ...item, stage, percent } : item))
+      );
+    };
+
+    for (const { file, id } of queued) {
+      try {
+        if (file.size > MAX_PICKED_MB * 1024 * 1024) {
+          throw new Error(`"${file.name}" is too long. Trim it to a short clip and try again.`);
         }
 
-        const id = nextPendingId.current++;
-        setPending((current) => [...current, { id, fileName: file.name, percent: 0 }]);
+        update(id, "shrinking", 0);
+        const shrunk = await compressVideo(file, (fraction) =>
+          update(id, "shrinking", Math.round(fraction * 100))
+        );
+        const toSend = shrunk ?? file;
 
-        try {
-          // The poster is captured first so that once the bar starts moving it
-          // is only ever tracking the video's own bytes.
-          const posterFile = await capturePoster(file);
-
-          const url = await uploadWithProgress(file, "videos", (percent) => {
-            if (!mounted.current) return;
-            setPending((current) =>
-              current.map((item) => (item.id === id ? { ...item, percent } : item))
-            );
-          });
-
-          // A failed poster must not fail the clip -- the video is the point.
-          const poster = posterFile
-            ? await uploadWithProgress(posterFile, "products", () => {}).catch(() => "")
-            : "";
-
-          if (!mounted.current) return;
-          setClips((current) => (current.length >= max ? current : [...current, { url, poster }]));
-        } catch (uploadError) {
-          if (!mounted.current) return;
-          setError(
-            uploadError instanceof Error
-              ? uploadError.message
-              : "That video could not be uploaded."
+        if (toSend.size > MAX_STORED_MB * 1024 * 1024) {
+          throw new Error(
+            `"${file.name}" is larger than ${MAX_STORED_MB} MB and this browser cannot shrink it. Trim it to a shorter clip and try again.`
           );
-        } finally {
-          if (mounted.current) {
-            setPending((current) => current.filter((item) => item.id !== id));
-          }
         }
-      })
-    );
+
+        // From the file actually sent -- after a shrink, the H.264 copy every
+        // browser can decode. WebCodecs takes it in a fraction of a second;
+        // only where that is unavailable does the slower <video> route run,
+        // alongside the upload rather than ahead of it.
+        const decoded = await videoPoster(toSend);
+        const posterFile = decoded ? Promise.resolve(decoded) : capturePoster(toSend);
+
+        update(id, "uploading", 0);
+        const url = await uploadVideo(toSend, (fraction) =>
+          update(id, "uploading", Math.round(fraction * 100))
+        );
+
+        // A failed poster must not fail the clip -- the video is the point.
+        const still = await posterFile;
+        const poster = still ? await uploadPoster(still).catch(() => "") : "";
+
+        if (!mounted.current) return;
+        setClips((current) => (current.length >= max ? current : [...current, { url, poster }]));
+      } catch (uploadError) {
+        if (!mounted.current) return;
+        setError(
+          uploadError instanceof Error ? uploadError.message : "That video could not be uploaded."
+        );
+      } finally {
+        if (mounted.current) {
+          setPending((current) => current.filter((item) => item.id !== id));
+        }
+      }
+    }
   };
 
   const remove = (url: string) => {
@@ -335,7 +334,9 @@ export default function VideoUploader({
               </span>
             ) : null}
 
-            <div className="absolute right-1.5 top-1.5 flex gap-1 opacity-0 transition group-hover:opacity-100 focus-within:opacity-100">
+            {/* Always visible on a touch screen, which has no hover to reveal
+             * them with -- as in ImageUploader. */}
+            <div className="absolute right-1.5 top-1.5 flex gap-1 opacity-100 transition sm:opacity-0 sm:group-hover:opacity-100 sm:focus-within:opacity-100">
               {index !== 0 ? (
                 <button
                   type="button"
@@ -365,19 +366,28 @@ export default function VideoUploader({
           >
             <Loader2 className="h-5 w-5 animate-spin text-brand" />
             <span className="max-w-full truncate text-[11px] text-neutral-500">{item.fileName}</span>
-            <span className="h-1.5 w-full max-w-[180px] overflow-hidden rounded-full bg-neutral-200">
-              <span
-                className="block h-full rounded-full bg-brand transition-[width] duration-200"
-                style={{ width: `${item.percent}%` }}
-              />
-            </span>
-            <span className="text-[11px] font-medium text-neutral-400">{item.percent}%</span>
+            {item.stage === "waiting" ? (
+              <span className="text-[11px] font-medium text-neutral-400">Waiting…</span>
+            ) : (
+              <>
+                <span className="h-1.5 w-full max-w-[180px] overflow-hidden rounded-full bg-neutral-200">
+                  <span
+                    className="block h-full rounded-full bg-brand transition-[width] duration-200"
+                    style={{ width: `${item.percent}%` }}
+                  />
+                </span>
+                <span className="text-[11px] font-medium text-neutral-400">
+                  {item.stage === "shrinking" ? "Shrinking" : "Uploading"} {item.percent}%
+                </span>
+              </>
+            )}
           </div>
         ))}
 
         {!full ? (
           <label
             htmlFor={inputId}
+            onPointerDown={warmVideoTools}
             onDragOver={(event) => {
               event.preventDefault();
               setDragging(true);
@@ -396,7 +406,7 @@ export default function VideoUploader({
           >
             <Video className="h-5 w-5 text-neutral-400" />
             <span className="text-[11px] font-medium leading-tight text-neutral-500">
-              {clips.length === 0 ? "Click or drag a video" : "Add another video"}
+              {clips.length === 0 ? "Tap or drag a video" : "Add another video"}
             </span>
           </label>
         ) : null}

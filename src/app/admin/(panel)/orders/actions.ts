@@ -3,19 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { getDB } from "@/lib/db";
 import { logAdminAction, requireStaff } from "@/lib/admin";
-import { statusLabel } from "@/lib/orders";
-import { applyStockForStatus } from "@/lib/orderStock";
+import { changeOrderStatus, ORDER_STATUSES } from "@/lib/orderStatus";
 import { ensureSuborder } from "@/lib/suborders";
 import type { OrderStatus } from "@/types";
-
-const ORDER_STATUSES: OrderStatus[] = [
-  "placed",
-  "confirmed",
-  "shipped",
-  "out_for_delivery",
-  "delivered",
-  "cancelled",
-];
 
 const PAYMENT_STATUSES = ["pending", "paid", "failed", "refunded", "partially_refunded"];
 
@@ -25,12 +15,9 @@ function refresh(orderId?: string): void {
   revalidatePath("/admin");
 }
 
-/** Moves an order along and records why.
- *
- * Three things happen together and must not diverge: the order's own status,
- * the per-seller suborders that fulfillment keys off, and the history trail
- * the customer's tracker reads. A notification is written in the same batch so
- * the shopper hears about it without a separate job. */
+/** Moves an order along and records why. The order, its suborders, the
+ * history trail, the customer's notification and the stock all move together
+ * in `changeOrderStatus`, which the Seller Center uses too. */
 export async function setOrderStatusAction(formData: FormData): Promise<void> {
   const staff = await requireStaff();
   const orderId = String(formData.get("orderId") ?? "");
@@ -39,58 +26,12 @@ export async function setOrderStatusAction(formData: FormData): Promise<void> {
 
   if (!orderId || !ORDER_STATUSES.includes(status)) return;
 
-  const db = await getDB();
-  const before = await db
-    .prepare("SELECT status, order_number, user_id FROM orders WHERE id = ?")
-    .bind(orderId)
-    .first<{ status: string; order_number: string; user_id: string }>();
-
-  if (!before || before.status === status) return;
-
-  const label = statusLabel(status);
-
-  await db.batch([
-    db
-      .prepare("UPDATE orders SET status = ?, updated_at = datetime('now') WHERE id = ?")
-      .bind(status, orderId),
-    db
-      .prepare(
-        `UPDATE suborders SET status = ?,
-                shipped_at = CASE WHEN ? = 'shipped' THEN datetime('now') ELSE shipped_at END,
-                delivered_at = CASE WHEN ? = 'delivered' THEN datetime('now') ELSE delivered_at END
-         WHERE order_id = ?`
-      )
-      .bind(status, status, status, orderId),
-    db
-      .prepare(
-        `INSERT INTO order_status_history (id, order_id, status, note, changed_by)
-         VALUES (?, ?, ?, ?, ?)`
-      )
-      .bind(crypto.randomUUID(), orderId, status, note, staff.id),
-    db
-      .prepare(
-        `INSERT INTO notifications (id, user_id, title, body, type, order_id)
-         VALUES (?, ?, ?, ?, 'order', ?)`
-      )
-      .bind(
-        crypto.randomUUID(),
-        before.user_id,
-        `Order #${before.order_number} is ${label.toLowerCase()}`,
-        note ?? `Your order is now marked as ${label.toLowerCase()}.`,
-        orderId
-      ),
-  ]);
-
-  /* Stock follows the status, at most once. Reaching confirmed or beyond turns
-   * the hold into a sale; cancelling gives it back, either as a released hold
-   * or as a return, depending on whether it was already sold. Repeating a
-   * status does nothing, because the order has already left the state the move
-   * would have claimed. */
-  const stockOutcome = await applyStockForStatus(orderId, status);
+  const change = await changeOrderStatus({ orderId, status, note, actorId: staff.id });
+  if (!change) return;
 
   await logAdminAction(staff.id, `order.${status}`, "order", orderId, {
-    before: { status: before.status },
-    after: { status, stock: stockOutcome },
+    before: change.before,
+    after: { status, stock: change.stock },
   });
 
   refresh(orderId);

@@ -8,6 +8,7 @@ import {
   VIDEO_PART_BYTES,
 } from "@/lib/media";
 import { getCurrentUser } from "@/lib/session";
+import { canManageMedia } from "@/lib/sellers";
 import { rateLimit } from "@/lib/cache";
 
 /** Chunked video uploads for the admin panel.
@@ -34,7 +35,8 @@ function fail(message: string, status = 400) {
 
 export async function POST(request: NextRequest) {
   const user = await getCurrentUser();
-  if (!user || (user.role !== "admin" && user.role !== "support")) {
+  // The admin team, and approved sellers listing their own products.
+  if (!user || !(await canManageMedia(user))) {
     return fail("Not authorized.", 403);
   }
 

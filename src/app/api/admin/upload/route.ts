@@ -1,9 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { uploadMedia, uploadMediaStream, type MediaFolder } from "@/lib/media";
 import { getCurrentUser } from "@/lib/session";
+import { canManageMedia } from "@/lib/sellers";
 import { rateLimit } from "@/lib/cache";
 
-/** Image and video uploads for the admin panel.
+/** Image and video uploads for the admin panel and the Seller Center.
  *
  * A route handler rather than a server action because the uploader needs a
  * per-file response while the form is still being filled in -- the admin drops
@@ -32,7 +33,8 @@ const FOLDERS = new Set<MediaFolder>([
 
 export async function POST(request: NextRequest) {
   const user = await getCurrentUser();
-  if (!user || (user.role !== "admin" && user.role !== "support")) {
+  // The admin team, and approved sellers listing their own products.
+  if (!user || !(await canManageMedia(user))) {
     return NextResponse.json({ error: "Not authorized." }, { status: 403 });
   }
 

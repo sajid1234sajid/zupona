@@ -330,3 +330,17 @@ export async function requireApprovedSeller(): Promise<SellerSession> {
 
   return { user, seller, asAdmin };
 }
+
+/** Whether this user may put pictures and videos into the media bucket.
+ *
+ * The admin team always could. An approved seller can now too, because a
+ * seller with no way to upload a photo has no way to list a product. A store
+ * that is pending, suspended or rejected is refused: the bucket is paid for by
+ * the platform, and an application is not yet a shop. */
+export async function canManageMedia(user: AuthUser | null): Promise<boolean> {
+  if (!user) return false;
+  if (user.role === "admin" || user.role === "support") return true;
+  if (user.role !== "seller") return false;
+  const seller = await getSellerForUser(user.id);
+  return seller?.status === "approved";
+}

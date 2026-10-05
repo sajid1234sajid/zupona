@@ -2,10 +2,14 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Archive, Eye, Loader2, Pencil } from "lucide-react";
+import { Archive, Check, Eye, Loader2, Pencil } from "lucide-react";
 import { formatPrice } from "@/lib/format";
 import { StatusPill, Td, Th, TableScroll, Thumb } from "./ui";
-import { archiveProductAction, bulkProductAction } from "@/app/admin/(panel)/products/actions";
+import {
+  approveProductAction,
+  archiveProductAction,
+  bulkProductAction,
+} from "@/app/admin/(panel)/products/actions";
 import type { AdminProductRow } from "@/lib/adminData";
 
 /** The products table with its selection and bulk-action bar.
@@ -117,6 +121,13 @@ export default function ProductTable({ rows }: { rows: AdminProductRow[] }) {
                   >
                     {row.name}
                   </Link>
+                  {/* Whose it is matters to every decision on this row: a
+                      seller's product is reviewed, a platform one is not. */}
+                  {row.sellerName ? (
+                    <span className="block max-w-[15rem] truncate text-[11px] text-sky-700">
+                      by {row.sellerName}
+                    </span>
+                  ) : null}
                 </Td>
                 <Td className="whitespace-nowrap text-neutral-500">{row.categoryName ?? "—"}</Td>
                 <Td className="whitespace-nowrap text-neutral-500">{row.brandName ?? "—"}</Td>
@@ -165,6 +176,18 @@ export default function ProductTable({ rows }: { rows: AdminProductRow[] }) {
                 </Td>
                 <Td className="pr-4 lg:pr-3">
                   <div className="flex items-center justify-end gap-0.5">
+                    {row.status === "pending_review" ? (
+                      <form action={approveProductAction}>
+                        <input type="hidden" name="productId" value={row.id} />
+                        <button
+                          type="submit"
+                          title="Approve — put it live"
+                          className="flex h-8 w-8 items-center justify-center rounded-lg text-emerald-600 transition hover:bg-emerald-50"
+                        >
+                          <Check className="h-4 w-4" />
+                        </button>
+                      </form>
+                    ) : null}
                     {/* A plain anchor, not <Link>: this leaves the panel for
                         the shop, and prefetching it would fetch an RSC payload
                         across origins. */}

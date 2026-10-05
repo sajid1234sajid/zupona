@@ -16,6 +16,12 @@ import {
   buttonStyles,
 } from "@/components/admin/ui";
 import { setCommissionAction, setSellerStatusAction } from "./actions";
+import PayoutButton from "@/components/admin/PayoutButton";
+import {
+  describePayoutAccount,
+  getPayableBySeller,
+  getPayoutAccount,
+} from "@/lib/sellerPayouts";
 
 export const metadata = { title: "Distributors" };
 
@@ -41,6 +47,15 @@ export default async function DistributorsPage(props: PageProps<"/admin/distribu
     listAdminSellers({ status: "pending", page: 1 }),
     listAdminSellers({ status: "approved", page: 1 }),
   ]);
+
+  // What each store on this page could be paid now, and where it goes. Ten
+  // rows at most, and every read is independent, so they go out together.
+  const ids = sellers.rows.map((seller) => seller.id);
+  const [payable, accounts] = await Promise.all([
+    getPayableBySeller(ids),
+    Promise.all(ids.map((id) => getPayoutAccount(id))),
+  ]);
+  const accountOf = new Map(ids.map((id, index) => [id, describePayoutAccount(accounts[index])]));
 
   return (
     <>
@@ -99,7 +114,7 @@ export default async function DistributorsPage(props: PageProps<"/admin/distribu
         ) : (
           <>
             <TableScroll>
-              <table className="w-full min-w-[900px] border-collapse">
+              <table className="w-full min-w-[1000px] border-collapse">
                 <thead>
                   <tr className="border-b border-neutral-100">
                     <Th className="pl-4 lg:pl-3">Store</Th>
@@ -108,6 +123,7 @@ export default async function DistributorsPage(props: PageProps<"/admin/distribu
                     <Th className="text-right">Orders</Th>
                     <Th className="text-right">Gross Sales</Th>
                     <Th className="text-right">Commission</Th>
+                    <Th className="text-right">Ready to pay</Th>
                     <Th>Status</Th>
                     <Th className="pr-4 text-right lg:pr-3">Action</Th>
                   </tr>
@@ -174,6 +190,14 @@ export default async function DistributorsPage(props: PageProps<"/admin/distribu
                             %
                           </button>
                         </form>
+                      </Td>
+                      <Td className="text-right">
+                        <PayoutButton
+                          sellerId={seller.id}
+                          storeName={seller.storeName}
+                          amount={payable.get(seller.id) ?? 0}
+                          account={accountOf.get(seller.id) ?? "Not set"}
+                        />
                       </Td>
                       <Td>
                         <StatusPill status={seller.status} />

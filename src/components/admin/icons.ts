@@ -14,9 +14,11 @@ import {
   ScanSearch,
   Settings,
   ShoppingCart,
+  Star,
   Store,
   Ticket,
   Users,
+  Wallet,
   type LucideIcon,
 } from "lucide-react";
 
@@ -33,4 +35,9 @@ export const ICONS: Record<string, LucideIcon> = {
   marketing: Megaphone,
   reports: BarChart3,
   settings: Settings,
+  // The Seller Center's own sections.
+  analytics: BarChart3,
+  reviews: Star,
+  finance: Wallet,
+  store: Store,
 };

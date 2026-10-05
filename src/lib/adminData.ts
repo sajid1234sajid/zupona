@@ -700,6 +700,10 @@ export interface AdminProductRow {
   /** False when the product does not count its units, in which case `stock`
    * means nothing and the row must not read as sold out. */
   tracksStock: boolean;
+  /** The store selling it, or null for the platform's own products. */
+  sellerName: string | null;
+  /** Why an admin sent it back, while it is rejected. */
+  rejectionReason: string | null;
   createdAt: string;
 }
 
@@ -710,6 +714,13 @@ export interface ProductFilter {
   status?: string;
   range?: RangeKey;
   page?: number;
+  /** One store's products only -- what the Seller Center lists. */
+  sellerId?: string;
+  /** "platform" or "sellers": whose products the admin list shows. */
+  owner?: string;
+  /** Tracked products running low or already out. */
+  stock?: "low" | "out";
+  pageSize?: number;
 }
 
 function productWhere(filter: ProductFilter): { where: string; binds: unknown[] } {
@@ -742,6 +753,25 @@ function productWhere(filter: ProductFilter): { where: string; binds: unknown[] 
     const term = `%${filter.search.trim()}%`;
     binds.push(term, term, term, term);
   }
+  if (filter.sellerId) {
+    clauses.push("p.seller_id = ?");
+    binds.push(filter.sellerId);
+  }
+  if (filter.owner === "platform") clauses.push("p.seller_id IS NULL");
+  if (filter.owner === "sellers") clauses.push("p.seller_id IS NOT NULL");
+  if (filter.stock) {
+    // Same arithmetic as the list's own stock column: active combinations
+    // only, and only for products that count their units at all.
+    const qty = `(SELECT COALESCE(SUM(v.stock_quantity), 0) FROM product_variants v
+                   WHERE v.product_id = p.id AND v.is_active = 1)`;
+    const threshold = `(SELECT COALESCE(MIN(v.low_stock_threshold), 5) FROM product_variants v
+                         WHERE v.product_id = p.id AND v.is_active = 1)`;
+    clauses.push(
+      filter.stock === "out"
+        ? `p.track_inventory = 1 AND ${qty} <= 0`
+        : `p.track_inventory = 1 AND ${qty} > 0 AND ${qty} <= ${threshold}`
+    );
+  }
 
   return { where: clauses.length ? `WHERE ${clauses.join(" AND ")}` : "", binds };
 }
@@ -749,17 +779,20 @@ function productWhere(filter: ProductFilter): { where: string; binds: unknown[] 
 const ADMIN_PRODUCT_FROM = `
   FROM products p
   LEFT JOIN brands b ON b.id = p.brand_id
-  LEFT JOIN categories c ON c.id = p.category_id`;
+  LEFT JOIN categories c ON c.id = p.category_id
+  LEFT JOIN sellers s ON s.id = p.seller_id`;
 
 export async function listAdminProducts(filter: ProductFilter = {}): Promise<Page<AdminProductRow>> {
   const db = await getDB();
   const { where, binds } = productWhere(filter);
-  const offset = Math.max(0, (filter.page ?? 1) - 1) * PAGE_SIZE;
+  const pageSize = filter.pageSize ?? PAGE_SIZE;
+  const offset = Math.max(0, (filter.page ?? 1) - 1) * pageSize;
 
   const [rows, count] = await db.batch<Record<string, unknown>>([
     db
       .prepare(
         `SELECT p.id, p.name, p.price, p.status, p.created_at, p.track_inventory,
+                p.rejection_reason, s.store_name AS seller_name,
                 b.name AS brand_name, c.name AS category_name,
                 (SELECT url FROM product_images i WHERE i.product_id = p.id
                   ORDER BY i.is_primary DESC, i.sort_order ASC LIMIT 1) AS image,
@@ -770,7 +803,7 @@ export async function listAdminProducts(filter: ProductFilter = {}): Promise<Pag
          ${ADMIN_PRODUCT_FROM} ${where}
          ORDER BY p.created_at DESC LIMIT ? OFFSET ?`
       )
-      .bind(...binds, PAGE_SIZE, offset),
+      .bind(...binds, pageSize, offset),
     db.prepare(`SELECT COUNT(*) AS n ${ADMIN_PRODUCT_FROM} ${where}`).bind(...binds),
   ]);
 
@@ -787,6 +820,8 @@ export async function listAdminProducts(filter: ProductFilter = {}): Promise<Pag
       stock: number;
       threshold: number;
       track_inventory: number;
+      rejection_reason: string | null;
+      seller_name: string | null;
     }[]).map((row) => ({
       id: row.id,
       name: row.name,
@@ -800,6 +835,8 @@ export async function listAdminProducts(filter: ProductFilter = {}): Promise<Pag
       // beside it is not a level, so neither warning is true of it.
       isLowStock: row.track_inventory === 1 && row.stock > 0 && row.stock <= row.threshold,
       tracksStock: row.track_inventory === 1,
+      sellerName: row.seller_name,
+      rejectionReason: row.rejection_reason,
       createdAt: row.created_at,
     })),
     total: (count.results as unknown as { n: number }[])[0]?.n ?? 0,
@@ -812,6 +849,8 @@ export interface ProductStats {
   draft: number;
   lowStock: number;
   outOfStock: number;
+  /** Sellers' products waiting for an admin's decision. */
+  pendingReview: number;
 }
 
 export async function getProductStats(): Promise<ProductStats> {
@@ -822,6 +861,7 @@ export async function getProductStats(): Promise<ProductStats> {
          COUNT(*) AS total,
          COUNT(CASE WHEN status = 'active' THEN 1 END) AS published,
          COUNT(CASE WHEN status IN ('draft', 'pending_review') THEN 1 END) AS draft,
+         COUNT(CASE WHEN status = 'pending_review' THEN 1 END) AS pending_review,
          -- Only products that count their units can be out or low. An
          -- untracked one sits at zero for good, so counting it here would
          -- show the shop a shortage it does not have.
@@ -842,9 +882,11 @@ export async function getProductStats(): Promise<ProductStats> {
       draft: number;
       out_of_stock: number;
       low_stock: number;
+      pending_review: number;
     }>();
 
   return {
+    pendingReview: row?.pending_review ?? 0,
     total: row?.total ?? 0,
     published: row?.published ?? 0,
     draft: row?.draft ?? 0,
@@ -1868,6 +1910,9 @@ export interface EditableProduct {
   ratingCount: number;
   createdAt: string;
   updatedAt: string | null;
+  /** The store that sells it; null for the platform's own products. */
+  sellerId: string | null;
+  rejectionReason: string | null;
 }
 
 /** Loads a product in the shape the edit form posts back.
@@ -1884,7 +1929,7 @@ export async function getProductForEdit(productId: string): Promise<EditableProd
               is_featured, is_best_seller, track_inventory, free_delivery, weight_grams,
               dimensions_json,
               meta_title, meta_description, sold_count, view_count, rating_avg, rating_count,
-              created_at, updated_at
+              created_at, updated_at, seller_id, rejection_reason
        FROM products WHERE id = ?`
     )
     .bind(productId)
@@ -1913,6 +1958,8 @@ export async function getProductForEdit(productId: string): Promise<EditableProd
       rating_count: number;
       created_at: string;
       updated_at: string | null;
+      seller_id: string | null;
+      rejection_reason: string | null;
     }>();
 
   if (!row) return null;
@@ -2134,6 +2181,8 @@ export async function getProductForEdit(productId: string): Promise<EditableProd
     ratingCount: row.rating_count,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    sellerId: row.seller_id,
+    rejectionReason: row.rejection_reason,
   };
 }
 

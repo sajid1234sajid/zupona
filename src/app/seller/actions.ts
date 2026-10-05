@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { getDB } from "@/lib/db";
 import { rateLimit } from "@/lib/cache";
@@ -14,7 +15,8 @@ import {
   setSellerView,
   updateSellerProfile,
 } from "@/lib/sellers";
-import { requireAdmin } from "@/lib/admin";
+import { logAdminAction, requireAdmin } from "@/lib/admin";
+import { setPayoutAccount } from "@/lib/sellerPayouts";
 import { sellerUrl } from "@/lib/panelUrl";
 
 export interface SellerAuthState {
@@ -283,10 +285,88 @@ export async function updateStoreAction(
 
   if (storeName.length < 3) return { error: "Enter your store name." };
 
+  // The picture pickers post their field only when they are on the form, so
+  // an absent field leaves the stored picture alone and an empty one clears it.
+  const picture = (key: string): string | null | undefined => {
+    if (formData.get(`__present_${key}`) === null) return undefined;
+    const url = formData.getAll(key).map(String).find(Boolean) ?? null;
+    // Only pictures from this shop's own media store. A link to anywhere else
+    // would put someone else's server behind every visit to the shop page.
+    return url && url.startsWith("/api/media/") ? url : null;
+  };
+
   await updateSellerProfile(seller.id, {
     storeName,
-    description: description || null,
+    description: description.slice(0, 2000) || null,
+    logoUrl: picture("logo"),
+    bannerUrl: picture("banner"),
   });
 
+  revalidatePath("/seller", "layout");
   return { success: "Store details saved." };
+}
+
+/* -------------------------------------------------------------------------- */
+/* Payout account                                                             */
+/* -------------------------------------------------------------------------- */
+
+/** Changes where the store's earnings are sent.
+ *
+ * Asks for the owner's password even though they are signed in: this is the
+ * one setting that redirects money, so a session left open on a shared phone
+ * must not be enough to point the next payout at someone else's wallet. A
+ * Zupona admin working on the store owns no password for it and is let
+ * through, the same as every other guard here -- and the change is audited
+ * under their name. */
+export async function updatePayoutAccountAction(
+  _prevState: StoreFormState,
+  formData: FormData
+): Promise<StoreFormState> {
+  const { user, seller, asAdmin } = await requireApprovedSeller();
+
+  const method = String(formData.get("payoutMethod") ?? "").trim();
+  const accountName = String(formData.get("accountName") ?? "").trim().slice(0, 100);
+  const accountNumber = String(formData.get("accountNumber") ?? "").trim().slice(0, 40);
+  const bankName = String(formData.get("bankName") ?? "").trim().slice(0, 100);
+  const branch = String(formData.get("branch") ?? "").trim().slice(0, 100);
+  const password = String(formData.get("password") ?? "");
+
+  if (!PAYOUT_METHODS.has(method)) return { error: "Choose how you want to be paid." };
+  if (!accountName) return { error: "Enter the account holder's name." };
+  if (!accountNumber) return { error: "Enter the account number." };
+  if (method !== "bank" && !/^01\d{9}$/.test(accountNumber.replace(/[^\d]/g, "").replace(/^880/, "0"))) {
+    return { error: "Enter the 11-digit mobile number of the wallet, e.g. 01712345678." };
+  }
+  if (method === "bank" && !bankName) return { error: "Enter the bank's name." };
+
+  if (!asAdmin) {
+    const limit = await rateLimit(`seller-payout:${user.id}`, 5, 15 * 60).catch(() => null);
+    if (limit && !limit.allowed) return { error: "Too many attempts. Wait a few minutes and try again." };
+
+    const db = await getDB();
+    const row = await db
+      .prepare("SELECT password_hash FROM users WHERE id = ?")
+      .bind(user.id)
+      .first<{ password_hash: string | null }>();
+    if (!row?.password_hash || !(await verifyPassword(password, row.password_hash))) {
+      return { error: "That password isn't right." };
+    }
+  }
+
+  const normalized =
+    method === "bank" ? accountNumber : accountNumber.replace(/[^\d]/g, "").replace(/^880/, "0");
+
+  await setPayoutAccount(seller.id, {
+    method,
+    accountName,
+    accountNumber: normalized,
+    bankName,
+    branch,
+  });
+  await logAdminAction(user.id, "seller.payout_account", "seller", seller.id, {
+    after: { method, accountName, accountNumber: `…${normalized.slice(-4)}` },
+  });
+
+  revalidatePath("/seller/finance");
+  return { success: "Payout account saved. Your next payout goes here." };
 }

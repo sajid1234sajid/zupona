@@ -1,14 +1,15 @@
 import { notFound } from "next/navigation";
-import { Eye } from "lucide-react";
+import { Check, Eye, Store, X } from "lucide-react";
 import { listBrands } from "@/lib/catalog";
 import { getProductForEdit } from "@/lib/adminData";
 import { formatDateTime } from "@/lib/format";
 import { listCategoryOptions } from "@/lib/adminData";
 import ProductForm from "@/components/admin/ProductForm";
 import { cellsFromVariants, groupsFromProduct } from "@/components/admin/optionBuilder";
-import { PageHeader, buttonStyles } from "@/components/admin/ui";
+import { PageHeader, StatusPill, buttonStyles, fieldStyles } from "@/components/admin/ui";
+import { getSeller } from "@/lib/sellers";
 import { getAutoFitMode } from "@/lib/imageFit";
-import { updateProductAction } from "../actions";
+import { approveProductAction, rejectProductAction, updateProductAction } from "../actions";
 
 export async function generateMetadata(props: PageProps<"/admin/products/[id]">) {
   const { id } = await props.params;
@@ -28,6 +29,10 @@ export default async function EditProductPage(props: PageProps<"/admin/products/
   ]);
 
   if (!product) notFound();
+
+  // Only a seller's product has a store behind it to name and a review to
+  // decide; the platform's own products skip both.
+  const seller = product.sellerId ? await getSeller(product.sellerId) : null;
 
   // Only what is actually sellable; a retired combination keeps its stock but
   // is not on the shelf, so counting it would overstate what can be bought.
@@ -53,6 +58,61 @@ export default async function EditProductPage(props: PageProps<"/admin/products/
         <p className="mb-4 rounded-xl bg-emerald-50 px-3.5 py-2.5 text-sm text-emerald-700">
           Product created. Its options and stock are in the panels below.
         </p>
+      ) : null}
+
+      {seller ? (
+        <div
+          className={`mb-5 rounded-2xl border p-4 ${
+            product.status === "pending_review"
+              ? "border-amber-200 bg-amber-50"
+              : "border-black/[0.05] bg-white"
+          }`}
+        >
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            <Store className="h-4 w-4 text-sky-700" />
+            <span className="text-neutral-600">
+              Sold by <span className="font-semibold text-neutral-900">{seller.storeName}</span>
+            </span>
+            <StatusPill status={product.status} />
+          </div>
+
+          {product.status === "rejected" && product.rejectionReason ? (
+            <p className="mt-2 text-[13px] text-red-700">
+              Sent back: {product.rejectionReason}
+            </p>
+          ) : null}
+
+          {product.status === "pending_review" || product.status === "rejected" || product.status === "active" ? (
+            <div className="mt-3 flex flex-wrap items-start gap-2">
+              {product.status !== "active" ? (
+                <form action={approveProductAction}>
+                  <input type="hidden" name="productId" value={product.id} />
+                  <button type="submit" className={buttonStyles.primary}>
+                    <Check className="h-4 w-4" />
+                    Approve &amp; publish
+                  </button>
+                </form>
+              ) : null}
+              {product.status !== "rejected" ? (
+                <form action={rejectProductAction} className="flex min-w-0 flex-1 flex-wrap gap-2">
+                  <input type="hidden" name="productId" value={product.id} />
+                  <input
+                    name="reason"
+                    required
+                    maxLength={500}
+                    placeholder="Why it can't go live — the seller reads this"
+                    aria-label="Reason for sending it back"
+                    className={`${fieldStyles} min-w-[14rem] flex-1`}
+                  />
+                  <button type="submit" className={buttonStyles.danger}>
+                    <X className="h-4 w-4" />
+                    {product.status === "active" ? "Take down" : "Send back"}
+                  </button>
+                </form>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
       ) : null}
 
       <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">

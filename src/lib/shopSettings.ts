@@ -27,6 +27,11 @@ export interface ShopSettings {
    * and an admin turns it on deliberately when they want it shown. */
   showStockToShoppers: boolean;
   reviewsNeedApproval: boolean;
+  /** Whether a seller's new product waits for an admin's approval before it
+   * goes live. On by default: a marketplace that lets any approved shop put
+   * anything on the storefront unseen is one bad listing away from a problem
+   * the platform answers for. */
+  sellerProductsNeedReview: boolean;
   /** Days a shopper has to return an item. 0 hides the line on product pages. */
   returnDays: number;
   /** Days a shopper has to exchange an item. 0 hides the line on product pages. */
@@ -66,6 +71,7 @@ export const DEFAULT_SETTINGS: ShopSettings = {
   lowStockThreshold: 5,
   showStockToShoppers: false,
   reviewsNeedApproval: false,
+  sellerProductsNeedReview: true,
   // Zero until the shop states a policy, so no product promises one it has not made.
   returnDays: 0,
   exchangeDays: 0,
@@ -115,6 +121,10 @@ async function querySettings(): Promise<ShopSettings> {
     reviewsNeedApproval: readFlag(
       map.get("reviews_need_approval"),
       DEFAULT_SETTINGS.reviewsNeedApproval
+    ),
+    sellerProductsNeedReview: readFlag(
+      map.get("seller_products_need_review"),
+      DEFAULT_SETTINGS.sellerProductsNeedReview
     ),
     returnDays: readInt(map.get("return_days"), DEFAULT_SETTINGS.returnDays),
     exchangeDays: readInt(map.get("exchange_days"), DEFAULT_SETTINGS.exchangeDays),

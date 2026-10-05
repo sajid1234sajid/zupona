@@ -37,6 +37,7 @@ export default async function SellerPanelLayout({ children }: LayoutProps<"/sell
     <SellerShell
       storeName={seller.storeName}
       storeStatus={seller.status}
+      logoUrl={seller.logoUrl}
       ownerName={user.name}
       storefrontUrl={storefront}
       asAdmin={asAdmin}

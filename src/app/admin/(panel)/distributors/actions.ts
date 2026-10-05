@@ -5,6 +5,7 @@ import { getDB } from "@/lib/db";
 import { invalidateCatalog } from "@/lib/cache";
 import { logAdminAction, requireAdmin } from "@/lib/admin";
 import { setSellerStatus } from "@/lib/sellers";
+import { recordSellerPayout } from "@/lib/sellerPayouts";
 import type { SellerStatus } from "@/types";
 
 const STATUSES: SellerStatus[] = ["pending", "approved", "suspended", "rejected"];
@@ -77,4 +78,25 @@ export async function setCommissionAction(formData: FormData): Promise<void> {
     after: { commission_rate: rate },
   });
   refresh();
+}
+
+/** Records that a store has been sent everything it is currently owed.
+ *
+ * The money moves outside Zupona -- the admin sends it by bKash, Nagad or
+ * bank first -- and this writes the receipt the seller then sees in their
+ * Finance screen, with the transfer's own reference to match against. */
+export async function recordPayoutAction(formData: FormData): Promise<void> {
+  const admin = await requireAdmin();
+  const sellerId = String(formData.get("sellerId") ?? "");
+  const reference = String(formData.get("reference") ?? "").trim().slice(0, 80) || null;
+  if (!sellerId) return;
+
+  const payout = await recordSellerPayout(sellerId, reference);
+  if (!payout) return;
+
+  await logAdminAction(admin.id, "seller.payout", "seller", sellerId, {
+    after: { payoutId: payout.id, amount: payout.amount, orders: payout.count, reference },
+  });
+  refresh();
+  revalidatePath("/seller/finance");
 }

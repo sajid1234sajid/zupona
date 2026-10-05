@@ -8,10 +8,12 @@ import { ICONS } from "@/components/admin/icons";
 import { SELLER_NAV, isSellerSectionActive } from "./nav";
 import { logOutSellerAction } from "@/app/seller/actions";
 import ZuponaMark from "@/components/brand/ZuponaMark";
+import { resizedSrc } from "@/lib/image";
 
 interface SellerShellProps {
   storeName: string;
   storeStatus: string;
+  logoUrl?: string | null;
   ownerName: string;
   /** Absolute origin of the shop, empty when links can stay relative. */
   storefrontUrl: string;
@@ -31,6 +33,7 @@ interface SellerShellProps {
 export default function SellerShell({
   storeName,
   storeStatus,
+  logoUrl,
   ownerName,
   storefrontUrl,
   asAdmin,
@@ -138,6 +141,16 @@ export default function SellerShell({
             <Menu className="h-5 w-5" />
           </button>
 
+          {logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={resizedSrc(logoUrl, 128)}
+              alt=""
+              width={36}
+              height={36}
+              className="h-9 w-9 shrink-0 rounded-lg border border-neutral-100 object-cover"
+            />
+          ) : null}
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold text-neutral-900">{storeName}</p>
             <p className="truncate text-[11px] text-neutral-500">{ownerName}</p>

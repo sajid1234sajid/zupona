@@ -45,6 +45,7 @@ export default async function ProductsPage(props: PageProps<"/admin/products">) 
     categoryId: one(searchParams.category),
     brandId: one(searchParams.brand),
     status: one(searchParams.status),
+    owner: one(searchParams.owner),
     range: asRange(one(searchParams.range), "all"),
     page: Math.max(1, Number(one(searchParams.page) ?? 1) || 1),
   };
@@ -75,6 +76,21 @@ export default async function ProductsPage(props: PageProps<"/admin/products">) 
           </Link>
         }
       />
+
+      {stats.pendingReview > 0 && filter.status !== "pending_review" ? (
+        <Link
+          href="/admin/products?status=pending_review"
+          className="mb-4 flex items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-[13px] text-amber-800 transition hover:bg-amber-100"
+        >
+          <span>
+            <span className="font-semibold">
+              {stats.pendingReview} seller product{stats.pendingReview === 1 ? " is" : "s are"}
+            </span>{" "}
+            waiting for your review before going live.
+          </span>
+          <span className="shrink-0 font-semibold underline underline-offset-2">Review now</span>
+        </Link>
+      ) : null}
 
       <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-5 lg:gap-4">
         <StatCard label="Total Products" value={String(stats.total)} icon={Package} tone="green" />
@@ -123,7 +139,16 @@ export default async function ProductsPage(props: PageProps<"/admin/products">) 
                     { value: "active", label: "Published" },
                     { value: "draft", label: "Draft" },
                     { value: "pending_review", label: "Pending review" },
+                    { value: "rejected", label: "Rejected" },
                     { value: "archived", label: "Archived" },
+                  ],
+                },
+                {
+                  name: "owner",
+                  allLabel: "All Sellers",
+                  options: [
+                    { value: "platform", label: "Zupona's own" },
+                    { value: "sellers", label: "Seller products" },
                   ],
                 },
               ]}
@@ -149,6 +174,7 @@ export default async function ProductsPage(props: PageProps<"/admin/products">) 
                     category: filter.categoryId,
                     brand: filter.brandId,
                     status: filter.status,
+                    owner: filter.owner,
                     range: one(searchParams.range),
                   }}
                   page={filter.page}

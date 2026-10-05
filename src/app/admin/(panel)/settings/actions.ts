@@ -34,6 +34,7 @@ const EDITABLE: Record<string, "text" | "number" | "boolean"> = {
   return_days: "number",
   exchange_days: "number",
   reviews_need_approval: "boolean",
+  seller_products_need_review: "boolean",
   guest_checkout_enabled: "boolean",
   maintenance_mode: "boolean",
   otp_demo_mode: "boolean",

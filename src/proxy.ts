@@ -55,7 +55,18 @@ const PANELS: Panel[] = [
   {
     hostPrefix: "seller.",
     base: "/seller",
-    segments: new Set(["login", "apply", "pending", "settings", "stores"]),
+    segments: new Set([
+      "login",
+      "apply",
+      "pending",
+      "settings",
+      "stores",
+      "products",
+      "orders",
+      "analytics",
+      "reviews",
+      "finance",
+    ]),
   },
 ];
 

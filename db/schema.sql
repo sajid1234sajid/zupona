@@ -698,6 +698,7 @@ CREATE TABLE IF NOT EXISTS suborders (
 
 CREATE INDEX IF NOT EXISTS idx_suborders_order_id ON suborders (order_id);
 CREATE INDEX IF NOT EXISTS idx_suborders_seller_id ON suborders (seller_id);
+CREATE INDEX IF NOT EXISTS idx_suborders_seller_status ON suborders (seller_id, status);
 
 CREATE TABLE IF NOT EXISTS order_status_history (
   id TEXT PRIMARY KEY,
@@ -813,7 +814,8 @@ CREATE TABLE IF NOT EXISTS seller_payouts (
   net_payout INTEGER NOT NULL DEFAULT 0,
   status TEXT NOT NULL DEFAULT 'pending', -- pending|processing|paid|failed
   paid_at TEXT,
-  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  reference TEXT -- the transfer's own id (bKash TrxID, bank slip), see 0023
 );
 
 CREATE INDEX IF NOT EXISTS idx_seller_payouts_seller_id ON seller_payouts (seller_id);

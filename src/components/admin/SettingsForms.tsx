@@ -222,6 +222,12 @@ export function StoreSettingsForm({
             checked={settings.reviewsNeedApproval}
           />
           <Toggle
+            name="seller_products_need_review"
+            label="Review sellers' products before they go live"
+            detail="A seller's new product waits in Products › Pending review until you approve it"
+            checked={settings.sellerProductsNeedReview}
+          />
+          <Toggle
             name="guest_checkout_enabled"
             label="Allow guest checkout"
             detail="Shoppers can order without creating an account first"

@@ -17,7 +17,7 @@ import {
 import { Card, CardHeader, Field, FormMessage, buttonStyles, fieldStyles, textareaStyles } from "./ui";
 import { MAX_GROUPS, MAX_VALUES_PER_GROUP, MAX_VARIANTS } from "@/lib/optionModel";
 import { applyDiscount } from "@/lib/productDiscount";
-import type { ProductFormState } from "@/app/admin/(panel)/products/actions";
+import type { ProductFormState } from "@/lib/productSave";
 
 export interface ProductFormOption {
   id: string;
@@ -78,7 +78,28 @@ interface ProductFormProps {
   showStockFields?: boolean;
   /** How gallery pictures are fitted to the product frame, from Settings. */
   autoFit?: AutoFitMode;
+  /** Where Cancel goes: the product list of whichever panel is showing this. */
+  cancelHref?: string;
+  /** The statuses this person may choose between. The Seller Center passes a
+   * narrower set when the shop reviews sellers' products before they go live;
+   * the server enforces the same set, so this is presentation only. */
+  publishOptions?: PublishOption[];
+  /** Homepage merchandising -- featured, best seller -- is the platform's shop
+   * window, so only the admin panel shows those switches. */
+  showMerchandising?: boolean;
 }
+
+export interface PublishOption {
+  value: string;
+  label: string;
+  detail: string;
+}
+
+const DEFAULT_PUBLISH_OPTIONS: PublishOption[] = [
+  { value: "active", label: "Published", detail: "Live on the storefront" },
+  { value: "draft", label: "Draft", detail: "Hidden until you publish" },
+  { value: "archived", label: "Archived", detail: "Retired, history kept" },
+];
 
 export default function ProductForm({
   mode,
@@ -88,6 +109,9 @@ export default function ProductForm({
   values,
   showStockFields = true,
   autoFit = "off",
+  cancelHref = "/admin/products",
+  publishOptions = DEFAULT_PUBLISH_OPTIONS,
+  showMerchandising = true,
 }: ProductFormProps) {
   const [state, formAction, pending] = useActionState<ProductFormState, FormData>(action, {});
   // Moves forward with every successful save, so saving twice from the same
@@ -428,11 +452,7 @@ export default function ProductForm({
         <Card>
           <CardHeader title="Publish" />
           <div className="space-y-2">
-            {[
-              { value: "active", label: "Published", detail: "Live on the storefront" },
-              { value: "draft", label: "Draft", detail: "Hidden until you publish" },
-              { value: "archived", label: "Archived", detail: "Retired, history kept" },
-            ].map((option) => (
+            {publishOptions.map((option) => (
               <label
                 key={option.value}
                 className="flex cursor-pointer items-start gap-2.5 rounded-xl border border-neutral-200 px-3 py-2.5 transition has-[:checked]:border-brand has-[:checked]:bg-brand-tint/40"
@@ -454,6 +474,7 @@ export default function ProductForm({
             ))}
           </div>
 
+          {showMerchandising ? (
           <div className="mt-4 space-y-2 border-t border-neutral-100 pt-4">
             <label className="flex cursor-pointer items-center gap-2.5 text-[13px] text-neutral-700">
               <input
@@ -474,6 +495,7 @@ export default function ProductForm({
               Mark as best seller
             </label>
           </div>
+          ) : null}
         </Card>
 
         <Card>
@@ -576,7 +598,7 @@ export default function ProductForm({
       </div>
 
       <div className="sticky bottom-0 z-10 -mx-4 flex flex-wrap items-center justify-end gap-2.5 border-t border-black/[0.05] bg-white/95 px-4 py-3 backdrop-blur lg:-mx-6 lg:px-6 xl:col-span-12">
-        <Link href="/admin/products" className={buttonStyles.secondary}>
+        <Link href={cancelHref} className={buttonStyles.secondary}>
           Cancel
         </Link>
         <button type="submit" disabled={pending} className={buttonStyles.primary}>

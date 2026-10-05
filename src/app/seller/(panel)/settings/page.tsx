@@ -21,7 +21,12 @@ export default async function SellerStorePage() {
         <div className="min-w-0 xl:col-span-7">
           <Card>
             <CardHeader title="Store details" subtitle="Saved changes go live immediately" />
-            <StoreForm storeName={seller.storeName} description={seller.description ?? ""} />
+            <StoreForm
+              storeName={seller.storeName}
+              description={seller.description ?? ""}
+              logoUrl={seller.logoUrl}
+              bannerUrl={seller.bannerUrl}
+            />
           </Card>
         </div>
 

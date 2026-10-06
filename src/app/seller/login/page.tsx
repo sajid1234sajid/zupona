@@ -53,7 +53,7 @@ export default async function SellerLoginPage() {
               <Link href="/seller/apply" className="font-semibold text-brand hover:underline">
                 Open a shop
               </Link>{" "}
-              — it takes a few minutes.
+              — it takes a minute.
             </span>
           </p>
         </div>

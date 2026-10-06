@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { Eye, EyeOff, Loader2, Lock, Mail } from "lucide-react";
+import { Eye, EyeOff, Loader2, Lock, Smartphone } from "lucide-react";
 import { logInSellerAction, type SellerAuthState } from "@/app/seller/actions";
 
 export default function SellerLoginForm() {
@@ -20,16 +20,22 @@ export default function SellerLoginForm() {
       ) : null}
 
       <label className="block">
-        <span className="mb-1.5 block text-[13px] font-medium text-neutral-700">Email address</span>
+        <span className="mb-1.5 block text-[13px] font-medium text-neutral-700">
+          Mobile number or email
+        </span>
         <span className="relative block">
-          <Mail className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
+          <Smartphone className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
+          {/* `type="text"`, not `tel` or `email`: one box takes either, and a
+              phone keyboard would make an email address impossible to type. */}
           <input
-            type="email"
-            name="email"
+            type="text"
+            name="identifier"
+            defaultValue={state.values?.identifier}
             required
             autoComplete="username"
+            autoCapitalize="none"
             autoFocus
-            placeholder="you@example.com"
+            placeholder="01XXXXXXXXX"
             className="h-12 w-full rounded-xl border border-neutral-200 bg-white pl-10 pr-3.5 text-sm text-neutral-800 outline-none transition placeholder:text-neutral-400 focus:border-brand focus:ring-2 focus:ring-brand/15"
           />
         </span>

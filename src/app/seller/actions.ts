@@ -21,6 +21,10 @@ import { sellerUrl } from "@/lib/panelUrl";
 
 export interface SellerAuthState {
   error?: string;
+  /** What was typed, handed back with an error. React clears a form once its
+   * action returns, so without these a single wrong digit cost the seller
+   * every box they had filled. Never the password. */
+  values?: Record<string, string>;
 }
 
 export interface StoreFormState {
@@ -34,6 +38,28 @@ const PHONE_RE = /^\+?\d{7,15}$/;
 /** How a seller is paid out. Anything else is a typed-in value we would not
  * know how to send money to. */
 const PAYOUT_METHODS = new Set(["bank", "bkash", "nagad"]);
+
+/** A mobile number in one shape, whatever was typed: spaces and dashes go,
+ * and a Bangladeshi number written with its country code (+880 / 880) is
+ * stored the way people say it, 01XXXXXXXXX. */
+function normalizePhone(value: string): string {
+  const digits = value.replace(/[^\d+]/g, "");
+  const local = digits.match(/^\+?880(1\d{9})$/);
+  return local ? `0${local[1]}` : digits;
+}
+
+/** Every way the same Bangladeshi number may already be stored. The shop's
+ * own sign-up keeps numbers as typed, so a customer who wrote +8801... there
+ * must still be found when they type 01... here. */
+function phoneVariants(phone: string): string[] {
+  const local = phone.match(/^0(1\d{9})$/);
+  return local ? [phone, `+880${local[1]}`, `880${local[1]}`] : [phone];
+}
+
+/** `?, ?, ?` for an `IN (...)` over `values`. */
+function placeholders(values: string[]): string {
+  return values.map(() => "?").join(", ");
+}
 
 /** Deliberately the same message for "no such account" and "wrong password",
  * so the form never confirms which addresses exist. */
@@ -104,20 +130,30 @@ export async function logInSellerAction(
   _prevState: SellerAuthState,
   formData: FormData
 ): Promise<SellerAuthState> {
-  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  // One box takes either: most sellers sign up with a mobile number and no
+  // email, and an `@` is what tells the two apart.
+  const raw = String(formData.get("identifier") ?? "").trim();
   const password = String(formData.get("password") ?? "");
+  const values = { identifier: raw };
 
-  if (!email || !password) return { error: "Enter your email and password." };
+  if (!raw || !password) return { error: "Enter your mobile number and password.", values };
 
-  const limit = await rateLimit(`seller-login:${email}`, 10, 15 * 60).catch(() => null);
+  const byEmail = raw.includes("@");
+  const identifier = byEmail ? raw.toLowerCase() : normalizePhone(raw);
+
+  const limit = await rateLimit(`seller-login:${identifier}`, 10, 15 * 60).catch(() => null);
   if (limit && !limit.allowed) {
-    return { error: "Too many attempts. Wait a few minutes and try again." };
+    return { error: "Too many attempts. Wait a few minutes and try again.", values };
   }
 
   const db = await getDB();
+  const candidates = byEmail ? [identifier] : phoneVariants(identifier);
   const row = await db
-    .prepare("SELECT id, password_hash, role, status FROM users WHERE email = ?")
-    .bind(email)
+    .prepare(
+      `SELECT id, password_hash, role, status FROM users
+       WHERE ${byEmail ? "email" : "phone"} IN (${placeholders(candidates)}) LIMIT 1`
+    )
+    .bind(...candidates)
     .first<{ id: string; password_hash: string | null; role: string; status: string }>();
 
   // A guest row is created by the first add to cart from a signed-out browser.
@@ -125,21 +161,21 @@ export async function logInSellerAction(
   // in anywhere -- so it is refused here by name rather than only by the
   // missing hash.
   if (!row || !row.password_hash || row.role === "guest") {
-    await recordAttempt(email, row?.id ?? null, false);
-    return { error: REFUSED };
+    await recordAttempt(identifier, row?.id ?? null, false);
+    return { error: REFUSED, values };
   }
 
   if (!(await verifyPassword(password, row.password_hash))) {
-    await recordAttempt(email, row.id, false);
-    return { error: REFUSED };
+    await recordAttempt(identifier, row.id, false);
+    return { error: REFUSED, values };
   }
 
   if (row.status !== "active") {
-    await recordAttempt(email, row.id, false);
-    return { error: "This account has been suspended." };
+    await recordAttempt(identifier, row.id, false);
+    return { error: "This account has been suspended.", values };
   }
 
-  await recordAttempt(email, row.id, true);
+  await recordAttempt(identifier, row.id, true);
   await createSession(row.id);
   redirect(await sellerUrl("/seller"));
 }
@@ -160,7 +196,14 @@ export async function logOutSellerAction(): Promise<void> {
  * filling the form: someone who has decided to sell on Zupona should not have
  * to make an account, find their way back and then apply. A visitor who is
  * already signed in never sees the account fields, and they are ignored here
- * if they arrive anyway. */
+ * if they arrive anyway.
+ *
+ * It asks for as little as a shop can be opened with: name, mobile, password
+ * and store name, with email optional. The payout account and the shop's
+ * introduction used to be asked for here too, and a ten-box form on a phone is
+ * where would-be sellers gave up. Both are on the dashboard's setup checklist
+ * instead (Finance and Settings), and nothing is paid out until the account is
+ * set. A form that still posts them is honoured. */
 export async function applySellerAction(
   _prevState: SellerAuthState,
   formData: FormData
@@ -170,11 +213,12 @@ export async function applySellerAction(
   const payoutMethod = String(formData.get("payoutMethod") ?? "").trim();
   const accountName = String(formData.get("accountName") ?? "").trim();
   const accountNumber = String(formData.get("accountNumber") ?? "").trim();
+  const hasPayout = PAYOUT_METHODS.has(payoutMethod) && accountNumber !== "";
+  const values = Object.fromEntries(
+    ["name", "phone", "email", "storeName"].map((key) => [key, String(formData.get(key) ?? "")])
+  );
 
-  if (storeName.length < 3) return { error: "Enter your store name." };
-  if (!PAYOUT_METHODS.has(payoutMethod)) return { error: "Choose how you want to be paid." };
-  if (!accountName) return { error: "Enter the account holder's name." };
-  if (!accountNumber) return { error: "Enter the account number." };
+  if (storeName.length < 3) return { error: "Enter your store name (at least 3 letters).", values };
 
   const db = await getDB();
 
@@ -185,26 +229,40 @@ export async function applySellerAction(
 
   if (!userId) {
     const name = String(formData.get("name") ?? "").trim();
-    const email = String(formData.get("email") ?? "").trim().toLowerCase();
-    const phone = String(formData.get("phone") ?? "").replace(/[^\d+]/g, "");
+    const email = String(formData.get("email") ?? "").trim().toLowerCase() || null;
+    const phone = normalizePhone(String(formData.get("phone") ?? ""));
     const password = String(formData.get("password") ?? "");
 
-    if (!name) return { error: "Enter your name." };
-    if (!EMAIL_RE.test(email)) return { error: "Enter a valid email address." };
-    if (!PHONE_RE.test(phone)) return { error: "Enter a valid mobile number." };
-    if (password.length < 8) return { error: "Password must be at least 8 characters." };
+    if (!name) return { error: "Enter your name.", values };
+    if (!PHONE_RE.test(phone)) return { error: "Enter a valid mobile number, like 01712345678.", values };
+    if (email && !EMAIL_RE.test(email)) return { error: "That email address doesn't look right.", values };
+    if (password.length < 8) return { error: "Password must be at least 8 characters.", values };
 
-    const limit = await rateLimit(`seller-apply:${email}`, 10, 15 * 60).catch(() => null);
+    const limit = await rateLimit(`seller-apply:${phone}`, 10, 15 * 60).catch(() => null);
     if (limit && !limit.allowed) {
-      return { error: "Too many attempts. Wait a few minutes and try again." };
+      return { error: "Too many attempts. Wait a few minutes and try again.", values };
     }
 
-    const taken = await db
-      .prepare("SELECT id FROM users WHERE email = ?")
-      .bind(email)
+    const variants = phoneVariants(phone);
+    const phoneTaken = await db
+      .prepare(`SELECT id FROM users WHERE phone IN (${placeholders(variants)}) LIMIT 1`)
+      .bind(...variants)
       .first<{ id: string }>();
-    if (taken) {
-      return { error: "An account with this email already exists. Sign in first, then apply." };
+    if (phoneTaken) {
+      return {
+        error: "This mobile number already has a Zupona account. Sign in with it first, then apply.",
+        values,
+      };
+    }
+
+    if (email) {
+      const emailTaken = await db
+        .prepare("SELECT id FROM users WHERE email = ?")
+        .bind(email)
+        .first<{ id: string }>();
+      if (emailTaken) {
+        return { error: "An account with this email already exists. Sign in first, then apply.", values };
+      }
     }
 
     const id = crypto.randomUUID();
@@ -214,7 +272,7 @@ export async function applySellerAction(
         .bind(id, name, email, phone, await hashPassword(password))
         .run();
     } catch {
-      return { error: "That account already exists. Sign in first, then apply." };
+      return { error: "That account already exists. Sign in first, then apply.", values };
     }
 
     await createSession(id);
@@ -233,11 +291,11 @@ export async function applySellerAction(
       storeName,
       slug: await uniqueSlug(slugify(storeName)),
       description: description || null,
-      payoutMethod,
-      payoutDetails: { accountName, accountNumber },
+      payoutMethod: hasPayout ? payoutMethod : null,
+      payoutDetails: hasPayout ? { accountName, accountNumber } : null,
     });
   } catch {
-    return { error: "A store already exists for this account. Sign in to see it." };
+    return { error: "A store already exists for this account. Sign in to see it.", values };
   }
 
   redirect(await sellerUrl("/seller/pending"));

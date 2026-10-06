@@ -64,8 +64,7 @@ export default async function SellerApplyPage() {
           </span>
           <h1 className="text-2xl font-extrabold text-white lg:text-3xl">Open a shop on Zupona</h1>
           <p className="mx-auto mt-2 max-w-[520px] text-sm text-white/60">
-            Tell us about your store. We review every application, and you will hear back once it
-            has been checked.
+            Free to open, and it takes a minute. Zupona checks every new shop before it goes live.
           </p>
         </div>
       </div>
@@ -74,20 +73,7 @@ export default async function SellerApplyPage() {
           stacking context, and without one here it paints over the top of
           these cards where they overlap it. */}
       <div className="relative mx-auto -mt-10 max-w-[880px] px-4 pb-14">
-        <div className="grid gap-3 sm:grid-cols-3">
-          {PROMISES.map(({ icon: Icon, title, detail }) => (
-            <div
-              key={title}
-              className="rounded-2xl border border-neutral-200/70 bg-white p-4 shadow-sm"
-            >
-              <Icon className="h-5 w-5 text-brand" />
-              <p className="mt-2.5 text-[13px] font-semibold text-neutral-800">{title}</p>
-              <p className="mt-1 text-xs leading-relaxed text-neutral-500">{detail}</p>
-            </div>
-          ))}
-        </div>
-
-        <div className="mt-4 rounded-2xl border border-neutral-200/70 bg-white p-5 shadow-sm lg:p-6">
+        <div className="rounded-2xl border border-neutral-200/70 bg-white p-5 shadow-sm lg:p-6">
           {asAdmin ? (
             <div className="text-center">
               <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-50">
@@ -126,6 +112,22 @@ export default async function SellerApplyPage() {
           ) : (
             <ApplyForm signedInAs={user?.email ?? user?.name ?? null} />
           )}
+        </div>
+
+        {/* After the form, not before it: on a phone the three cards stacked
+            into a full screen of reading before the first box, and the form is
+            what the visitor came for. */}
+        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+          {PROMISES.map(({ icon: Icon, title, detail }) => (
+            <div
+              key={title}
+              className="rounded-2xl border border-neutral-200/70 bg-white p-4 shadow-sm"
+            >
+              <Icon className="h-5 w-5 text-brand" />
+              <p className="mt-2.5 text-[13px] font-semibold text-neutral-800">{title}</p>
+              <p className="mt-1 text-xs leading-relaxed text-neutral-500">{detail}</p>
+            </div>
+          ))}
         </div>
 
         {user ? null : (

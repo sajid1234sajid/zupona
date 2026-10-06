@@ -3,6 +3,7 @@ import { Poppins } from "next/font/google";
 import ServiceWorkerRegistration from "@/components/app/ServiceWorkerRegistration";
 import MetaPixel from "@/components/analytics/MetaPixel";
 import { getShopSettings } from "@/lib/shopSettings";
+import { SITE_URL, shareMetadata } from "@/lib/shareCard";
 import "./globals.css";
 
 const poppins = Poppins({
@@ -19,11 +20,21 @@ const poppins = Poppins({
  * On a phone it turns zupona.com into a home-screen app, and the Android APK
  * built by `.github/workflows/android-apk.yml` is a wrapper around this same
  * manifest -- its name, colours and icons all come from here, so the installed
- * app and the site can never describe themselves differently. */
+ * app and the site can never describe themselves differently.
+ *
+ * `metadataBase` and the share card are what a link preview is built from --
+ * see `src/lib/shareCard.ts` for why every page must name its own picture.
+ * No `url` here: a page inheriting it would tell Facebook it *is* the home
+ * page, and every shared link would preview as the home page. */
+const SITE_TITLE = "Zupona — Trusted Online Shop";
+const SITE_DESCRIPTION =
+  "Zupona | Bangladesh's trusted online shopping platform for fashion, electronics, beauty and more.";
+
 export const metadata: Metadata = {
-  title: "Zupona — Trusted Online Shop",
-  description:
-    "Zupona | Bangladesh's trusted online shopping platform for fashion, electronics, beauty and more.",
+  metadataBase: new URL(SITE_URL),
+  title: SITE_TITLE,
+  description: SITE_DESCRIPTION,
+  ...shareMetadata({ title: SITE_TITLE, description: SITE_DESCRIPTION }),
   applicationName: "Zupona",
   manifest: "/manifest.webmanifest",
   appleWebApp: { capable: true, title: "Zupona", statusBarStyle: "default" },

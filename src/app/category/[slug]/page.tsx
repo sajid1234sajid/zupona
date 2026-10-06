@@ -17,6 +17,7 @@ import {
   type CategorySort,
 } from "@/lib/categories";
 import { getCurrentUser } from "@/lib/session";
+import { shareMetadata } from "@/lib/shareCard";
 import { getWishlistProductIds } from "@/lib/wishlist";
 
 export async function generateMetadata({
@@ -26,9 +27,15 @@ export async function generateMetadata({
   const category = await getCategory(slug);
   if (!category) return { title: "Category not found — Zupona" };
 
+  const title = `${category.name} — Zupona`;
+  const description = category.subtitle ?? `Shop ${category.name} on Zupona.`;
+
+  // The brand card rather than the category's own picture: those are drawn
+  // as small chips and look lost at preview size.
   return {
-    title: `${category.name} — Zupona`,
-    description: category.subtitle ?? `Shop ${category.name} on Zupona.`,
+    title,
+    description,
+    ...shareMetadata({ title, description, path: `/category/${slug}` }),
   };
 }
 

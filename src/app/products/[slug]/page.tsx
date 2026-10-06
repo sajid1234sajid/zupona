@@ -12,6 +12,7 @@ import SimilarProducts from "@/components/product/dynamic/SimilarProducts";
 import type { DeliveryLine } from "@/components/product/dynamic/PurchaseInfo";
 import { getStoreProductBySlug, getStoreCategory, listStoreProducts } from "@/lib/storefront";
 import { getShopSettings } from "@/lib/shopSettings";
+import { shareMetadata } from "@/lib/shareCard";
 import PixelEvent from "@/components/analytics/PixelEvent";
 import { DELIVERY_DAYS, deliveryOptionsFor } from "@/lib/checkout";
 import { formatPrice } from "@/lib/format";
@@ -52,19 +53,25 @@ export async function generateMetadata({
   const product = await getStoreProductBySlug(slug);
   if (!product) return { title: "Product not found — Zupona" };
 
+  const description =
+    product.shortDescription ??
+    product.description?.slice(0, 155) ??
+    `Buy ${product.name} on Zupona with fast delivery across Bangladesh.`;
+  const path = `/products/${product.slug}`;
+
   return {
     title: `${product.name} — Zupona`,
-    description:
-      product.shortDescription ??
-      product.description?.slice(0, 155) ??
-      `Buy ${product.name} on Zupona with fast delivery across Bangladesh.`,
-    alternates: { canonical: `/products/${product.slug}` },
-    openGraph: {
+    description,
+    alternates: { canonical: path },
+    // `poster`, not `url`: the first item can be a video, and a preview needs
+    // a still. Every item carries one.
+    ...shareMetadata({
       title: product.name,
-      description: product.shortDescription ?? undefined,
-      images: product.media?.[0] ? [product.media[0].url] : undefined,
-      type: "website",
-    },
+      description,
+      path,
+      image: product.media?.[0]?.poster,
+      imageAlt: product.media?.[0]?.alt,
+    }),
   };
 }
 

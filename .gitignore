@@ -59,3 +59,6 @@ android/**/store_icon.png
 android/**/*.iml
 android/**/local.properties
 android/**/settings.gradle
+
+# The System Guide is edited here and pushed to the database; never commit it
+/.guide/

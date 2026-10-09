@@ -902,3 +902,17 @@ CREATE TABLE IF NOT EXISTS site_settings (
   value TEXT NOT NULL,
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+-- The Zupona System Guide the owner reads at Admin > Settings > System Guide.
+-- See db/migrations/0024_system_guide.sql for why it lives here.
+CREATE TABLE IF NOT EXISTS system_guide_sections (
+  slug TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  position INTEGER NOT NULL,
+  body_md TEXT NOT NULL DEFAULT '',
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_by TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_system_guide_sections_position
+  ON system_guide_sections (position);

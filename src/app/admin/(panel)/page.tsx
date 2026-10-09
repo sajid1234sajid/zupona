@@ -4,6 +4,7 @@ import {
   FolderPlus,
   Package,
   PackagePlus,
+  Rocket,
   ShieldCheck,
   ShoppingBag,
   Ticket,
@@ -21,6 +22,7 @@ import {
   listOrders,
 } from "@/lib/adminData";
 import { formatPrice, formatRelative } from "@/lib/format";
+import { getRecentReleases } from "@/lib/releases";
 import { DonutChart, SeriesTable, statusColor } from "@/components/admin/charts";
 import SalesChart from "@/components/admin/SalesChart";
 import {
@@ -76,7 +78,7 @@ export default async function AdminDashboard(props: PageProps<"/admin">) {
     "7d"
   );
 
-  const [user, summary, series, statuses, latest, topProducts, activity] = await Promise.all([
+  const [user, summary, series, statuses, latest, topProducts, activity, releases] = await Promise.all([
     getCurrentUser(),
     getDashboardSummary(range),
     getSalesSeries(range),
@@ -84,6 +86,7 @@ export default async function AdminDashboard(props: PageProps<"/admin">) {
     listOrders({ range, page: 1 }),
     getTopProductsDetailed(5, range),
     getRecentActivity(6),
+    getRecentReleases(5),
   ]);
 
   const statusMap = new Map(statuses.map((slice) => [slice.status, slice.count]));
@@ -166,6 +169,41 @@ export default async function AdminDashboard(props: PageProps<"/admin">) {
             href="/admin/customers"
           />
         </div>
+
+        {/* What has shipped to the shop lately, straight from the release
+         * list, so the owner sees every change whoever made it. Hidden when
+         * GitHub cannot be reached rather than shown empty. */}
+        {releases.length > 0 ? (
+          <Card>
+            <CardHeader
+              title="What's new"
+              subtitle="The latest changes to Zupona, as they went live"
+              action={
+                <Link
+                  href="/admin/settings/guide#changelog"
+                  className="text-xs font-semibold text-brand hover:underline"
+                >
+                  See all
+                </Link>
+              }
+            />
+            <ul className="divide-y divide-neutral-100">
+              {releases.map((release) => (
+                <li key={release.url} className="flex items-start gap-3 py-2.5 first:pt-0 last:pb-0">
+                  <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-brand-tint">
+                    <Rocket className="h-3.5 w-3.5 text-brand-dark" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="line-clamp-2 text-[13px] font-medium leading-snug text-neutral-800">
+                      {release.title}
+                    </p>
+                    <p className="mt-0.5 text-[11px] text-neutral-400">{formatRelative(release.date)}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </Card>
+        ) : null}
 
         <div className="grid gap-4 lg:grid-cols-5">
           <Card className="lg:col-span-3">

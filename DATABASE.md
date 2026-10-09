@@ -76,7 +76,7 @@ Two notes carried from building `0003`:
 
 ## Schema map
 
-50 tables, grouped by concern.
+63 tables, grouped by concern (the marketing, assistant and system guide tables are described in their migrations, 0021, 0022 and 0024).
 
 **Identity and access** — `users` (with `role`, `status`, verification flags,
 referral fields), `sessions` (with device metadata), `oauth_accounts` for

@@ -48,7 +48,17 @@ export const NAV_ITEMS: NavItem[] = [
     ],
   },
   { label: "Reports", href: "/admin/reports", icon: "reports" },
-  { label: "Settings", href: "/admin/settings", icon: "settings" },
+  {
+    label: "Settings",
+    href: "/admin/settings",
+    icon: "settings",
+    // The guide sits here rather than as a section of its own: it describes
+    // the whole shop, as Settings configures it, and the rail is long enough.
+    children: [
+      { label: "Store Settings", href: "/admin/settings" },
+      { label: "System Guide", href: "/admin/settings/guide" },
+    ],
+  },
 ];
 
 /** Puts a browser path back into the form these hrefs are written in.

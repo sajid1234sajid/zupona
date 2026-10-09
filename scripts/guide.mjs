@@ -15,7 +15,11 @@
  * renaming `07-data-model.md` to `05-data-model.md` moves the section. A
  * ```svg fence is drawn as a picture on the page.
  *
- * Who wrote a change is recorded from GUIDE_AUTHOR (default "Claude"). */
+ * Who wrote a change is recorded from GUIDE_AUTHOR (default "Claude").
+ *
+ * With GUIDE_API_URL and GUIDE_SYNC_TOKEN set (the Update System Guide
+ * workflow), it talks to the live Worker's /api/internal/guide instead of
+ * D1, because no GitHub token can reach D1 directly. --local is ignored then. */
 
 import { spawnSync } from "node:child_process";
 import { mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -60,7 +64,25 @@ function d1(extra) {
   }
 }
 
-function readSections() {
+const api = process.env.GUIDE_API_URL;
+const apiToken = process.env.GUIDE_SYNC_TOKEN;
+
+async function callApi(method, body) {
+  const response = await fetch(api, {
+    method,
+    headers: { authorization: `Bearer ${apiToken}`, "content-type": "application/json" },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const text = await response.text();
+  if (!response.ok) {
+    console.error(`${method} ${api} -> HTTP ${response.status}: ${text.slice(0, 500)}`);
+    process.exit(1);
+  }
+  return JSON.parse(text);
+}
+
+async function readSections() {
+  if (api) return (await callApi("GET")).sections;
   return d1([
     "--command",
     "SELECT slug, title, position, body_md, updated_at, updated_by FROM system_guide_sections ORDER BY position",
@@ -70,7 +92,7 @@ function readSections() {
 const sql = (text) => `'${String(text).replace(/'/g, "''")}'`;
 
 if (command === "pull") {
-  const rows = readSections();
+  const rows = await readSections();
   rmSync(dir, { recursive: true, force: true });
   mkdirSync(dir, { recursive: true });
   for (const row of rows) {
@@ -85,7 +107,7 @@ if (command === "pull") {
     console.error("nothing to push: no matching .guide/NN-slug.md files");
     process.exit(2);
   }
-  const statements = chosen.map((name) => {
+  const sections = chosen.map((name) => {
     const [, position, slug] = name.match(/^(\d+)-([a-z0-9-]+)\.md$/);
     const text = readFileSync(path.join(dir, name), "utf8").replace(/\r\n/g, "\n");
     const title = text.match(/^# (.+)$/m)?.[1]?.trim();
@@ -93,27 +115,32 @@ if (command === "pull") {
       console.error(`${name}: the first line must be "# <Section title>"`);
       process.exit(2);
     }
-    const body = text.replace(/^# .+\n+/, "").trim();
-    return (
-      `INSERT INTO system_guide_sections (slug, title, position, body_md, updated_at, updated_by) ` +
-      `VALUES (${sql(slug)}, ${sql(title)}, ${Number(position)}, ${sql(body)}, datetime('now'), ${sql(author)}) ` +
-      `ON CONFLICT(slug) DO UPDATE SET title = excluded.title, position = excluded.position, ` +
-      `body_md = excluded.body_md, updated_at = excluded.updated_at, updated_by = excluded.updated_by ` +
-      `WHERE system_guide_sections.body_md IS NOT excluded.body_md ` +
-      `OR system_guide_sections.title IS NOT excluded.title ` +
-      `OR system_guide_sections.position IS NOT excluded.position;`
-    );
+    return { slug, title, position: Number(position), body_md: text.replace(/^# .+\n+/, "").trim() };
   });
-  const file = path.join(os.tmpdir(), `zupona-guide-${process.pid}.sql`);
-  writeFileSync(file, statements.join("\n"));
-  try {
-    d1(["--file", file]);
-  } finally {
-    rmSync(file, { force: true });
+  if (api) {
+    await callApi("PUT", { sections, author });
+  } else {
+    const statements = sections.map(
+      ({ slug, title, position, body_md }) =>
+        `INSERT INTO system_guide_sections (slug, title, position, body_md, updated_at, updated_by) ` +
+        `VALUES (${sql(slug)}, ${sql(title)}, ${position}, ${sql(body_md)}, datetime('now'), ${sql(author)}) ` +
+        `ON CONFLICT(slug) DO UPDATE SET title = excluded.title, position = excluded.position, ` +
+        `body_md = excluded.body_md, updated_at = excluded.updated_at, updated_by = excluded.updated_by ` +
+        `WHERE system_guide_sections.body_md IS NOT excluded.body_md ` +
+        `OR system_guide_sections.title IS NOT excluded.title ` +
+        `OR system_guide_sections.position IS NOT excluded.position;`
+    );
+    const file = path.join(os.tmpdir(), `zupona-guide-${process.pid}.sql`);
+    writeFileSync(file, statements.join("\n"));
+    try {
+      d1(["--file", file]);
+    } finally {
+      rmSync(file, { force: true });
+    }
   }
-  console.log(`pushed ${chosen.length} section(s) to the ${local ? "local" : "live"} guide`);
+  console.log(`pushed ${chosen.length} section(s) to the ${api ? "live (API)" : local ? "local" : "live"} guide`);
 } else if (command === "sync-point") {
-  const text = readSections().map((row) => row.body_md).join("\n");
+  const text = (await readSections()).map((row) => row.body_md).join("\n");
   console.log(text.match(/Synced through commit `?([0-9a-f]{7,40})`?[^\n]*/)?.[0] ?? "no sync point recorded");
 } else {
   console.error("usage: node scripts/guide.mjs pull|push|sync-point [--local] [slug...]");

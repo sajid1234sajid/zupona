@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import ProductHeader from "@/components/layout/ProductHeader";
 import DesktopHeader from "@/components/layout/DesktopHeader";
-import BottomNav from "@/components/layout/BottomNav";
 import SiteFooter from "@/components/layout/SiteFooter";
 import StoreShell, { StoreContainer } from "@/components/layout/StoreShell";
 import ProductView from "@/components/product/dynamic/ProductView";
@@ -175,11 +174,9 @@ export default async function DynamicProductPage({ params }: PageProps<"/product
         </StoreContainer>
       </main>
       <SiteFooter />
-      {/* The tab bar is a phone affordance; above 700px the page has room for
-          real navigation and the buy buttons sit beside the product instead. */}
-      <div className="tab:hidden">
-        <BottomNav />
-      </div>
+      {/* No tab bar here: on a phone the bottom of a product page belongs to
+          Add to Cart and Buy Now, as on Daraz, and two stacked bars took a
+          sixth of the screen. The header still reaches home and the cart. */}
     </StoreShell>
   );
 }

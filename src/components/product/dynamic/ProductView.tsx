@@ -416,9 +416,10 @@ export default function ProductView({
         </div>
       </div>
 
-      {/* Mobile only: the buy buttons ride above the tab bar. Both go away
-          once there is room to put them beside the product instead. */}
-      <div className="fixed inset-x-0 bottom-[68px] z-40 flex gap-2.5 border-t border-line bg-surface px-4 py-2.5 tab:hidden">
+      {/* Mobile only: the buy buttons take the bottom of the screen, where the
+          tab bar sits on other pages. They go away once there is room to put
+          them beside the product instead. */}
+      <div className="fixed inset-x-0 bottom-0 z-40 flex gap-2.5 border-t border-line bg-surface px-4 pt-2.5 pb-[calc(10px+env(safe-area-inset-bottom))] shadow-[0_-2px_12px_rgba(0,60,40,0.07)] tab:hidden">
         {actions}
       </div>
     </>

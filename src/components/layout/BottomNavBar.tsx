@@ -154,6 +154,10 @@ export default function BottomNavBar({ cartCount }: { cartCount: number }) {
     setPressed(null);
   }
 
+  // A product page owns the bottom of the screen for its buy buttons. This
+  // also keeps the bar off it while a loading skeleton stands in for it.
+  if (pathname.startsWith("/products/") || pathname.startsWith("/product/")) return null;
+
   return (
     <nav
       aria-label="Primary"

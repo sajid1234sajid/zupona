@@ -16,8 +16,8 @@ export default function StoreShell({
   /** Leaves room for the fixed tab bar so the last row can scroll clear of it.
    * Set false for pages that render no tab bar. */
   withTabBar = true,
-  /** Extra room for a page that also pins an action bar above the tab bar
-   * (the product page's Add to Cart / Buy Now row). */
+  /** Room for a page that pins its own action bar to the bottom instead of
+   * the tab bar (the product page's Add to Cart / Buy Now row). */
   withStickyActions = false,
   className = "",
 }: {
@@ -27,7 +27,7 @@ export default function StoreShell({
   className?: string;
 }) {
   const bottomPadding = withStickyActions
-    ? "pb-[calc(140px+env(safe-area-inset-bottom))] tab:pb-0"
+    ? "pb-[calc(76px+env(safe-area-inset-bottom))] tab:pb-0"
     : withTabBar
       ? "pb-[calc(72px+env(safe-area-inset-bottom))] tab:pb-0"
       : "";

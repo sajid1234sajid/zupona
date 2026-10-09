@@ -20,6 +20,30 @@ reference, 51 tables with the reasoning behind them.
 Cloudflare and GitHub state, why the deploy pipeline is shaped the way it is,
 and the open items. Read it before touching deployment, hosting or accounts.
 
+## The Zupona System Guide: no change is finished until it is updated
+
+The owner follows the whole system through one document, the **Zupona System
+Guide**: https://claude.ai/code/artifact/29e38e44-53c6-4540-ad15-ac4f679c0ad0
+(a Claude Doc, edited through the Claude Docs tools). It is the owner's blueprint
+of every feature, flow, table, integration and rule, plus a dated changelog.
+Treat it as part of every change, like a build that must pass:
+
+- **When a change adds, removes or alters anything the owner could notice**
+  (a feature, a page, a flow, a setting, a table, an integration, a rule),
+  update the sections it touches and add a Changelog row, newest first, in the
+  same task. Move the date chip under the title to today.
+- **The guide records a sync point**: "Synced through commit `<hash>`" in its
+  last section. At the start of any task here, run
+  `git log <hash>..origin/main` and fold every change the guide does not yet
+  reflect into it, whoever made it (the WhatsApp agent, the agent-fix workflow,
+  the second developer, another session). Then move the sync point to the
+  newest commit you covered.
+- **No access to the Claude Docs tools** (the GitHub Actions agents): say what
+  changed in the commit message clearly enough that the next session can
+  write it into the guide. The sync point catches it.
+- A new migration updates the Data model section; a new app or subdomain goes
+  in the guide's Overview and in [APPS.md](APPS.md).
+
 ## Deploying: push to `main` and it ships
 
 `.github/workflows/deploy.yml` builds on GitHub's runners and deploys to

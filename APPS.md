@@ -77,6 +77,7 @@ Built by the *Build Android app* workflow; see [`android/README.md`](android/REA
 
 | | |
 | --- | --- |
+| **Zupona System Guide** | https://claude.ai/code/artifact/29e38e44-53c6-4540-ad15-ac4f679c0ad0 — the whole system's blueprint and changelog, updated with every change |
 | GitHub repository | https://github.com/sajid1234sajid/zupona |
 | Deploy runs | https://github.com/sajid1234sajid/zupona/actions |
 | Cloudflare dashboard | https://dash.cloudflare.com (account sajedaakter589@gmail.com) |

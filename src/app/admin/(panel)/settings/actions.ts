@@ -31,6 +31,7 @@ const EDITABLE: Record<string, "text" | "number" | "boolean"> = {
   default_commission_rate: "number",
   low_stock_threshold: "number",
   show_stock_to_shoppers: "boolean",
+  card_sold_min: "number",
   return_days: "number",
   exchange_days: "number",
   reviews_need_approval: "boolean",

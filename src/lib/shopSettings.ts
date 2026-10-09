@@ -26,6 +26,9 @@ export interface ShopSettings {
    * can be bought at all. Off by default: the count is the shop's own figure,
    * and an admin turns it on deliberately when they want it shown. */
   showStockToShoppers: boolean;
+  /** A product card says "84 sold" once a product has sold at least this
+   * many; 0 keeps the figure off cards. The product page is not affected. */
+  cardSoldMin: number;
   reviewsNeedApproval: boolean;
   /** Whether a seller's new product waits for an admin's approval before it
    * goes live. On by default: a marketplace that lets any approved shop put
@@ -77,6 +80,7 @@ export const DEFAULT_SETTINGS: ShopSettings = {
   freeShippingThreshold: DEFAULT_FREE_DELIVERY_THRESHOLD,
   lowStockThreshold: 5,
   showStockToShoppers: false,
+  cardSoldMin: 5,
   reviewsNeedApproval: false,
   sellerProductsNeedReview: true,
   // Zero until the shop states a policy, so no product promises one it has not made.
@@ -127,6 +131,7 @@ async function querySettings(): Promise<ShopSettings> {
       map.get("show_stock_to_shoppers"),
       DEFAULT_SETTINGS.showStockToShoppers
     ),
+    cardSoldMin: readInt(map.get("card_sold_min"), DEFAULT_SETTINGS.cardSoldMin),
     reviewsNeedApproval: readFlag(
       map.get("reviews_need_approval"),
       DEFAULT_SETTINGS.reviewsNeedApproval

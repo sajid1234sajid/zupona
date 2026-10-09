@@ -6,7 +6,7 @@ import ProductHeader from "@/components/layout/ProductHeader";
 import DesktopHeader from "@/components/layout/DesktopHeader";
 import BottomNav from "@/components/layout/BottomNav";
 import SiteFooter from "@/components/layout/SiteFooter";
-import ProductCard from "@/components/home/ProductCard";
+import MasonryGrid from "@/components/product/MasonryGrid";
 import CategoryToolbar from "@/components/category/CategoryToolbar";
 import {
   getCategory,
@@ -159,16 +159,12 @@ export default async function CategoryPage({
             </Link>
           </div>
         ) : (
-          <div className="mt-2.5 grid grid-cols-2 gap-2 tab:mt-4 tab:grid-cols-3 tab:gap-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
-            {matches.map((product) => (
-              <ProductCard
-                key={product.id}
-                product={toSummary(product)}
-                isWishlisted={wishlistIds.has(product.id)}
-                isSignedIn={Boolean(user)}
-              />
-            ))}
-          </div>
+          <MasonryGrid
+            products={matches.map(toSummary)}
+            wishlistIds={[...wishlistIds]}
+            isSignedIn={Boolean(user)}
+            className="mt-2.5 tab:mt-4"
+          />
         )}
       </main>
 

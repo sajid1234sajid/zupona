@@ -4,14 +4,46 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Image from "@/components/ui/StoreImage";
-import { Star, Heart, LoaderCircle, Check } from "lucide-react";
+import { Star, Heart, LoaderCircle, Check, ShoppingCart, Truck } from "lucide-react";
 import type { ProductSummary } from "@/types";
 import { formatPrice } from "@/lib/format";
 import { toggleWishlistAction } from "@/app/wishlist/actions";
 import { addToCartAction } from "@/app/cart/actions";
 import { signalCartAdd } from "@/lib/cartSignal";
 
+/** "84 sold", "1.2K+ sold", "13K+ sold" -- the figure rounded down, so the
+ * plus is always true. */
+function soldLabel(count: number): string {
+  if (count < 1000) return `${count} sold`;
+  const thousands = Math.floor(count / 100) / 10;
+  return `${thousands >= 10 ? Math.floor(thousands) : thousands}K+ sold`;
+}
+
+/** The tag printed before the name: the admin panel's badge, or "Best Seller"
+ * for a product ticked as one without a badge of its own. */
+function tagFor(product: ProductSummary): string | null {
+  return product.badgeLabel || (product.bestSeller ? "Best Seller" : null);
+}
+
+/** How many of a card's optional lines this product has, which is what makes
+ * one card taller than the next. `MasonryGrid` reads it to place each card in
+ * the shorter column, so it must count exactly the lines drawn below. */
+export function cardLineCount(product: ProductSummary): number {
+  return (
+    (product.reviews > 0 ? 1 : 0) +
+    (product.stockLeft ? 1 : 0) +
+    (product.oldPrice > product.price ? 1 : 0) +
+    (product.freeDelivery || product.brand ? 1 : 0)
+  );
+}
+
 /** A product tile.
+ *
+ * Temu-style: under the photo every product says what is true of it and
+ * nothing else. One card has stars, "Only 3 left", "84 sold", a crossed-out
+ * price and "Free delivery"; the next has a name and a price. The grids place
+ * them in two independent columns (`MasonryGrid`), so a short card never
+ * leaves a hole beside a tall one.
  *
  * The links and the two buttons are siblings rather than nested, because a
  * button inside an anchor is invalid HTML and leaves keyboard users unable to
@@ -36,6 +68,9 @@ export default function ProductCard({
   const [wishlistPending, startWishlistTransition] = useTransition();
   const [cartPending, startCartTransition] = useTransition();
   const [justAdded, setJustAdded] = useState(false);
+  const tag = tagFor(product);
+  const soldCount = product.soldCount ?? 0;
+  const stockLeft = product.stockLeft ?? 0;
 
   function handleWishlistToggle() {
     if (!isSignedIn) {
@@ -135,47 +170,56 @@ export default function ProductCard({
         </button>
       </div>
 
-      <div className="flex flex-1 flex-col p-1.5">
+      <div className="flex flex-col gap-[3px] p-1.5">
         <Link prefetch={false} href={`/products/${product.slug}`} className="block">
-          <h3 className="line-clamp-2 min-h-[2.5em] text-[12px] font-semibold leading-[1.25] text-heading">
+          {/* One line, the way Temu sets it: the lines below are what tell
+              products apart, and a second line of name pushed them down. The
+              tag stays out of the categories pane's narrow tile, where it left
+              room for one word of the name. */}
+          <h3 className="line-clamp-1 text-[12px] font-semibold leading-[1.3] text-heading">
+            {tag && (
+              <span className="mr-1 hidden @[150px]:inline-block rounded-[3px] bg-[#e8590c] px-1 align-[1px] text-[9px] font-bold leading-[1.45] text-white">
+                {tag}
+              </span>
+            )}
             {product.name}
           </h3>
         </Link>
 
-        {/* Price and Add always share one row, the button bottom-right. The old
-            price sits under the new one so the row stays narrow enough for the
-            categories pane on a 320px phone without cutting the price off. */}
-        <div className="mt-auto flex items-end justify-between gap-0.5 pt-1">
-          <span className="flex min-w-0 flex-col">
-            {/* The stars ride on the price line rather than a row of their
-                own, which is the height the photo was given; they appear once
-                there is a review, since "0 (0)" on every tile said nothing. */}
-            <span className="flex items-center gap-1">
-              <span className="whitespace-nowrap text-[13px] font-extrabold leading-tight text-brand-darkest">
-                {formatPrice(product.price)}
-              </span>
-              {product.reviews > 0 && (
-                <span className="flex min-w-0 items-center gap-0.5 text-[10px] font-medium leading-none text-ink-slate">
-                  <Star className="h-2.5 w-2.5 shrink-0 fill-gold text-gold" />
-                  {product.rating}
-                </span>
-              )}
+        {product.reviews > 0 && (
+          <span className="flex items-center gap-[1px] text-[10px] leading-none text-ink-slate">
+            {[1, 2, 3, 4, 5].map((star) => (
+              <Star
+                key={star}
+                className={`h-2.5 w-2.5 shrink-0 ${
+                  star <= Math.round(product.rating)
+                    ? "fill-gold text-gold"
+                    : "fill-line text-line"
+                }`}
+              />
+            ))}
+            <span className="ml-0.5">{product.reviews}</span>
+          </span>
+        )}
+
+        {stockLeft > 0 && (
+          <span className="text-[10px] font-semibold leading-none text-[#e8590c]">
+            Only {stockLeft} left
+          </span>
+        )}
+
+        {/* Price and the cart button share one row, the button at the right
+            edge. "Sold" rides beside the price where there is room for it; the
+            categories pane draws this tile 100px wide, and there it is left
+            out rather than squeezing the price. */}
+        <div className="flex items-center justify-between gap-1">
+          <span className="flex min-w-0 items-baseline gap-1">
+            <span className="whitespace-nowrap text-[13px] font-extrabold leading-tight text-brand-darkest">
+              {formatPrice(product.price)}
             </span>
-            {product.oldPrice > product.price && (
-              <span className="flex flex-wrap items-baseline gap-x-1 text-[10px] leading-tight">
-                <span className="whitespace-nowrap text-ink-slate line-through">
-                  {formatPrice(product.oldPrice)}
-                </span>
-                {/* The categories pane draws this tile 100px wide, where the
-                    full wording runs under the Add button; there it is short. */}
-                {product.discountPercent > 0 && (
-                  <span className="whitespace-nowrap font-bold text-[#e8590c]">
-                    <span className="@[150px]:hidden">-{product.discountPercent}%</span>
-                    <span className="hidden @[150px]:inline">
-                      ({product.discountPercent}% OFF)
-                    </span>
-                  </span>
-                )}
+            {soldCount > 0 && (
+              <span className="hidden truncate text-[10px] leading-tight text-ink-slate @[150px]:inline">
+                {soldLabel(soldCount)}
               </span>
             )}
           </span>
@@ -185,17 +229,46 @@ export default function ProductCard({
             onClick={handleAddToCart}
             disabled={cartPending}
             aria-label={justAdded ? "Added to cart" : "Add to cart"}
-            className="inline-flex h-7 min-w-[32px] shrink-0 items-center justify-center rounded-full bg-brand px-1.5 text-[10.5px] font-bold text-white transition-colors disabled:opacity-70"
+            className="grid h-7 w-7 shrink-0 place-items-center rounded-full border-[1.5px] border-brand text-brand transition-colors disabled:opacity-70"
           >
             {cartPending ? (
               <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
             ) : justAdded ? (
               <Check className="h-3.5 w-3.5" strokeWidth={2.8} />
             ) : (
-              "Add"
+              <ShoppingCart className="h-3.5 w-3.5" strokeWidth={2.2} />
             )}
           </button>
         </div>
+
+        {product.oldPrice > product.price && (
+          <span className="flex flex-wrap items-baseline gap-x-1 text-[10px] leading-tight">
+            <span className="whitespace-nowrap text-ink-slate line-through">
+              {formatPrice(product.oldPrice)}
+            </span>
+            {product.discountPercent > 0 && (
+              <span className="whitespace-nowrap font-bold text-[#e8590c]">
+                <span className="@[150px]:hidden">-{product.discountPercent}%</span>
+                <span className="hidden @[150px]:inline">
+                  ({product.discountPercent}% OFF)
+                </span>
+              </span>
+            )}
+          </span>
+        )}
+
+        {product.freeDelivery ? (
+          <span className="flex min-w-0 items-center gap-1 text-[10px] font-semibold leading-tight text-brand">
+            <Truck className="h-3 w-3 shrink-0" strokeWidth={2.2} />
+            <span className="truncate">Free delivery</span>
+          </span>
+        ) : (
+          product.brand && (
+            <span className="truncate text-[10px] leading-tight text-ink-slate">
+              Brand: <span className="font-semibold text-ink">{product.brand}</span>
+            </span>
+          )
+        )}
       </div>
     </article>
   );

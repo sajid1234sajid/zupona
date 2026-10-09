@@ -21,6 +21,7 @@
 import { getDB } from "@/lib/db";
 import { CacheKeys, cached } from "@/lib/cache";
 import { UNLIMITED_STOCK } from "@/lib/stockLimits";
+import { getShopSettings } from "@/lib/shopSettings";
 
 /* -------------------------------------------------------------------------- */
 /* Shapes                                                                     */
@@ -49,6 +50,31 @@ export interface StoreProductCard {
    * search matches besides the name. One string rather than two fields
    * because the home page ships the whole catalog to the browser. */
   keywords: string;
+
+  /* What a card says under the price, Temu-style: each line appears only when
+   * it is true of this product, so one card can carry five lines and the next
+   * two. KV can hold entries written before these existed, so a reader treats
+   * a missing one as "nothing to say". */
+  /** Units ordered, or 0 when the card should not mention it -- below the
+   * shop's "Show sold from" setting. The product page reads the raw figure. */
+  soldCount: number;
+  /** Units left, only when the shop shows stock to shoppers and this product
+   * has fallen to its low-stock threshold; otherwise null, so the count of a
+   * well-stocked product never reaches the browser. */
+  stockLeft: number | null;
+  /** This product carries its own delivery. */
+  freeDelivery: boolean;
+  /** The admin panel's badge: "Best Seller", "Popular", "New Arrival". */
+  badgeLabel: string | null;
+  brand: string | null;
+}
+
+/** The settings that decide which of a card's lines are shown. A subset of
+ * `ShopSettings`, so callers hand that object straight in. */
+export interface CardSignalSettings {
+  showStockToShoppers: boolean;
+  lowStockThreshold: number;
+  cardSoldMin: number;
 }
 
 export interface StoreProductVideo {
@@ -156,10 +182,9 @@ export interface StoreProduct extends StoreProductCard {
    * way `videos` already is. */
   /** The attribute line under the title, e.g. "Premium Cotton | Regular Fit". */
   shortDescription: string | null;
-  /** Hero badge: "Best Seller", "Popular", "New Arrival". */
-  badgeLabel: string | null;
   returnPolicy: string | null;
   warranty: string | null;
+  /** Units ordered, the raw figure: unlike a card's, never held back. */
   soldCount: number;
   /** Images then clips, in one list -- the order the reference designs show,
    * with the video last in the thumbnail strip. */
@@ -233,6 +258,9 @@ interface CardRow {
   track_inventory: number;
   brand_name: string | null;
   tags: string | null;
+  sold_count: number | null;
+  free_delivery: number;
+  badge_label: string | null;
 }
 
 function discountPercent(price: number, oldPrice: number): number {
@@ -240,10 +268,17 @@ function discountPercent(price: number, oldPrice: number): number {
   return Math.round(((oldPrice - price) / oldPrice) * 100);
 }
 
-function toCard(row: CardRow): StoreProductCard {
+/** Maps a row to a card.
+ *
+ * `signals` is what a listing passes so the card's lines follow the shop's
+ * settings. Without it -- the cart and wishlist lookups, which never draw a
+ * card -- `soldCount` is the raw figure and `stockLeft` is withheld. */
+function toCard(row: CardRow, signals?: CardSignalSettings): StoreProductCard {
   // A product points at its deepest category. When that category has a parent,
   // the parent is the department and the category itself is the subcategory.
   const isSub = row.parent_id !== null;
+  const sold = row.sold_count ?? 0;
+  const stock = row.stock_total ?? 0;
 
   return {
     id: row.id,
@@ -264,6 +299,22 @@ function toCard(row: CardRow): StoreProductCard {
     featured: row.is_featured === 1,
     // The product page reads its row without the tags; it never searches.
     keywords: [row.brand_name, row.tags].filter(Boolean).join(" ").toLowerCase(),
+    // "3 sold" reads as a product nobody wants, so a card waits until the
+    // figure is worth saying; 0 in the setting keeps it off cards entirely.
+    soldCount: !signals ? sold : signals.cardSoldMin > 0 && sold >= signals.cardSoldMin ? sold : 0,
+    // "Only 3 left" is the shop's own stock figure, so it follows the same
+    // switch that shows the count on the product page. Only a product that
+    // counts its units has a figure to be low.
+    stockLeft:
+      signals?.showStockToShoppers &&
+      row.track_inventory === 1 &&
+      stock > 0 &&
+      stock <= signals.lowStockThreshold
+        ? stock
+        : null,
+    freeDelivery: row.free_delivery === 1,
+    badgeLabel: row.badge_label?.trim() || null,
+    brand: row.brand_name,
   };
 }
 
@@ -272,6 +323,11 @@ function toCard(row: CardRow): StoreProductCard {
 const CARD_SELECT = `
   SELECT p.id, p.slug, p.name, p.price, p.old_price, p.rating_avg, p.rating_count,
          p.is_best_seller, p.is_featured, p.category_id, p.track_inventory, c.parent_id,
+         p.free_delivery, p.badge_label,
+         -- Counted the way the product page counts it, so the two agree.
+         (SELECT COALESCE(SUM(oi.quantity), 0) FROM order_items oi
+            JOIN orders o ON o.id = oi.order_id
+           WHERE oi.product_id = p.id AND o.status != 'cancelled') AS sold_count,
          (SELECT url FROM product_images i WHERE i.product_id = p.id
            ORDER BY i.is_primary DESC, i.sort_order ASC LIMIT 1) AS image,
          (SELECT COALESCE(SUM(v.stock_quantity - v.reserved_quantity), 0)
@@ -348,17 +404,19 @@ function buildWhere(query: StoreQuery): { where: string; binds: unknown[] } {
 }
 
 async function queryCards(query: StoreQuery): Promise<StoreProductCard[]> {
-  const db = await getDB();
   const { where, binds } = buildWhere(query);
   const order = SORT_SQL[query.sort ?? "popular"];
   const limit = Math.min(query.limit ?? 200, 500);
 
+  // Saving the settings clears the catalog cache, so a card's lines follow a
+  // changed setting on the next load rather than after the TTL.
+  const [db, settings] = await Promise.all([getDB(), getShopSettings()]);
   const { results } = await db
     .prepare(`${CARD_SELECT} ${where} ORDER BY ${order} LIMIT ?`)
     .bind(...binds, limit)
     .all<CardRow>();
 
-  return results.map(toCard);
+  return results.map((row) => toCard(row, settings));
 }
 
 /** How long a catalog read may be served from KV.

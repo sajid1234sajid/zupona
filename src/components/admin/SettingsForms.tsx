@@ -212,7 +212,7 @@ export function StoreSettingsForm({
           <Toggle
             name="show_stock_to_shoppers"
             label="Show stock counts to shoppers"
-            detail="Off, a product page says only In Stock or Out of Stock — the number stays in here"
+            detail="Off, a product page says only In Stock or Out of Stock — the number stays in here. On, a product card also says “Only 3 left” once a product reaches its low-stock level"
             checked={settings.showStockToShoppers}
           />
           <Toggle
@@ -316,6 +316,25 @@ export function StoreSettingsForm({
             />
           </Field>
         </div>
+      </Card>
+
+      <Card>
+        <CardHeader
+          title="Product Cards"
+          subtitle="The lines under a product’s price in the shop’s grids. Each shows only when it is true of that product"
+        />
+        <Field
+          label="Show “sold” from"
+          hint="A card says “84 sold” once a product has sold at least this many. 0 keeps it off cards; the product page always shows it."
+        >
+          <input
+            name="card_sold_min"
+            type="number"
+            min={0}
+            defaultValue={settings.cardSoldMin}
+            className={fieldStyles}
+          />
+        </Field>
       </Card>
 
       <Card>

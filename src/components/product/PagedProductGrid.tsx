@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import ProductCard from "@/components/home/ProductCard";
+import MasonryGrid from "@/components/product/MasonryGrid";
 import type { ProductSummary } from "@/types";
 
 /** A product grid that mounts a page of cards at a time.
@@ -20,7 +20,7 @@ export default function PagedProductGrid({
   wishlistIds,
   isSignedIn,
   pageSize = 8,
-  className = "mt-3 grid grid-cols-2 gap-1.5 tab:mt-5 tab:grid-cols-3 tab:gap-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6",
+  className = "mt-3 tab:mt-5",
 }: {
   products: ProductSummary[];
   wishlistIds: string[];
@@ -54,16 +54,12 @@ export default function PagedProductGrid({
 
   return (
     <>
-      <div className={className}>
-        {visible.map((product) => (
-          <ProductCard
-            key={product.id}
-            product={product}
-            isWishlisted={wishlistSet.has(product.id)}
-            isSignedIn={isSignedIn}
-          />
-        ))}
-      </div>
+      <MasonryGrid
+        products={visible}
+        wishlistIds={wishlistSet}
+        isSignedIn={isSignedIn}
+        className={className}
+      />
       {hasMore && <div ref={sentinelRef} aria-hidden className="h-1 w-full" />}
     </>
   );

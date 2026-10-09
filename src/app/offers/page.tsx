@@ -185,7 +185,7 @@ export default async function OffersPage({ searchParams }: PageProps<"/offers">)
               products={deals}
               wishlistIds={[...wishlistIds]}
               isSignedIn={Boolean(user)}
-              className="mt-2.5 grid grid-cols-2 gap-2 pb-4 tab:mt-4 tab:grid-cols-3 tab:gap-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6"
+              className="mt-2.5 pb-4 tab:mt-4"
             />
           )}
         </section>

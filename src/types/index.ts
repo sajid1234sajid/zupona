@@ -114,6 +114,16 @@ export interface ProductSummary {
   discountPercent: number;
   rating: number;
   reviews: number;
+  /* The card's optional lines. See `StoreProductCard` in src/lib/storefront.ts
+   * for what each one means and when it is withheld. Optional because the cart
+   * and flash-sale rows build this shape without them, and a KV entry written
+   * before they existed lacks them too: absent means "nothing to say". */
+  soldCount?: number;
+  stockLeft?: number | null;
+  freeDelivery?: boolean;
+  badgeLabel?: string | null;
+  bestSeller?: boolean;
+  brand?: string | null;
 }
 
 export interface CartItem {

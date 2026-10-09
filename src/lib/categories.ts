@@ -70,6 +70,12 @@ export function toSummary(product: StoreProductCard): ProductSummary {
     discountPercent: product.discountPercent,
     rating: product.rating,
     reviews: product.reviews,
+    soldCount: product.soldCount,
+    stockLeft: product.stockLeft,
+    freeDelivery: product.freeDelivery,
+    badgeLabel: product.badgeLabel,
+    bestSeller: product.bestSeller,
+    brand: product.brand,
   };
 }
 

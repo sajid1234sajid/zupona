@@ -14,8 +14,9 @@ name: Update System Guide
 # The schedule is a fallback: a deploy started by another workflow's token may
 # not raise workflow_run, and a run that finds nothing new stops before Claude.
 #
-# Needs: secrets CLAUDE_CODE_OAUTH_TOKEN and CLOUDFLARE_API_TOKEN (or
-# CLOUDFLARE_D1_TOKEN), both already used by agent-task.
+# Needs: secrets CLAUDE_CODE_OAUTH_TOKEN (already used by agent-task) and
+# CLOUDFLARE_D1_TOKEN, a token with Account > D1 > Edit. The deploy token
+# CLOUDFLARE_API_TOKEN cannot reach D1. Without it every run skips quietly.
 
 on:
   workflow_run:
@@ -39,7 +40,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_D1_TOKEN || secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_D1_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: 14743b3b6de704c99ed06b7b67c65903
       GUIDE_AUTHOR: Guide sync (GitHub Actions)
     steps:
@@ -57,7 +58,16 @@ jobs:
 
       - name: Is the guide behind main?
         id: check
+        env:
+          HAS_D1_TOKEN: ${{ secrets.CLOUDFLARE_D1_TOKEN != '' && '1' || '' }}
         run: |
+          # The deploy token cannot read D1 (Cloudflare answers 7403), so this
+          # waits for its own token rather than failing every two hours.
+          if [ -z "$HAS_D1_TOKEN" ]; then
+            echo "::notice::CLOUDFLARE_D1_TOKEN is not set, so the guide cannot be read; skipping."
+            echo "behind=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           line="$(node scripts/guide.mjs sync-point)"
           echo "$line"
           sync="$(printf '%s' "$line" | grep -oE '[0-9a-f]{7,40}' | head -1 || true)"

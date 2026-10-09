@@ -1,0 +1,149 @@
+name: Update System Guide
+
+# Keeps the owner's System Guide (Admin > Settings > System Guide) in step
+# with every release, whoever made it: a Claude session, the WhatsApp agent,
+# the agent-fix workflow or a developer editing on GitHub.
+#
+# After each successful deploy it reads the guide's sync point, and when main
+# has moved past it, Claude Code reads the new commits and edits the guide's
+# sections (pulled into the gitignored .guide/ folder) to match. This workflow
+# then pushes them back to the database and checks the sync point moved.
+# Claude can edit nothing but .guide/ and run nothing but read-only git; it
+# never commits, pushes or deploys.
+#
+# The schedule is a fallback: a deploy started by another workflow's token may
+# not raise workflow_run, and a run that finds nothing new stops before Claude.
+#
+# Needs: secrets CLAUDE_CODE_OAUTH_TOKEN and CLOUDFLARE_API_TOKEN (or
+# CLOUDFLARE_D1_TOKEN), both already used by agent-task.
+
+on:
+  workflow_run:
+    workflows: ["Deploy to Cloudflare"]
+    types: [completed]
+    branches: [main]
+  schedule:
+    - cron: "17 */2 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: guide-sync
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_D1_TOKEN || secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: 14743b3b6de704c99ed06b7b67c65903
+      GUIDE_AUTHOR: Guide sync (GitHub Actions)
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      - run: npm ci
+
+      - name: Is the guide behind main?
+        id: check
+        run: |
+          line="$(node scripts/guide.mjs sync-point)"
+          echo "$line"
+          sync="$(printf '%s' "$line" | grep -oE '[0-9a-f]{7,40}' | head -1 || true)"
+          head="$(git rev-parse --short=7 HEAD)"
+          if [ -z "$sync" ] || ! git cat-file -e "$sync^{commit}" 2>/dev/null; then
+            echo "::error::The guide's sync point is missing or unknown ($line)."
+            exit 1
+          fi
+          if [ -z "$(git rev-list "$sync..HEAD")" ]; then
+            echo "Guide already covers $head."
+            echo "behind=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "behind=true" >> "$GITHUB_OUTPUT"
+          echo "sync=$sync" >> "$GITHUB_OUTPUT"
+          echo "head=$head" >> "$GITHUB_OUTPUT"
+          git log --format='%h %ad %s' --date=short "$sync..HEAD"
+
+      - name: Install Claude Code
+        if: steps.check.outputs.behind == 'true'
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Claude updates the guide
+        if: steps.check.outputs.behind == 'true'
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          CLAUDE_MODEL: ${{ vars.CLAUDE_CODE_MODEL || 'opus' }}
+          SYNC: ${{ steps.check.outputs.sync }}
+          HEAD_SHA: ${{ steps.check.outputs.head }}
+        run: |
+          node scripts/guide.mjs pull
+          today="$(TZ=Asia/Dhaka date +%F)"
+          {
+            echo "You keep the Zupona System Guide current. The guide is the shop owner's"
+            echo "blueprint of the whole system; the owner is not a developer and reads it in"
+            echo "the admin panel. Its sections are the files in .guide/ (first line '# Title',"
+            echo "then Markdown). Read AGENTS.md first for how the project works."
+            echo
+            echo "The guide is synced through commit $SYNC. These commits are new since then:"
+            echo
+            git log --no-merges --format='- %h %ad %s' --date=short "$SYNC..HEAD"
+            echo
+            echo "Do this:"
+            echo "1. Read each commit with 'git show --stat <hash>' and, where needed, 'git show <hash>'."
+            echo "2. Update every section those commits make wrong or incomplete (features, flows,"
+            echo "   tables and the table count in Data model, integrations, code map, rules). Keep"
+            echo "   each section's style: short plain sentences, tables where it already uses them."
+            echo "3. In 12-changelog.md add rows at the top of the table, newest first, one per day"
+            echo "   and area, saying in plain words what changed for the owner. Mention a migration"
+            echo "   by number. Skip commits that change nothing the owner could notice."
+            echo "4. In 13-staying-current.md change the sync point line to:"
+            echo "   **Synced through commit \`$HEAD_SHA\` ($today).**"
+            echo "5. Edit only files in .guide/. Never write secrets, keys or passwords into the guide."
+            echo
+            echo "Finish with one sentence saying what you changed."
+          } > "$RUNNER_TEMP/prompt.md"
+          claude -p "$(cat "$RUNNER_TEMP/prompt.md")" \
+            --model "$CLAUDE_MODEL" \
+            --tools "Read,Glob,Grep,Edit,Write,Bash" \
+            --allowedTools "Read,Glob,Grep,Edit(.guide/**),Write(.guide/**),Bash(git log*),Bash(git show *),Bash(git diff*)" \
+            --disallowedTools "Edit(src/**),Write(src/**),Edit(.github/**),Write(.github/**),Edit(db/**),Write(db/**),Edit(scripts/**),Write(scripts/**),Bash(git push*),Bash(git commit*),Bash(curl *)" \
+            --permission-prompts none \
+            --max-turns 120 \
+            --output-format json \
+            --no-session-persistence > "$RUNNER_TEMP/claude.json" || true
+          if ! jq -e '.subtype == "success" and (.is_error | not)' "$RUNNER_TEMP/claude.json" > /dev/null 2>&1; then
+            echo "::error::Claude did not finish"
+            jq -r '.result // .subtype // .' "$RUNNER_TEMP/claude.json" 2>/dev/null | head -c 3000
+            exit 1
+          fi
+          jq -r '.result' "$RUNNER_TEMP/claude.json"
+          if [ -n "$(git status --porcelain --ignored=no -- . ':!.guide')" ]; then
+            echo "::error::Claude changed files outside .guide/; nothing was pushed."
+            git status --short
+            exit 1
+          fi
+
+      - name: Push the guide and check the sync point
+        if: steps.check.outputs.behind == 'true'
+        env:
+          HEAD_SHA: ${{ steps.check.outputs.head }}
+        run: |
+          node scripts/guide.mjs push
+          line="$(node scripts/guide.mjs sync-point)"
+          echo "$line"
+          case "$line" in
+            *"$HEAD_SHA"*) echo "Guide synced through $HEAD_SHA." ;;
+            *) echo "::error::The sync point did not move to $HEAD_SHA."; exit 1 ;;
+          esac

@@ -44,6 +44,12 @@ every change, like a build that must pass:
   the guide does not yet reflect into it, whoever made it (the WhatsApp agent,
   the agent-fix workflow, the second developer, another session). Then move
   the sync point to the newest commit you covered.
+- **A safety net runs on its own:** the *Update System Guide* workflow
+  (`.github/workflows/guide-sync.yml`) runs after every successful deploy and
+  every two hours. When main is past the sync point, Claude Code reads the new
+  commits, edits only `.guide/`, and the workflow pushes it and checks the
+  sync point moved. It catches what a change forgot; it is not a reason to
+  skip updating the guide yourself.
 - **Every release also shows on its own** in the dashboard's "What's new"
   card (`src/lib/releases.ts`, read from the repository's commit feed), so
   write commit subjects the owner can understand.

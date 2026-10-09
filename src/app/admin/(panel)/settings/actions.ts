@@ -47,6 +47,8 @@ const EDITABLE: Record<string, "text" | "number" | "boolean"> = {
   openai_api_key: "text",
   google_api_key: "text",
   image_autofit: "text",
+  app_banner_enabled: "boolean",
+  app_banner_snooze_days: "number",
 };
 
 /** Settings whose value must not be echoed back to the browser or written

@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Poppins } from "next/font/google";
 import ServiceWorkerRegistration from "@/components/app/ServiceWorkerRegistration";
+import AppBanner from "@/components/app/AppBanner";
+import { appBannerScript } from "@/components/app/appBannerScript";
 import MetaPixel from "@/components/analytics/MetaPixel";
 import { getShopSettings } from "@/lib/shopSettings";
 import { SITE_URL, shareMetadata } from "@/lib/shareCard";
@@ -74,18 +76,31 @@ export const viewport: Viewport = {
  * next request; it must never cost the shop its pages. */
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   let facebookPixelId: string | null = null;
+  // Off when settings cannot be read: an install prompt is not worth
+  // guessing at on a page that is already in trouble.
+  let appBannerEnabled = false;
+  let appBannerSnoozeDays = 0;
   try {
-    ({ facebookPixelId } = await getShopSettings());
+    ({ facebookPixelId, appBannerEnabled, appBannerSnoozeDays } = await getShopSettings());
   } catch (error) {
     console.error("shop settings unreadable in root layout", error);
   }
 
   return (
+    // `suppressHydrationWarning`: the app banner's inline script may add
+    // `data-app-banner` to this element before React hydrates it.
     <html
       lang="en"
       className={`${poppins.variable} h-full antialiased`}
+      suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col bg-white">
+        {appBannerEnabled ? (
+          <>
+            <script dangerouslySetInnerHTML={{ __html: appBannerScript(appBannerSnoozeDays) }} />
+            <AppBanner />
+          </>
+        ) : null}
         {children}
         <ServiceWorkerRegistration />
         {facebookPixelId ? <MetaPixel pixelId={facebookPixelId} /> : null}

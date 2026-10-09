@@ -175,3 +175,16 @@ body {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* The "Get the Zupona app" strip (src/components/app/AppBanner.tsx). Hidden
+ * unless its inline script, which runs before the first paint, has put
+ * `data-app-banner` on <html> -- so the strip is in place from the first frame
+ * instead of pushing the page down after hydration. Phones only. */
+.app-banner {
+  display: none;
+}
+@media (max-width: 699.98px) {
+  html[data-app-banner] .app-banner {
+    display: flex;
+  }
+}

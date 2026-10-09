@@ -56,6 +56,13 @@ export interface ShopSettings {
    * the page source of every site that has one -- so unlike the access token
    * behind it, it travels with the rest of the settings. */
   facebookPixelId: string | null;
+
+  /** Whether a phone visitor is offered the "Get the Zupona app" strip above
+   * the header. On by default: the shop is already installable, and the strip
+   * is how a shopper finds that out. */
+  appBannerEnabled: boolean;
+  /** Days the strip stays away after a shopper closes it with the cross. */
+  appBannerSnoozeDays: number;
 }
 
 /** What the storefront falls back to. These match the values that used to be
@@ -80,6 +87,8 @@ export const DEFAULT_SETTINGS: ShopSettings = {
   otpDemoMode: false,
   smsSenderId: null,
   facebookPixelId: null,
+  appBannerEnabled: true,
+  appBannerSnoozeDays: 7,
 };
 
 function readInt(raw: string | undefined, fallback: number): number {
@@ -136,6 +145,11 @@ async function querySettings(): Promise<ShopSettings> {
     otpDemoMode: readFlag(map.get("otp_demo_mode"), DEFAULT_SETTINGS.otpDemoMode),
     smsSenderId: map.get("sms_sender_id")?.trim() || null,
     facebookPixelId: map.get("facebook_pixel_id")?.trim() || null,
+    appBannerEnabled: readFlag(map.get("app_banner_enabled"), DEFAULT_SETTINGS.appBannerEnabled),
+    appBannerSnoozeDays: readInt(
+      map.get("app_banner_snooze_days"),
+      DEFAULT_SETTINGS.appBannerSnoozeDays
+    ),
   };
 }
 

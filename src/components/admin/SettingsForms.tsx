@@ -293,6 +293,33 @@ export function StoreSettingsForm({
 
       <Card>
         <CardHeader
+          title="App Banner"
+          subtitle="The “Get the Zupona app” strip above the header on phones"
+        />
+        <div className="space-y-4">
+          <Toggle
+            name="app_banner_enabled"
+            label="Offer the app to phone visitors"
+            detail="Install puts Zupona on the home screen. Never shown inside the installed app, nor on a laptop"
+            checked={settings.appBannerEnabled}
+          />
+          <Field
+            label="Show again after (days)"
+            hint="How long the strip stays away once a shopper closes it with ✕. 0 brings it back on the next visit."
+          >
+            <input
+              name="app_banner_snooze_days"
+              type="number"
+              min={0}
+              defaultValue={settings.appBannerSnoozeDays}
+              className={fieldStyles}
+            />
+          </Field>
+        </div>
+      </Card>
+
+      <Card>
+        <CardHeader
           title="Product Pictures"
           subtitle="What happens to a picture that is not the 4:5 product shape"
         />

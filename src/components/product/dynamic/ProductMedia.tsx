@@ -257,6 +257,11 @@ export default function ProductMedia({
     return () => clearTimeout(timer);
   }, [activeIndex, active, finishedId, slides.length, held, viewing, goTo]);
 
+  // A jump straight to a far slide -- a dot, a long swipe -- selects the clip
+  // a render before `reached` mounts it, so its arrival on the page has to
+  // count as a reason to start it too.
+  const activeMounted = activeIndex <= reached + 1;
+
   // The clip on screen plays and every other one stops, so two soundtracks
   // never overlap and a clip swiped past stops downloading.
   useEffect(() => {
@@ -275,7 +280,7 @@ export default function ProductMedia({
     // `muted` is applied by the effect below; re-running this one on it would
     // restart a clip the shopper had paused.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active?.id]);
+  }, [active?.id, activeMounted]);
 
   useEffect(() => {
     for (const video of Object.values(videoRefs.current)) {

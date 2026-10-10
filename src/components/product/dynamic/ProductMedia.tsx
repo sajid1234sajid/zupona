@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "@/components/ui/StoreImage";
-import { Crown } from "lucide-react";
+import { Crown, Play, Volume2, VolumeX } from "lucide-react";
 import type { StoreMediaItem } from "@/lib/storefront";
 import { dimensionsFromUrl } from "@/lib/image";
 import ProductLightbox from "./ProductLightbox";
@@ -36,11 +36,16 @@ const WIDEST_FRAME = 16 / 9;
  * space around it is filled with a blurred copy rather than left bare. */
 const BACKDROP_OVER = 0.03;
 
-/** The gallery: one picture at a time, dots across its foot, and a tap opens
- * the full-screen viewer.
+/** The gallery: one picture or clip at a time, dots across its foot, and a
+ * tap on a picture opens the full-screen viewer.
  *
- * Pictures only. Clips and the thumbnail strip were taken out of the gallery
- * at the owner's request, so the dots count exactly the product's images.
+ * Clips sit after the pictures, in the order `media` arrives in, and their dot
+ * is a small play mark so a shopper can see there is a video to reach. A clip
+ * plays where it stands, muted, once the gallery arrives at it -- the owner
+ * wants an uploaded video to be seen, not hidden behind a button -- and the
+ * carousel waits for it to finish before moving on. Until then it is only its
+ * poster: `preload="none"` keeps a 20 MB clip off the wire for a shopper who
+ * reads the price and leaves.
  *
  * The frame takes the shape of the product's first picture, and every
  * picture is contained in it, never cropped: the owner wants every part of a
@@ -84,10 +89,13 @@ export default function ProductMedia({
   /** Floated over the bottom-right of the hero, e.g. "View Similar". */
   overlayEnd?: React.ReactNode;
 }) {
+  /** Everything the track shows, pictures and clips alike. */
+  const slides = media;
+  /** The pictures alone, for the full-screen viewer, which shows no clips. */
   const pictures = useMemo(() => media.filter((item) => item.type === "image"), [media]);
-  const active = pictures.find((item) => item.id === activeId) ?? pictures[0];
+  const active = slides.find((item) => item.id === activeId) ?? slides[0];
   const activeIndex = Math.max(
-    pictures.findIndex((item) => item.id === active?.id),
+    slides.findIndex((item) => item.id === active?.id),
     0
   );
 
@@ -106,6 +114,17 @@ export default function ProductMedia({
    * leaves has paid for pictures nobody looked at. It only ever grows, so
    * nothing already on screen is torn down. */
   const [reached, setReached] = useState(0);
+
+  const videoRefs = useRef<Record<string, HTMLVideoElement | null>>({});
+  /** Clips start muted, which is the only way a browser lets them start on
+   * their own; the speaker button turns the sound on for all of them. */
+  const [muted, setMuted] = useState(true);
+  /** The clip playing right now, if any; its play mark is hidden meanwhile. */
+  const [playingId, setPlayingId] = useState<string | null>(null);
+  /** A clip that has ended or failed to load. The carousel treats it like a
+   * picture and moves on after the usual spell; one that is merely paused
+   * holds it, because the shopper paused it to look. */
+  const [finishedId, setFinishedId] = useState<string | null>(null);
 
   /** Each picture's width over height: read from its URL where the uploader
    * recorded it, otherwise measured when it loads. */
@@ -147,9 +166,9 @@ export default function ProductMedia({
   const goTo = useCallback(
     (index: number) => {
       const track = trackRef.current;
-      if (!track || pictures.length === 0) return;
+      if (!track || slides.length === 0) return;
 
-      const wrapped = ((index % pictures.length) + pictures.length) % pictures.length;
+      const wrapped = ((index % slides.length) + slides.length) % slides.length;
       // Noted before the scroll starts, so the positions it travels through on
       // the way are not mistaken for the shopper choosing them. Without this,
       // a tap on the sixth dot selects the fourth picture mid-flight, and the
@@ -160,10 +179,10 @@ export default function ProductMedia({
 
       // Marked as active the moment the journey begins, so the dot moves with
       // the picture rather than a few hundred milliseconds behind it.
-      const item = pictures[wrapped];
+      const item = slides[wrapped];
       if (item && item.id !== activeId) onSelect(item.id);
     },
-    [pictures, activeId, onSelect]
+    [slides, activeId, onSelect]
   );
 
   const hold = useCallback(() => {
@@ -192,12 +211,12 @@ export default function ProductMedia({
     if (!track || track.clientWidth === 0) return;
 
     const index = Math.round(track.scrollLeft / track.clientWidth);
-    const item = pictures[index];
+    const item = slides[index];
     if (!item) return;
 
     setReached((furthest) => Math.max(furthest, index));
     if (item.id !== activeId) onSelect(item.id);
-  }, [activeId, pictures, onSelect]);
+  }, [activeId, slides, onSelect]);
 
   function handleScroll() {
     // Whatever else happens, the resting position wins: this also releases a
@@ -230,11 +249,39 @@ export default function ProductMedia({
   // swipe or a tap therefore gives the new picture its own full spell rather
   // than whatever was left of the last one's.
   useEffect(() => {
-    if (pictures.length < 2 || held || viewing) return;
+    if (slides.length < 2 || held || viewing) return;
+    // A clip moves the carousel on by itself, when it ends.
+    if (active?.type === "video" && finishedId !== active.id) return;
 
     const timer = setTimeout(() => goTo(activeIndex + 1), SLIDE_DWELL_MS);
     return () => clearTimeout(timer);
-  }, [activeIndex, pictures.length, held, viewing, goTo]);
+  }, [activeIndex, active, finishedId, slides.length, held, viewing, goTo]);
+
+  // The clip on screen plays and every other one stops, so two soundtracks
+  // never overlap and a clip swiped past stops downloading.
+  useEffect(() => {
+    for (const [id, video] of Object.entries(videoRefs.current)) {
+      if (!video) continue;
+      if (id === active?.id) {
+        video.muted = muted;
+        if (video.ended) video.currentTime = 0;
+        // Refused when the phone is saving power; the play mark stays up and
+        // a tap starts it instead.
+        void video.play().catch(() => {});
+      } else if (!video.paused) {
+        video.pause();
+      }
+    }
+    // `muted` is applied by the effect below; re-running this one on it would
+    // restart a clip the shopper had paused.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active?.id]);
+
+  useEffect(() => {
+    for (const video of Object.values(videoRefs.current)) {
+      if (video) video.muted = muted;
+    }
+  }, [muted]);
 
   if (!active) return null;
 
@@ -254,17 +301,56 @@ export default function ProductMedia({
           onMouseLeave={release}
           className="no-scrollbar absolute inset-0 flex snap-x snap-mandatory overflow-x-auto overscroll-x-contain"
         >
-          {pictures.map((item, index) => (
+          {slides.map((item, index) => (
             <div key={item.id} className="relative h-full w-full shrink-0 snap-center">
               {/* The box is always here, because the track's width and every
                   snap position are measured from it. The picture inside is
                   not, until the gallery is nearly at it. A tap opens it full
                   screen; a swipe scrolls the track and never counts as one. */}
-              {index > reached + 1 ? null : (
+              {index > reached + 1 ? null : item.type === "video" ? (
+                // A tap plays or pauses it where it stands; clips have no
+                // full-screen viewer.
+                <button
+                  type="button"
+                  onClick={() => {
+                    const video = videoRefs.current[item.id];
+                    if (!video) return;
+                    if (video.paused) void video.play().catch(() => {});
+                    else video.pause();
+                  }}
+                  aria-label={playingId === item.id ? "Pause video" : "Play video"}
+                  className="relative block h-full w-full bg-black focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand"
+                >
+                  <video
+                    ref={(element) => {
+                      videoRefs.current[item.id] = element;
+                    }}
+                    src={item.url}
+                    poster={item.poster}
+                    preload="none"
+                    muted
+                    playsInline
+                    aria-label={item.alt}
+                    className="h-full w-full object-contain"
+                    onPlay={() => {
+                      setPlayingId(item.id);
+                      setFinishedId((current) => (current === item.id ? null : current));
+                    }}
+                    onPause={() => setPlayingId((current) => (current === item.id ? null : current))}
+                    onEnded={() => setFinishedId(item.id)}
+                    onError={() => setFinishedId(item.id)}
+                  />
+                  {playingId !== item.id && (
+                    <span className="pointer-events-none absolute left-1/2 top-1/2 grid h-14 w-14 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-black/55 text-white">
+                      <Play className="ml-0.5 h-6 w-6 fill-white" aria-hidden />
+                    </span>
+                  )}
+                </button>
+              ) : (
                 <button
                   type="button"
                   onClick={() => setViewing(true)}
-                  aria-label={`View picture ${index + 1} of ${pictures.length} full screen`}
+                  aria-label={`View picture ${pictures.indexOf(item) + 1} of ${pictures.length} full screen`}
                   className="relative block h-full w-full cursor-zoom-in focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand"
                 >
                   {(() => {
@@ -325,11 +411,24 @@ export default function ProductMedia({
 
         {toolbar && <div className="absolute right-3 top-3 z-10 flex gap-2">{toolbar}</div>}
 
+        {active?.type === "video" && (
+          <button
+            type="button"
+            onClick={() => setMuted((current) => !current)}
+            aria-label={muted ? "Turn sound on" : "Turn sound off"}
+            className={`absolute left-3 z-10 grid h-9 w-9 place-items-center rounded-full bg-black/55 text-white ${
+              badgeLabel ? "top-12" : "top-3"
+            }`}
+          >
+            {muted ? <VolumeX className="h-4 w-4" aria-hidden /> : <Volume2 className="h-4 w-4" aria-hidden />}
+          </button>
+        )}
+
         {/* One band across the foot of the hero: chip, dots, chip. The dots
             take whatever the two chips leave rather than being centred on the
             picture, because centred they slide under "View Similar" on a
             narrow phone. */}
-        {(overlayStart || overlayEnd || pictures.length > 1) && (
+        {(overlayStart || overlayEnd || slides.length > 1) && (
           <div className="pointer-events-none absolute inset-x-3 bottom-3 z-10 flex items-end gap-1.5 [&>*]:pointer-events-auto">
             <div className="flex min-w-0 shrink-0 items-center gap-2">{overlayStart}</div>
 
@@ -337,9 +436,9 @@ export default function ProductMedia({
                 jumping a picture. Measured off the owner's screenshot: 10px
                 dots, 10px apart, centred 16px above the picture's foot -- the
                 negative margin drops them below the chips' line to get there. */}
-            {pictures.length > 1 ? (
+            {slides.length > 1 ? (
               <div className="-mb-2 flex min-w-0 flex-1 items-center justify-center overflow-hidden">
-                {pictures.map((item, index) => (
+                {slides.map((item, index) => (
                   <button
                     key={item.id}
                     type="button"
@@ -348,15 +447,26 @@ export default function ProductMedia({
                       onSelect(item.id);
                       release();
                     }}
-                    aria-label={`Show picture ${index + 1} of ${pictures.length}`}
+                    aria-label={
+                      item.type === "video" ? "Show video" : `Show picture ${index + 1} of ${slides.length}`
+                    }
                     aria-current={index === activeIndex ? "true" : undefined}
                     className="grid h-6 w-5 shrink-0 place-items-center focus:outline-none"
                   >
-                    <span
-                      className={`block h-2.5 w-2.5 rounded-full shadow-[0_0_3px_rgba(0,0,0,0.35)] transition-colors ${
-                        index === activeIndex ? "bg-brand" : "bg-white"
-                      }`}
-                    />
+                    {item.type === "video" ? (
+                      <Play
+                        aria-hidden
+                        className={`h-3 w-3 drop-shadow-[0_0_2px_rgba(0,0,0,0.5)] transition-colors ${
+                          index === activeIndex ? "fill-brand text-brand" : "fill-white text-white"
+                        }`}
+                      />
+                    ) : (
+                      <span
+                        className={`block h-2.5 w-2.5 rounded-full shadow-[0_0_3px_rgba(0,0,0,0.35)] transition-colors ${
+                          index === activeIndex ? "bg-brand" : "bg-white"
+                        }`}
+                      />
+                    )}
                   </button>
                 ))}
               </div>
@@ -372,7 +482,7 @@ export default function ProductMedia({
       {viewing && (
         <ProductLightbox
           pictures={pictures}
-          startIndex={activeIndex}
+          startIndex={Math.max(pictures.indexOf(active), 0)}
           productName={productName}
           onChange={(index) => {
             const item = pictures[index];

@@ -40,17 +40,20 @@ export default function RangeTabs({
   params,
   current,
   compact = false,
+  options = OPTIONS,
 }: {
   base: string;
   params: SearchParamsShape;
   current: string;
   compact?: boolean;
+  /** A page whose windows differ, such as Activity's "Today". */
+  options?: readonly { key: string; label: string }[];
 }) {
   return (
     // Capped at the container and scrollable: four nowrap labels are wider than
     // a phone, and without the cap they would stretch the card that holds them.
     <div className="no-scrollbar flex max-w-full items-center gap-1 overflow-x-auto rounded-xl bg-neutral-50 p-1">
-      {OPTIONS.map((option) => {
+      {options.map((option) => {
         const active = option.key === current;
         return (
           <Link

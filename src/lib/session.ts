@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { getDB } from "@/lib/db";
 import type { AuthUser, UserRole } from "@/types";
 
-const SESSION_COOKIE = "zupona_session";
+export const SESSION_COOKIE = "zupona_session";
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
 /** A shopper who has not made an account yet.

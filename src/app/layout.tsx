@@ -4,6 +4,7 @@ import ServiceWorkerRegistration from "@/components/app/ServiceWorkerRegistratio
 import AppBanner from "@/components/app/AppBanner";
 import { appBannerScript } from "@/components/app/appBannerScript";
 import MetaPixel from "@/components/analytics/MetaPixel";
+import ActivityTracker from "@/components/analytics/ActivityTracker";
 import { getShopSettings } from "@/lib/shopSettings";
 import { SITE_URL, shareMetadata } from "@/lib/shareCard";
 import "./globals.css";
@@ -104,6 +105,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         {children}
         <ServiceWorkerRegistration />
         {facebookPixelId ? <MetaPixel pixelId={facebookPixelId} /> : null}
+        <ActivityTracker />
       </body>
     </html>
   );

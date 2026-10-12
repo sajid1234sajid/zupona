@@ -5,6 +5,7 @@
  * module is the client-side half that resolves those names. */
 
 import {
+  Activity,
   BarChart3,
   Bot,
   FolderTree,
@@ -34,6 +35,7 @@ export const ICONS: Record<string, LucideIcon> = {
   coupons: Ticket,
   marketing: Megaphone,
   reports: BarChart3,
+  activity: Activity,
   settings: Settings,
   // The Seller Center's own sections.
   analytics: BarChart3,

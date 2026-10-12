@@ -76,7 +76,7 @@ Two notes carried from building `0003`:
 
 ## Schema map
 
-63 tables, grouped by concern (the marketing, assistant and system guide tables are described in their migrations, 0021, 0022 and 0024).
+64 tables, grouped by concern (the marketing, assistant, system guide and visitor activity tables are described in their migrations, 0021, 0022, 0024 and 0026).
 
 **Identity and access** — `users` (with `role`, `status`, verification flags,
 referral fields), `sessions` (with device metadata), `oauth_accounts` for
@@ -94,7 +94,7 @@ details) and `seller_documents` for KYC paperwork held in R2.
 `price_history`.
 
 **Shopping** — `cart_items`, `buy_now_sessions`, `wishlist_items`,
-`recently_viewed`, `search_queries`.
+`recently_viewed`, `search_queries`, `visitor_events` (what each browser viewed, added and bought; read by Admin → Activity).
 
 **Merchandising** — `coupons`, `coupon_redemptions`, `flash_sales`,
 `flash_sale_items`, `banners`.

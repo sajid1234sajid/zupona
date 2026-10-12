@@ -916,3 +916,28 @@ CREATE TABLE IF NOT EXISTS system_guide_sections (
 
 CREATE INDEX IF NOT EXISTS idx_system_guide_sections_position
   ON system_guide_sections (position);
+
+-- What shoppers do on the storefront: views, adds to cart, purchases. Read by
+-- Admin > Activity. See db/migrations/0026_visitor_events.sql for the design.
+CREATE TABLE IF NOT EXISTS visitor_events (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  visitor_id TEXT NOT NULL,
+  user_id TEXT,
+  event TEXT NOT NULL, -- page_view|product_view|cart_view|checkout|add_to_cart|buy_now|purchase
+  path TEXT,
+  product_id TEXT,
+  order_id TEXT,
+  quantity INTEGER,
+  value INTEGER,
+  source TEXT,
+  campaign TEXT,
+  referrer TEXT,
+  device TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_visitor_events_created ON visitor_events (created_at);
+CREATE INDEX IF NOT EXISTS idx_visitor_events_visitor ON visitor_events (visitor_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_visitor_events_event ON visitor_events (event, created_at);
+CREATE INDEX IF NOT EXISTS idx_visitor_events_product ON visitor_events (product_id, event);
+CREATE INDEX IF NOT EXISTS idx_visitor_events_user ON visitor_events (user_id);

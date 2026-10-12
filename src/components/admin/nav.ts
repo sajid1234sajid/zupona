@@ -48,6 +48,7 @@ export const NAV_ITEMS: NavItem[] = [
     ],
   },
   { label: "Reports", href: "/admin/reports", icon: "reports" },
+  { label: "Activity", href: "/admin/activity", icon: "activity" },
   {
     label: "Settings",
     href: "/admin/settings",

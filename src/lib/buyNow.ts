@@ -36,7 +36,10 @@ export interface BuyNowLine {
   freeDelivery: boolean;
 }
 
-export type BuyNowResult = { ok: true } | { ok: false; error: string };
+/** The line's value travels back so the action can log it without a second read. */
+export type BuyNowResult =
+  | { ok: true; productId: string; quantity: number; value: number }
+  | { ok: false; error: string };
 
 /** Validates the selection and opens a session for it. */
 export async function createBuyNowSession(
@@ -83,7 +86,12 @@ export async function createBuyNowSession(
     expires: new Date(expiresAt),
   });
 
-  return { ok: true };
+  return {
+    ok: true,
+    productId: selection.productId,
+    quantity: selection.quantity,
+    value: selection.price * selection.quantity,
+  };
 }
 
 /**

@@ -7,6 +7,7 @@ import { getOrCreateShopper, getShopper } from "@/lib/session";
 import { getStoreProductCard } from "@/lib/storefront";
 import { resolveSelection } from "@/lib/selection";
 import { createBuyNowSession } from "@/lib/buyNow";
+import { recordAction } from "@/lib/activity";
 
 /* No sign-in is needed to shop. Adding to the cart or buying now makes a guest
  * for a signed-out browser; changing a line only ever touches a cart that
@@ -15,7 +16,8 @@ import { createBuyNowSession } from "@/lib/buyNow";
 export async function addToCartAction(productId: string, color = "", quantity = 1): Promise<void> {
   // Checked against the live catalog, so a product unpublished in the admin
   // panel can no longer be added to a cart.
-  if (!(await getStoreProductCard(productId))) return;
+  const card = await getStoreProductCard(productId);
+  if (!card) return;
   const user = await getOrCreateShopper();
 
   const db = await getDB();
@@ -35,6 +37,8 @@ export async function addToCartAction(productId: string, color = "", quantity = 
       .bind(crypto.randomUUID(), user.id, productId, color, quantity)
       .run();
   }
+
+  await recordAction({ event: "add_to_cart", userId: user.id, productId, quantity, value: card.price * quantity });
 }
 
 export async function updateCartQuantityAction(itemId: string, quantity: number): Promise<void> {
@@ -212,6 +216,14 @@ export async function addSelectionToCartAction(input: {
       .run();
   }
 
+  await recordAction({
+    event: "add_to_cart",
+    userId: user.id,
+    productId: selection.productId,
+    quantity: selection.quantity,
+    value: selection.price * selection.quantity,
+  });
+
   return { ok: true };
 }
 
@@ -226,5 +238,14 @@ export async function buyNowAction(input: {
 }): Promise<AddSelectionResult> {
   const user = await getOrCreateShopper();
   const result = await createBuyNowSession(user.id, input);
-  return result.ok ? { ok: true } : { ok: false, error: result.error };
+  if (!result.ok) return { ok: false, error: result.error };
+
+  await recordAction({
+    event: "buy_now",
+    userId: user.id,
+    productId: result.productId,
+    quantity: result.quantity,
+    value: result.value,
+  });
+  return { ok: true };
 }

@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, BadgeCheck, Mail, MapPin, Phone } from "lucide-react";
+import { Activity, ArrowLeft, BadgeCheck, Mail, MapPin, Phone } from "lucide-react";
 import { getCustomerDetail } from "@/lib/adminData";
+import { customerHasActivity } from "@/lib/activityData";
 import { formatAddressLine, formatDateTime, formatPrice } from "@/lib/format";
 import {
   Avatar,
@@ -25,7 +26,7 @@ export async function generateMetadata(props: PageProps<"/admin/customers/[id]">
 
 export default async function CustomerDetailPage(props: PageProps<"/admin/customers/[id]">) {
   const { id } = await props.params;
-  const customer = await getCustomerDetail(id);
+  const [customer, hasActivity] = await Promise.all([getCustomerDetail(id), customerHasActivity(id)]);
   if (!customer) notFound();
 
   const spent = customer.orders
@@ -39,10 +40,18 @@ export default async function CustomerDetailPage(props: PageProps<"/admin/custom
         subtitle={`Customer since ${formatDateTime(customer.createdAt)}`}
         breadcrumb={["Customers", customer.name]}
         action={
-          <Link href="/admin/customers" className={buttonStyles.secondary}>
-            <ArrowLeft className="h-4 w-4" />
-            All customers
-          </Link>
+          <div className="flex flex-wrap items-center gap-2">
+            {hasActivity ? (
+              <Link href={`/admin/activity/c-${customer.id}`} className={buttonStyles.secondary}>
+                <Activity className="h-4 w-4" />
+                Activity
+              </Link>
+            ) : null}
+            <Link href="/admin/customers" className={buttonStyles.secondary}>
+              <ArrowLeft className="h-4 w-4" />
+              All customers
+            </Link>
+          </div>
         }
       />
 

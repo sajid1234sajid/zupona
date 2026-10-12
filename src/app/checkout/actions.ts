@@ -27,6 +27,7 @@ import { reserveStock, releaseReservation } from "@/lib/inventory";
 import { getBuyNowLine, consumeBuyNowSession, clearBuyNowCookie } from "@/lib/buyNow";
 import { planSuborders, commissionRates, createSuborders } from "@/lib/suborders";
 import { sendPurchase } from "@/lib/analytics";
+import { recordAction } from "@/lib/activity";
 
 export interface SendCodeState {
   error?: string;
@@ -569,6 +570,11 @@ export async function placeOrderAction(
   } catch (error) {
     console.error("meta purchase dispatch failed", { orderId, error });
   }
+
+  // For Admin -> Activity. Under the buyer rather than the shopper, so a guest
+  // whose number belonged to an account shows as that customer. The products
+  // are read back from order_items, so one row covers the whole order.
+  await recordAction({ event: "purchase", userId: buyer.id, orderId, value: total });
 
   await clearPhoneVerification();
 

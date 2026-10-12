@@ -40,3 +40,17 @@ export async function getCache(): Promise<KVNamespace> {
 export async function getImages(): Promise<ImagesBinding> {
   return (await getEnv()).IMAGES;
 }
+
+/** Runs `task` after the response has gone, keeping the Worker alive for it.
+ *
+ * For writes nobody is waiting on, such as an activity row. Outside the
+ * Workers runtime it is simply awaited. A failure is logged, never thrown. */
+export async function afterResponse(label: string, task: () => Promise<unknown>): Promise<void> {
+  const guarded = task().catch((error) => console.error(`${label} failed`, error));
+  try {
+    const { waitUntil } = await import("cloudflare:workers");
+    waitUntil(guarded);
+  } catch {
+    await guarded;
+  }
+}

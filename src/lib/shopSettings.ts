@@ -66,6 +66,20 @@ export interface ShopSettings {
   appBannerEnabled: boolean;
   /** Days the strip stays away after a shopper closes it with the cross. */
   appBannerSnoozeDays: number;
+
+  /** The shop's own pages elsewhere, linked from the storefront footer. Each
+   * is null until an admin pastes one in, and a null one draws no icon -- the
+   * footer never links to a page the shop does not have. */
+  social: SocialLinks;
+}
+
+export interface SocialLinks {
+  facebook: string | null;
+  instagram: string | null;
+  youtube: string | null;
+  tiktok: string | null;
+  /** A WhatsApp number in `+8801…` form; the footer turns it into a wa.me link. */
+  whatsapp: string | null;
 }
 
 /** What the storefront falls back to. These match the values that used to be
@@ -93,6 +107,7 @@ export const DEFAULT_SETTINGS: ShopSettings = {
   facebookPixelId: null,
   appBannerEnabled: true,
   appBannerSnoozeDays: 7,
+  social: { facebook: null, instagram: null, youtube: null, tiktok: null, whatsapp: null },
 };
 
 function readInt(raw: string | undefined, fallback: number): number {
@@ -155,6 +170,13 @@ async function querySettings(): Promise<ShopSettings> {
       map.get("app_banner_snooze_days"),
       DEFAULT_SETTINGS.appBannerSnoozeDays
     ),
+    social: {
+      facebook: map.get("social_facebook")?.trim() || null,
+      instagram: map.get("social_instagram")?.trim() || null,
+      youtube: map.get("social_youtube")?.trim() || null,
+      tiktok: map.get("social_tiktok")?.trim() || null,
+      whatsapp: map.get("social_whatsapp")?.trim() || null,
+    },
   };
 }
 

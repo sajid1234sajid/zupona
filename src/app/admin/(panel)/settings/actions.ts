@@ -50,6 +50,20 @@ const EDITABLE: Record<string, "text" | "number" | "boolean"> = {
   image_autofit: "text",
   app_banner_enabled: "boolean",
   app_banner_snooze_days: "number",
+  social_facebook: "text",
+  social_instagram: "text",
+  social_youtube: "text",
+  social_tiktok: "text",
+  social_whatsapp: "text",
+};
+
+/** The footer links each of these, so each must be a real web address on the
+ * network it names -- a typo would put a dead link on every page of the shop. */
+const SOCIAL_HOSTS: Record<string, { label: string; hosts: RegExp }> = {
+  social_facebook: { label: "Facebook", hosts: /(^|\.)(facebook\.com|fb\.com|fb\.me)$/ },
+  social_instagram: { label: "Instagram", hosts: /(^|\.)instagram\.com$/ },
+  social_youtube: { label: "YouTube", hosts: /(^|\.)(youtube\.com|youtu\.be)$/ },
+  social_tiktok: { label: "TikTok", hosts: /(^|\.)tiktok\.com$/ },
 };
 
 /** Settings whose value must not be echoed back to the browser or written
@@ -117,6 +131,30 @@ export async function saveSettingsAction(
           error:
             "That does not look like a Conversions API token -- they are long and have no spaces. If your browser filled the box with a saved password, clear it: an empty box keeps whatever is already stored.",
         };
+      }
+
+      const social = SOCIAL_HOSTS[key];
+      if (social && value !== "") {
+        let host = "";
+        try {
+          const url = new URL(/^https?:\/\//i.test(value) ? value : `https://${value}`);
+          host = url.hostname.toLowerCase();
+          if (social.hosts.test(host)) {
+            changed[key] = url.toString().slice(0, 200);
+            continue;
+          }
+        } catch {
+          // Falls through to the message below.
+        }
+        return {
+          error: `The ${social.label} link should be the address of your page there, e.g. https://www.${social.label.toLowerCase()}.com/zupona.`,
+        };
+      }
+      if (key === "social_whatsapp" && value !== "") {
+        const phone = normalizeBdPhone(value);
+        if (!phone) return { error: "Enter the WhatsApp number as a Bangladeshi mobile, e.g. 01712345678." };
+        changed[key] = phone;
+        continue;
       }
 
       if (kind === "number") {

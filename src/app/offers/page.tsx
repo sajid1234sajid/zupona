@@ -70,7 +70,7 @@ export default async function OffersPage({ searchParams }: PageProps<"/offers">)
   const delivery = await freeDeliveryProgress(cartSubtotal(cartItems));
 
   return (
-    <div className="mx-auto flex min-h-screen w-full max-w-md flex-col bg-brand-mist pb-20 tab:max-w-none tab:pb-12">
+    <div className="mx-auto flex min-h-screen w-full max-w-md flex-col bg-brand-mist pb-20 tab:max-w-none tab:pb-0">
       <div className="tab:hidden">
         <ProductHeader />
       </div>

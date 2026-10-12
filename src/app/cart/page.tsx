@@ -48,7 +48,7 @@ export default async function CartPage() {
         : `Remove ${blocked.length} unavailable item${blocked.length > 1 ? "s" : ""} & checkout`;
 
   return (
-    <div className="mx-auto flex min-h-screen w-full max-w-md flex-col bg-brand-mist pb-40 tab:max-w-none tab:pb-12">
+    <div className="mx-auto flex min-h-screen w-full max-w-md flex-col bg-brand-mist pb-40 tab:max-w-none tab:pb-0">
       <div className="tab:hidden">
         <ProductHeader />
       </div>

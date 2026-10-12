@@ -162,14 +162,7 @@ export async function applyGatewayResult(
  * credentials living in the Worker environment, and only the answer -- not the
  * credentials -- ever leaves the server. */
 export async function availablePaymentMethods(): Promise<string[]> {
-  let environment: Record<string, unknown> | undefined;
-  try {
-    const { env } = await import("cloudflare:workers");
-    environment = env as unknown as Record<string, unknown>;
-  } catch {
-    environment = undefined;
-  }
-
+  const environment = await workerEnv();
   const providers = providerStatus(environment);
   const online = providers.some((entry) => entry.online && entry.configured);
   const methods = ["cod"];
@@ -178,4 +171,20 @@ export async function availablePaymentMethods(): Promise<string[]> {
   // checking the statement -- but it does need that account number configured.
   if (environment?.BANK_TRANSFER_DETAILS) methods.push("bank");
   return methods;
+}
+
+async function workerEnv(): Promise<Record<string, unknown> | undefined> {
+  try {
+    const { env } = await import("cloudflare:workers");
+    return env as unknown as Record<string, unknown>;
+  } catch {
+    return undefined;
+  }
+}
+
+/** The ways a shopper can pay right now, by name -- what the footer lists
+ * under "We accept". A gateway without credentials is left out, so the shop
+ * never advertises a method checkout would refuse. */
+export async function acceptedPaymentProviders(): Promise<PaymentProvider[]> {
+  return providerStatus(await workerEnv()).filter((provider) => provider.configured);
 }

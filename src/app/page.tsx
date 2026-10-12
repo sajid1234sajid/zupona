@@ -35,7 +35,7 @@ export default async function Home() {
     <SearchProvider>
       {/* The bottom padding clears the fixed tab bar, so the last row of
           product cards can always be scrolled clear of it. */}
-      <div className="mx-auto flex min-h-screen w-full max-w-md flex-col bg-white pb-[68px] tab:max-w-none tab:pb-12">
+      <div className="mx-auto flex min-h-screen w-full max-w-md flex-col bg-white pb-[68px] tab:max-w-none tab:pb-0">
         <Header />
         <main className="flex-1 tab:mx-auto tab:w-full tab:max-w-shell tab:px-6 tab:pt-5">
           {/* One grid so the top of the page can be read in two different

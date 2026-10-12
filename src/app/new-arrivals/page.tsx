@@ -29,7 +29,7 @@ export default async function NewArrivalsPage() {
   ]);
 
   return (
-    <div className="mx-auto flex min-h-screen w-full max-w-md flex-col bg-white pb-[68px] tab:max-w-none tab:pb-12">
+    <div className="mx-auto flex min-h-screen w-full max-w-md flex-col bg-white pb-[68px] tab:max-w-none tab:pb-0">
       <div className="tab:hidden">
         <ProductHeader />
       </div>

@@ -320,6 +320,65 @@ export function StoreSettingsForm({
 
       <Card>
         <CardHeader
+          title="Social Links"
+          subtitle="The icons in the shop’s footer. An empty box shows no icon"
+        />
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Facebook page">
+            <input
+              name="social_facebook"
+              inputMode="url"
+              autoComplete="off"
+              defaultValue={settings.social?.facebook ?? ""}
+              placeholder="https://www.facebook.com/zupona"
+              className={fieldStyles}
+            />
+          </Field>
+          <Field label="Instagram">
+            <input
+              name="social_instagram"
+              inputMode="url"
+              autoComplete="off"
+              defaultValue={settings.social?.instagram ?? ""}
+              placeholder="https://www.instagram.com/zupona"
+              className={fieldStyles}
+            />
+          </Field>
+          <Field label="YouTube channel">
+            <input
+              name="social_youtube"
+              inputMode="url"
+              autoComplete="off"
+              defaultValue={settings.social?.youtube ?? ""}
+              placeholder="https://www.youtube.com/@zupona"
+              className={fieldStyles}
+            />
+          </Field>
+          <Field label="TikTok">
+            <input
+              name="social_tiktok"
+              inputMode="url"
+              autoComplete="off"
+              defaultValue={settings.social?.tiktok ?? ""}
+              placeholder="https://www.tiktok.com/@zupona"
+              className={fieldStyles}
+            />
+          </Field>
+          <Field label="WhatsApp number" hint="Opens a WhatsApp chat with the shop">
+            <input
+              name="social_whatsapp"
+              inputMode="tel"
+              autoComplete="off"
+              defaultValue={settings.social?.whatsapp ?? ""}
+              placeholder="01712345678"
+              className={fieldStyles}
+            />
+          </Field>
+        </div>
+      </Card>
+
+      <Card>
+        <CardHeader
           title="Product Cards"
           subtitle="The lines under a product’s price in the shop’s grids. Each shows only when it is true of that product"
         />

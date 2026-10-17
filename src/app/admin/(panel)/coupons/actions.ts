@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { getDB } from "@/lib/db";
 import { AuthorizationError, logAdminAction, requireAdmin } from "@/lib/admin";
-import { createCoupon, setCouponActive } from "@/lib/coupons";
+import { couponInsertStatement, setCouponActive, type CouponInput } from "@/lib/coupons";
 import type { CouponType } from "@/types";
 
 export interface CouponFormState {
@@ -16,6 +16,18 @@ const TYPES: CouponType[] = ["percent", "fixed", "free_shipping"];
 function refresh(): void {
   revalidatePath("/admin/coupons");
   revalidatePath("/offers");
+}
+
+/** `count` distinct codes `PREFIX-XXXXXX`, from letters and digits that
+ * cannot be misread (no 0/O, 1/I). */
+function batchCodes(prefix: string, count: number): string[] {
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  const codes = new Set<string>();
+  while (codes.size < count) {
+    const bytes = crypto.getRandomValues(new Uint8Array(6));
+    codes.add(`${prefix}-${Array.from(bytes, (byte) => alphabet[byte % alphabet.length]).join("")}`);
+  }
+  return [...codes];
 }
 
 function readInt(formData: FormData, key: string, fallback = 0): number {
@@ -66,16 +78,30 @@ export async function createCouponAction(
     }
 
     const db = await getDB();
-    const existing = await db
-      .prepare("SELECT id FROM coupons WHERE UPPER(code) = ?")
-      .bind(code)
-      .first<{ id: string }>();
-    if (existing) return { error: "That code is already in use." };
+    // A batch: the code is a prefix, and each generated code is single-use
+    // and kept off the Offers page -- it is handed to one person or one ad.
+    const batchCount = Math.min(500, Math.max(1, readInt(formData, "batchCount", 1)));
+    if (batchCount > 1 && code.length > 12) {
+      return { error: "For a batch, keep the code to 12 characters; it becomes the start of each code." };
+    }
+    const codes = batchCount > 1 ? batchCodes(code, batchCount) : [code];
+    // D1 binds at most 100 values a statement, so a large batch is checked in slices.
+    const slices: string[][] = [];
+    for (let at = 0; at < codes.length; at += 90) slices.push(codes.slice(at, at + 90));
+    const taken = await db.batch<{ code: string }>(
+      slices.map((slice) =>
+        db.prepare(`SELECT code FROM coupons WHERE UPPER(code) IN (${slice.map(() => "?").join(",")})`).bind(...slice)
+      )
+    );
+    if (taken.some((result) => result.results.length > 0)) {
+      return { error: batchCount > 1 ? "Some of those codes clashed with existing ones. Try again." : "That code is already in use." };
+    }
 
-    const usageLimit = readInt(formData, "usageLimit");
+    const usageLimit = batchCount > 1 ? 1 : readInt(formData, "usageLimit");
 
-    const id = await createCoupon({
-      code,
+    const ids = codes.map(() => crypto.randomUUID());
+    const id = ids[0];
+    const base: Omit<CouponInput, "code"> = {
       description: String(formData.get("description") ?? "").trim() || null,
       discountType,
       discountValue: discountType === "free_shipping" ? 0 : discountValue,
@@ -87,15 +113,22 @@ export async function createCouponAction(
       perUserLimit: Math.max(1, readInt(formData, "perUserLimit", 1)),
       startsAt,
       endsAt,
-      scope: String(formData.get("scopeId") ?? "") ? "category" : "all",
+      scope: String(formData.get("scopeId") ?? "") ? ("category" as const) : ("all" as const),
       scopeId: String(formData.get("scopeId") ?? "") || null,
-      audience: formData.get("audience") === "new_customer" ? "new_customer" : "all",
-      isPublic: formData.get("isPublic") === "on",
-    });
+      audience: formData.get("audience") === "new_customer" ? ("new_customer" as const) : ("all" as const),
+      isPublic: batchCount > 1 ? false : formData.get("isPublic") === "on",
+      batch: batchCount > 1 ? code : null,
+    };
+    // One round trip for the whole batch, and all of it or none.
+    await db.batch(codes.map((each, index) => couponInsertStatement(db, ids[index], { ...base, code: each })));
 
-    await logAdminAction(admin.id, "coupon.create", "coupon", id, {
-      after: { code, discountType, discountValue },
+    await logAdminAction(admin.id, batchCount > 1 ? "coupon.batch" : "coupon.create", "coupon", id, {
+      after: { code, discountType, discountValue, count: codes.length },
     });
+    if (batchCount > 1) {
+      refresh();
+      return { success: `${codes.length} codes created. Download them under “Code batches”.` };
+    }
   } catch (error) {
     if (error instanceof AuthorizationError) return { error: error.message };
     throw error;

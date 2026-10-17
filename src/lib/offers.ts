@@ -47,6 +47,21 @@ async function runningSale(): Promise<SaleRow | null> {
     .first<SaleRow>();
 }
 
+/** The next scheduled sale, within a week, for the "Upcoming" teaser. */
+export async function upcomingSale(): Promise<{ id: string; name: string; startsAt: string } | null> {
+  const db = await getDB();
+  const row = await db
+    .prepare(
+      `SELECT id, name, starts_at FROM flash_sales
+       WHERE is_active = 1
+         AND datetime(starts_at) > datetime('now')
+         AND datetime(starts_at) <= datetime('now', '+7 days')
+       ORDER BY starts_at ASC LIMIT 1`
+    )
+    .first<{ id: string; name: string; starts_at: string }>();
+  return row ? { id: row.id, name: row.name, startsAt: new Date(`${row.starts_at.replace(" ", "T")}Z`).toISOString() } : null;
+}
+
 export async function flashSaleWindow(): Promise<{ startsAt: Date; endsAt: Date } | null> {
   const sale = await runningSale();
   if (!sale) return null;

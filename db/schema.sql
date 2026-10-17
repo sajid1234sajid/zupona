@@ -519,8 +519,11 @@ CREATE TABLE IF NOT EXISTS coupons (
   is_active INTEGER NOT NULL DEFAULT 1,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   audience TEXT NOT NULL DEFAULT 'all', -- all | new_customer (0029)
-  is_public INTEGER NOT NULL DEFAULT 1 -- offered on the Offers page (0029)
+  is_public INTEGER NOT NULL DEFAULT 1, -- offered on the Offers page (0029)
+  batch TEXT -- shared prefix of codes made together (0032)
 );
+
+CREATE INDEX IF NOT EXISTS idx_coupons_batch ON coupons (batch);
 
 -- Coupons a shopper has collected (0029). Rules are still checked on use.
 CREATE TABLE IF NOT EXISTS user_coupons (

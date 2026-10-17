@@ -224,18 +224,18 @@ export interface CouponInput {
   endsAt?: string | null;
   audience?: "all" | "new_customer";
   isPublic?: boolean;
+  /** Shared prefix of codes made together; see migration 0032. */
+  batch?: string | null;
 }
 
-export async function createCoupon(input: CouponInput): Promise<string> {
-  const db = await getDB();
-  const id = crypto.randomUUID();
-
-  await db
+/** The INSERT for one coupon, for callers writing several in one batch. */
+export function couponInsertStatement(db: D1Database, id: string, input: CouponInput): D1PreparedStatement {
+  return db
     .prepare(
       `INSERT INTO coupons (id, code, description, discount_type, discount_value, min_order_amount,
                             max_discount_amount, usage_limit, per_user_limit, scope, scope_id,
-                            starts_at, ends_at, audience, is_public)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+                            starts_at, ends_at, audience, is_public, batch)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .bind(
       id,
@@ -252,10 +252,15 @@ export async function createCoupon(input: CouponInput): Promise<string> {
       input.startsAt ?? null,
       input.endsAt ?? null,
       input.audience ?? "all",
-      input.isPublic === false ? 0 : 1
-    )
-    .run();
+      input.isPublic === false ? 0 : 1,
+      input.batch ?? null
+    );
+}
 
+export async function createCoupon(input: CouponInput): Promise<string> {
+  const db = await getDB();
+  const id = crypto.randomUUID();
+  await couponInsertStatement(db, id, input).run();
   return id;
 }
 

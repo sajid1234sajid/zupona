@@ -48,7 +48,18 @@ function describe(coupon: { discountType: string; discountValue: number }): stri
 }
 
 export default async function CouponsPage() {
-  const coupons = await listAdminCoupons();
+  const all = await listAdminCoupons();
+  // Batch codes are summarised per batch below rather than listed one by one.
+  const coupons = all.filter((coupon) => !coupon.batch);
+  const batches = [...Map.groupBy(all.filter((coupon) => coupon.batch), (coupon) => coupon.batch as string)].map(
+    ([prefix, rows]) => ({
+      prefix,
+      count: rows.length,
+      used: rows.filter((row) => row.usageCount > 0).length,
+      given: rows.reduce((sum, row) => sum + row.redeemedTotal, 0),
+      sample: rows[0],
+    })
+  );
 
   const live = coupons.filter((coupon) => couponState(coupon).label === "Live").length;
   const redemptions = coupons.reduce((sum, coupon) => sum + coupon.usageCount, 0);
@@ -178,6 +189,27 @@ export default async function CouponsPage() {
               </TableScroll>
             )}
           </Card>
+
+          {batches.length > 0 ? (
+            <Card className="mt-5">
+              <CardHeader title="Code batches" subtitle="Single-use codes made together, for influencers or ads" />
+              <ul className="divide-y divide-neutral-100">
+                {batches.map((batch) => (
+                  <li key={batch.prefix} className="flex flex-wrap items-center gap-3 py-3 text-sm">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-bold tracking-wide text-neutral-800">{batch.prefix}-…</p>
+                      <p className="text-xs text-neutral-500">
+                        {describe(batch.sample)} · {batch.count} codes · {batch.used} used · {formatPrice(batch.given)} given
+                      </p>
+                    </div>
+                    <a href={`/admin/coupons/export?batch=${encodeURIComponent(batch.prefix)}`} className="rounded-lg border border-neutral-200 px-3 py-1.5 text-xs font-semibold text-neutral-700 hover:border-brand hover:text-brand">
+                      Download codes (CSV)
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          ) : null}
         </div>
 
         <div className="min-w-0 xl:col-span-4">

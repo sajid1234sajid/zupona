@@ -2206,6 +2206,8 @@ export interface AdminCouponRow {
   startsAt: string | null;
   endsAt: string | null;
   createdAt: string;
+  /** Shared prefix when it was made in a batch. */
+  batch: string | null;
 }
 
 /** Coupons with what they have actually cost.
@@ -2219,7 +2221,7 @@ export async function listAdminCoupons(): Promise<AdminCouponRow[]> {
     .prepare(
       `SELECT c.id, c.code, c.description, c.discount_type, c.discount_value,
               c.min_order_amount, c.max_discount_amount, c.usage_limit, c.usage_count,
-              c.per_user_limit, c.is_active, c.starts_at, c.ends_at, c.created_at,
+              c.per_user_limit, c.is_active, c.starts_at, c.ends_at, c.created_at, c.batch,
               (SELECT COALESCE(SUM(r.discount_amount), 0) FROM coupon_redemptions r
                 WHERE r.coupon_id = c.id) AS redeemed_total
        FROM coupons c ORDER BY c.created_at DESC`
@@ -2239,6 +2241,7 @@ export async function listAdminCoupons(): Promise<AdminCouponRow[]> {
       starts_at: string | null;
       ends_at: string | null;
       created_at: string;
+      batch: string | null;
       redeemed_total: number;
     }>();
 
@@ -2258,6 +2261,7 @@ export async function listAdminCoupons(): Promise<AdminCouponRow[]> {
     startsAt: row.starts_at,
     endsAt: row.ends_at,
     createdAt: row.created_at,
+    batch: row.batch,
   }));
 }
 

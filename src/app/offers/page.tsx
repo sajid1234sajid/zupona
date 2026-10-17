@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import RemindMe from "@/components/offers/RemindMe";
+import { getDB } from "@/lib/db";
 import { Flame, PiggyBank, Tag, Truck } from "lucide-react";
 import ProductHeader from "@/components/layout/ProductHeader";
 import DesktopHeader from "@/components/layout/DesktopHeader";
@@ -16,6 +18,7 @@ import {
   flashSaleItems,
   flashSaleName,
   flashSaleWindow,
+  upcomingSale,
   freeDeliveryProgress,
   headlineDiscount,
   isDealTab,
@@ -58,6 +61,7 @@ export default async function OffersPage({ searchParams }: PageProps<"/offers">)
     savings,
     topDiscount,
     coupons,
+    upcoming,
   ] = await Promise.all([
     getWishlistProductIds(user?.id ?? null),
     user ? getCartItems(user.id) : Promise.resolve([]),
@@ -68,7 +72,17 @@ export default async function OffersPage({ searchParams }: PageProps<"/offers">)
     totalSavingsAvailable(),
     headlineDiscount(),
     offeredCoupons(user?.id ?? null),
+    upcomingSale().catch(() => null),
   ]);
+  const reminded =
+    upcoming && user
+      ? Boolean(
+          await (await getDB())
+            .prepare("SELECT 1 FROM flash_sale_reminders WHERE user_id = ? AND flash_sale_id = ?")
+            .bind(user.id, upcoming.id)
+            .first()
+        )
+      : false;
 
   const endsAt = saleWindow?.endsAt ?? null;
   const delivery = await freeDeliveryProgress(cartSubtotal(cartItems));
@@ -143,6 +157,30 @@ export default async function OffersPage({ searchParams }: PageProps<"/offers">)
             </div>
           </section>
         )}
+
+        {/* The next sale, a few days out at most, with a reminder. */}
+        {upcoming ? (
+          <section className="px-4 pt-4">
+            <div className="flex flex-wrap items-center gap-3 rounded-2xl bg-accent-red px-4 py-3 text-white shadow-card">
+              <Flame className="h-5 w-5 shrink-0 fill-white" />
+              <div className="min-w-0 flex-1">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-white/80">Upcoming</p>
+                <p className="text-[14px] font-extrabold">
+                  {upcoming.name} · starts{" "}
+                  {new Date(upcoming.startsAt).toLocaleString("en-GB", {
+                    weekday: "short",
+                    day: "numeric",
+                    month: "short",
+                    hour: "numeric",
+                    minute: "2-digit",
+                    timeZone: "Asia/Dhaka",
+                  })}
+                </p>
+              </div>
+              <RemindMe saleId={upcoming.id} initiallySet={reminded} />
+            </div>
+          </section>
+        ) : null}
 
         {/* Coupons -- only when there is one to collect; an empty "Collect
             coupons" heading promised something that was not there. */}

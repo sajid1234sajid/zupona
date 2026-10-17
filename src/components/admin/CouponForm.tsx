@@ -40,6 +40,13 @@ export default function CouponForm({
           />
         </Field>
 
+        <Field
+          label="How many codes"
+          hint="1 creates the code above. More creates that many single-use codes starting with it (e.g. FBAD-7K2Q9M) for influencers or ads — download them as a spreadsheet from the list."
+        >
+          <input name="batchCount" type="number" min={1} max={500} defaultValue={1} className={fieldStyles} />
+        </Field>
+
         <Field label="Description" hint="Shown in the offers wallet">
           <textarea
             name="description"

@@ -37,3 +37,9 @@ CREATE TABLE IF NOT EXISTS flash_sale_reminders (
 );
 
 CREATE INDEX IF NOT EXISTS idx_flash_sale_reminders_due ON flash_sale_reminders (notified_at, flash_sale_id);
+
+-- Codes made together in Admin > Coupons ("How many codes"), e.g. for one
+-- influencer or one ad (0032). The batch is the shared prefix; the list shows
+-- a batch as one row with a spreadsheet download instead of every code.
+ALTER TABLE coupons ADD COLUMN batch TEXT;
+CREATE INDEX IF NOT EXISTS idx_coupons_batch ON coupons (batch);

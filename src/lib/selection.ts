@@ -81,7 +81,14 @@ export async function resolveSelection(input: {
     };
   }
 
-  const variant = variants.find((entry) => entry.id === input.variantId);
+  // A product with no options still sells from one variant row, which the
+  // product page names but a card's quick add does not know. With nothing to
+  // choose there is nothing to get wrong, so that one row is the answer.
+  const onlyChoice =
+    !input.variantId && (product.optionGroups ?? []).length === 0 && variants.length === 1
+      ? variants[0]
+      : undefined;
+  const variant = onlyChoice ?? variants.find((entry) => entry.id === input.variantId);
   if (!variant) return { ok: false, error: "Choose an option before continuing." };
 
   // Built in the order the options are shown, so the same variant always reads

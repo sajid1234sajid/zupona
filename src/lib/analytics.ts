@@ -4,7 +4,7 @@
  * high-volume events -- a page view, a product view, an add to cart -- because
  * those describe browsing, and browsing only happens in a browser.
  *
- * The purchase is reported from here instead, because it is the one event that
+ * The purchase is reported from here too, because it is the one event that
  * decides whether a campaign was worth its money and the one event a browser
  * routinely loses: a tracking blocker, a privacy default or a shopper who
  * closes the tab on the confirmation page each take it away, and Meta then
@@ -14,7 +14,9 @@
  *
  * Both sides send the same `event_id` -- the order id -- which is how Meta
  * collapses the browser's Purchase and this one into a single sale instead of
- * counting the order twice.
+ * counting the order twice. An add to cart and the start of checkout are sent
+ * from both sides the same way, each with an id of its own, so a shopper with
+ * a blocker still teaches the campaign who is close to buying.
  *
  * Server-only: it reads the access token out of `site_settings`, and that
  * token must never reach a browser. Nothing here is imported by a client
@@ -101,14 +103,33 @@ async function credentials(): Promise<PixelCredentials | null> {
   }
 }
 
+/** One standard event for the Conversions API.
+ *
+ * `eventId` is the deduplication key: the browser reports the same event with
+ * the same id, and Meta keeps one. */
+export interface ServerEvent {
+  name: "Purchase" | "AddToCart" | "InitiateCheckout";
+  eventId: string;
+  value: number;
+  lines: PurchaseLine[];
+  phone?: string | null;
+  sourceUrl: string | null;
+  clientIp: string | null;
+  userAgent: string | null;
+  fbp: string | null;
+  fbc: string | null;
+  /** Purchase only: the order id, sent as `order_id`. */
+  orderId?: string;
+}
+
 /**
- * Reports a completed order to Meta's Conversions API.
+ * Reports one event to Meta's Conversions API.
  *
  * Never throws and never blocks anything that matters: an unconfigured shop,
- * an expired token or a Meta outage all end as a logged line. A sale that
+ * an expired token or a Meta outage all end as a logged line. An event that
  * failed to be reported is a worse advert, not a worse order.
  */
-export async function sendPurchase(event: PurchaseEvent): Promise<void> {
+export async function sendServerEvent(event: ServerEvent): Promise<void> {
   const config = await credentials();
   if (!config) return;
 
@@ -124,9 +145,9 @@ export async function sendPurchase(event: PurchaseEvent): Promise<void> {
   const payload = {
     data: [
       {
-        event_name: "Purchase",
+        event_name: event.name,
         event_time: Math.floor(Date.now() / 1000),
-        event_id: event.orderId,
+        event_id: event.eventId,
         action_source: "website",
         ...(event.sourceUrl ? { event_source_url: event.sourceUrl } : {}),
         user_data: userData,
@@ -134,12 +155,14 @@ export async function sendPurchase(event: PurchaseEvent): Promise<void> {
           currency: "BDT",
           value: event.value,
           content_type: "product",
+          content_ids: event.lines.map((line) => line.productId),
           contents: event.lines.map((line) => ({
             id: line.productId,
             quantity: line.quantity,
             item_price: line.price,
           })),
           num_items: event.lines.reduce((sum, line) => sum + line.quantity, 0),
+          ...(event.orderId ? { order_id: event.orderId } : {}),
         },
       },
     ],
@@ -159,15 +182,39 @@ export async function sendPurchase(event: PurchaseEvent): Promise<void> {
     if (!response.ok) {
       // The body carries Meta's reason -- a stale token, a wrong pixel id --
       // and reading it is the only way the admin ever finds out which.
-      console.error("meta purchase rejected", {
-        orderId: event.orderId,
+      console.error("meta event rejected", {
+        event: event.name,
+        eventId: event.eventId,
         status: response.status,
         body: (await response.text()).slice(0, 400),
       });
     }
   } catch (error) {
-    console.error("meta purchase not sent", { orderId: event.orderId, error });
+    console.error("meta event not sent", { event: event.name, eventId: event.eventId, error });
   }
+}
+
+/** Reports a completed order. The order id is the event id, which is what the
+ * confirmation page's browser Purchase sends too. */
+export async function sendPurchase(event: PurchaseEvent): Promise<void> {
+  await sendServerEvent({ ...event, name: "Purchase", eventId: event.orderId });
+}
+
+/** What Meta needs from the shopper's own request to match a server event to
+ * the browser that saw the ad: their IP, browser, the page, and the pixel's
+ * own cookies. Read inside a server action or page. */
+export async function requestMatchData(): Promise<
+  Pick<ServerEvent, "sourceUrl" | "clientIp" | "userAgent" | "fbp" | "fbc">
+> {
+  const { headers, cookies } = await import("next/headers");
+  const [requestHeaders, jar] = await Promise.all([headers(), cookies()]);
+  return {
+    sourceUrl: requestHeaders.get("referer"),
+    clientIp: requestHeaders.get("cf-connecting-ip"),
+    userAgent: requestHeaders.get("user-agent"),
+    fbp: jar.get("_fbp")?.value ?? null,
+    fbc: jar.get("_fbc")?.value ?? null,
+  };
 }
 
 /** Whether a Conversions API token is stored, without reading it out.

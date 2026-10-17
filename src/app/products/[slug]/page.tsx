@@ -12,6 +12,9 @@ import type { DeliveryLine } from "@/components/product/dynamic/PurchaseInfo";
 import { getStoreProductBySlug, getStoreCategory, listStoreProducts } from "@/lib/storefront";
 import { getShopSettings } from "@/lib/shopSettings";
 import { shareMetadata } from "@/lib/shareCard";
+import JsonLd from "@/components/seo/JsonLd";
+import { breadcrumbSchema, productMetaDescription, productSchema } from "@/lib/seo";
+import { getPolicyFacts } from "@/lib/policyFacts";
 import PixelEvent from "@/components/analytics/PixelEvent";
 import { DELIVERY_DAYS, deliveryOptionsFor } from "@/lib/checkout";
 import { formatPrice } from "@/lib/format";
@@ -52,15 +55,18 @@ export async function generateMetadata({
   const product = await getStoreProductBySlug(slug);
   if (!product) return { title: "Product not found — Zupona" };
 
-  const description =
-    product.shortDescription ??
-    product.description?.slice(0, 155) ??
-    `Buy ${product.name} on Zupona with fast delivery across Bangladesh.`;
+  // Cleaned of emoji, quote marks and Markdown, cut on a word, and closed
+  // with the Cash on Delivery promise; the page itself shows the text as the
+  // owner wrote it.
+  const description = productMetaDescription(product);
   const path = `/products/${product.slug}`;
 
   return {
-    title: `${product.name} — Zupona`,
+    // The price in the title: on a results page it is what a shopper here
+    // decides on before they click.
+    title: `${product.name} – ৳${product.price.toLocaleString("en-US")} | Zupona`,
     description,
+    // Any ?color= or tracking parameters fold into the one product address.
     alternates: { canonical: path },
     // `poster`, not `url`: the first item can be a video, and a preview needs
     // a still. Every item carries one.
@@ -70,6 +76,7 @@ export async function generateMetadata({
       path,
       image: product.media?.[0]?.poster,
       imageAlt: product.media?.[0]?.alt,
+      product: true,
     }),
   };
 }
@@ -87,7 +94,7 @@ export default async function DynamicProductPage({ params }: PageProps<"/product
   // should look the same to a shopper.
   if (!product) notFound();
 
-  const [wishlistIds, department, breakdown, reviews, reviewableLines, related] = await Promise.all([
+  const [wishlistIds, department, breakdown, reviews, reviewableLines, related, facts] = await Promise.all([
     getWishlistProductIds(user?.id ?? null),
     product.categoryId ? getStoreCategory(product.categoryId) : Promise.resolve(undefined),
     getRatingBreakdown(product.id),
@@ -96,6 +103,7 @@ export default async function DynamicProductPage({ params }: PageProps<"/product
     product.categoryId
       ? listStoreProducts({ categoryId: product.categoryId, sort: "popular", limit: SIMILAR_LIMIT + 1 })
       : Promise.resolve([]),
+    getPolicyFacts(),
   ]);
 
   const similar = related.filter((entry) => entry.id !== product.id).slice(0, SIMILAR_LIMIT);
@@ -123,8 +131,39 @@ export default async function DynamicProductPage({ params }: PageProps<"/product
       : `${option.eta} · ${option.fee === 0 ? "Free" : formatPrice(option.fee)}`,
   }));
 
+  const subcategory = department?.subcategories.find((entry) => entry.id === product.subcategoryId);
+  const structuredData = [
+    productSchema(
+      product,
+      facts,
+      breakdown,
+      // A name that is really a phone number is not published.
+      reviews.map((review) => ({
+        ...review,
+        userName: /\d{6,}/.test(review.userName) ? "Zupona customer" : review.userName,
+      })),
+      subcategory?.name ?? department?.name ?? null
+    ),
+    breadcrumbSchema(
+      [
+        { name: "Home", path: "/" },
+        ...(department ? [{ name: department.name, path: `/category/${department.id}` }] : []),
+        ...(department && subcategory
+          ? [{ name: subcategory.name, path: `/category/${department.id}?sub=${subcategory.id}` }]
+          : []),
+        { name: product.name, path: `/products/${product.slug}` },
+      ]
+    ),
+  ];
+
   return (
     <StoreShell withStickyActions>
+      <JsonLd data={structuredData} />
+      {/* Facebook and WhatsApp read these to label a shared link as a product
+          with its price. React moves them into <head>. */}
+      <meta property="og:type" content="product" />
+      <meta property="product:price:amount" content={String(product.price)} />
+      <meta property="product:price:currency" content="BDT" />
       {/* Tells Meta which product was looked at, which is what a campaign
         * needs to know before it can find more people who look at that kind
         * of thing. Draws nothing. */}
@@ -134,6 +173,7 @@ export default async function DynamicProductPage({ params }: PageProps<"/product
           content_ids: [product.id],
           content_name: product.name,
           content_type: "product",
+          content_category: subcategory?.name ?? department?.name ?? undefined,
           currency: "BDT",
           value: product.price,
         }}

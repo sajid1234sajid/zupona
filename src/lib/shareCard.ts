@@ -38,12 +38,17 @@ export function shareMetadata({
   path,
   image,
   imageAlt,
+  product,
 }: {
   title: string;
   description?: string;
   path?: string;
   image?: string | null;
   imageAlt?: string;
+  /** A product page. Its og:type ("product") and price tags are rendered by
+   * the page itself as `<meta property>`, which Next's typed metadata cannot
+   * express, so here the generic "website" type is only left out. */
+  product?: boolean;
 }): Pick<Metadata, "openGraph" | "twitter"> {
   const picture = image
     ? { url: resizedSrc(image, 1080), alt: imageAlt ?? title }
@@ -51,7 +56,7 @@ export function shareMetadata({
 
   return {
     openGraph: {
-      type: "website",
+      ...(product ? {} : { type: "website" as const }),
       siteName: SITE_NAME,
       locale: "en_BD",
       title,

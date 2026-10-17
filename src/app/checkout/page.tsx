@@ -9,6 +9,9 @@ import { deliveryOptionsFor, type DeliveryDetails } from "@/lib/checkout";
 import { availablePaymentMethods } from "@/lib/payments";
 import { getShopSettings } from "@/lib/shopSettings";
 import CheckoutWizard from "@/components/checkout/CheckoutWizard";
+import PixelEvent from "@/components/analytics/PixelEvent";
+import { afterResponse } from "@/lib/db";
+import { requestMatchData, sendServerEvent } from "@/lib/analytics";
 
 export default async function CheckoutPage({ searchParams }: PageProps<"/checkout">) {
   // No sign-in step. A guest checks out exactly like an account holder; the
@@ -77,38 +80,80 @@ export default async function CheckoutPage({ searchParams }: PageProps<"/checkou
     deliveryMethod: "home",
   };
 
+  // "Started checkout", reported from both sides with one id so Meta counts
+  // it once: from the browser, and from here for the shoppers whose browser
+  // blocks the pixel.
+  const checkoutLines = buyNow
+    ? [{ productId: buyNow.productId, quantity: buyNow.quantity, price: buyNow.price }]
+    : items.map((item) => ({ productId: item.productId, quantity: item.quantity, price: item.product.price }));
+  const checkoutEventId = crypto.randomUUID();
+  if (checkoutLines.length > 0) {
+    const match = await requestMatchData().catch(() => null);
+    if (match) {
+      await afterResponse("meta initiate checkout", () =>
+        sendServerEvent({
+          name: "InitiateCheckout",
+          eventId: checkoutEventId,
+          value: subtotal,
+          lines: checkoutLines,
+          ...match,
+        })
+      );
+    }
+  }
+
   return (
-    <CheckoutWizard
-      key={shopper.id}
-      initialDetails={initialDetails}
-      verifiedPhone={verifiedPhone}
-      source={buyNow ? "buynow" : "cart"}
-      lines={
-        buyNow
-          ? [
-              {
-                id: buyNow.sessionId,
-                name: buyNow.name,
-                image: buyNow.image,
-                color: buyNow.label || null,
-                quantity: buyNow.quantity,
-                price: buyNow.price,
-                oldPrice: buyNow.oldPrice,
-              },
-            ]
-          : items.map((item) => ({
-              id: item.id,
-              name: item.product.name,
-              image: item.product.image,
-              color: item.color || null,
-              quantity: item.quantity,
-              price: item.product.price,
-              oldPrice: item.product.oldPrice,
-            }))
-      }
-      subtotal={subtotal}
-      deliveryOptions={deliveryOptions}
-      payableWith={payableWith}
-    />
+    <>
+      {checkoutLines.length > 0 ? (
+        <PixelEvent
+          event="InitiateCheckout"
+          eventId={checkoutEventId}
+          params={{
+            content_ids: checkoutLines.map((line) => line.productId),
+            contents: checkoutLines.map((line) => ({
+              id: line.productId,
+              quantity: line.quantity,
+              item_price: line.price,
+            })),
+            content_type: "product",
+            num_items: checkoutLines.reduce((sum, line) => sum + line.quantity, 0),
+            currency: "BDT",
+            value: subtotal,
+          }}
+        />
+      ) : null}
+      <CheckoutWizard
+        key={shopper.id}
+        initialDetails={initialDetails}
+        verifiedPhone={verifiedPhone}
+        source={buyNow ? "buynow" : "cart"}
+        lines={
+          buyNow
+            ? [
+                {
+                  id: buyNow.sessionId,
+                  name: buyNow.name,
+                  image: buyNow.image,
+                  color: buyNow.label || null,
+                  quantity: buyNow.quantity,
+                  price: buyNow.price,
+                  oldPrice: buyNow.oldPrice,
+                },
+              ]
+            : items.map((item) => ({
+                id: item.id,
+                name: item.product.name,
+                image: item.product.image,
+                color: item.color || null,
+                quantity: item.quantity,
+                price: item.product.price,
+                oldPrice: item.product.oldPrice,
+              }))
+        }
+        subtotal={subtotal}
+        deliveryOptions={deliveryOptions}
+        payableWith={payableWith}
+      />
+    </>
   );
 }

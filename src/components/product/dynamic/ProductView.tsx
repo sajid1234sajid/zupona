@@ -157,8 +157,8 @@ export default function ProductView({
         content_name: product.name,
         content_type: "product",
         currency: "BDT",
-        value: (variant?.price ?? product.price) * quantity,
-      });
+        value: (result.price ?? variant?.price ?? product.price) * quantity,
+      }, result.eventId);
       // Refreshes the header's cart count from the server rather than guessing
       // it, so what the badge shows is what the database holds.
       router.refresh();
@@ -196,6 +196,15 @@ export default function ProductView({
   function toggleWishlist() {
     const next = !wishlisted;
     setWishlisted(next);
+    if (next) {
+      trackPixel("AddToWishlist", {
+        content_ids: [product.id],
+        content_name: product.name,
+        content_type: "product",
+        currency: "BDT",
+        value: variant?.price ?? product.price,
+      });
+    }
     startWish(async () => {
       // The heart has already moved; if the save is refused, put it back rather
       // than letting the rejection escape and take the page with it.

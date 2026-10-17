@@ -1,7 +1,8 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { getDB } from "@/lib/db";
+import { afterResponse, getDB } from "@/lib/db";
+import { requestMatchData, sendServerEvent } from "@/lib/analytics";
 import { getCartItems } from "@/lib/cart";
 import { getOrCreateShopper, getShopper } from "@/lib/session";
 import { getStoreProductCard } from "@/lib/storefront";
@@ -151,6 +152,11 @@ export async function removeFromCartAction(itemId: string): Promise<void> {
 export interface AddSelectionResult {
   ok: boolean;
   error?: string;
+  /** On a successful add: the id the browser reports its AddToCart with, the
+   * same one this server sent to Meta, so the two count as one. */
+  eventId?: string;
+  /** The price actually charged per unit, for the browser's event value. */
+  price?: number;
 }
 
 /** Adds a chosen variant to the cart, deciding everything on the server.
@@ -228,7 +234,23 @@ export async function addSelectionToCartAction(input: {
     value: selection.price * selection.quantity,
   });
 
-  return { ok: true };
+  // Reported only now the line is in the cart: an add Meta hears about that
+  // never happened teaches a campaign the wrong thing.
+  const eventId = crypto.randomUUID();
+  const match = await requestMatchData().catch(() => null);
+  if (match) {
+    await afterResponse("meta add to cart", () =>
+      sendServerEvent({
+        name: "AddToCart",
+        eventId,
+        value: selection.price * selection.quantity,
+        lines: [{ productId: selection.productId, quantity: selection.quantity, price: selection.price }],
+        ...match,
+      })
+    );
+  }
+
+  return { ok: true, eventId, price: selection.price };
 }
 
 /** Buy Now: opens a session for this one line and leaves the cart alone.

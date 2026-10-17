@@ -12,6 +12,7 @@ import { toggleWishlistAction } from "@/app/wishlist/actions";
 import { addSelectionToCartAction } from "@/app/cart/actions";
 import { callAction } from "@/lib/callAction";
 import { signalCartAdd } from "@/lib/cartSignal";
+import { trackPixel } from "@/components/analytics/MetaPixel";
 
 /** Fetched with the first tap on a cart button that needs it, not with every
  * grid: most visits never open it. */
@@ -88,6 +89,15 @@ export default function ProductCard({
     // Flipped straight away so the tap feels instant; the server action is
     // what actually decides, and `router.refresh()` reconciles the header
     // count with whatever it stored.
+    if (!wishlisted) {
+      trackPixel("AddToWishlist", {
+        content_ids: [product.id],
+        content_name: product.name,
+        content_type: "product",
+        currency: "BDT",
+        value: product.price,
+      });
+    }
     setWishlisted((value) => !value);
     startWishlistTransition(async () => {
       await toggleWishlistAction(product.id);
@@ -112,7 +122,20 @@ export default function ProductCard({
       const attempt = await callAction(() =>
         addSelectionToCartAction({ productId: product.id, quantity: 1 })
       );
-      if (attempt.ok && attempt.value.ok) setJustAdded(true);
+      if (attempt.ok && attempt.value.ok) {
+        setJustAdded(true);
+        trackPixel(
+          "AddToCart",
+          {
+            content_ids: [product.id],
+            content_name: product.name,
+            content_type: "product",
+            currency: "BDT",
+            value: attempt.value.price ?? product.price,
+          },
+          attempt.value.eventId
+        );
+      }
       router.refresh();
     });
   }

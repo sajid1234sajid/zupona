@@ -118,8 +118,8 @@ export default function QuickView({
         content_name: product.name,
         content_type: "product",
         currency: "BDT",
-        value: (pricing?.price ?? product.price) * quantity,
-      });
+        value: (attempt.value.price ?? pricing?.price ?? product.price) * quantity,
+      }, attempt.value.eventId);
       router.refresh();
       onAdded();
     });

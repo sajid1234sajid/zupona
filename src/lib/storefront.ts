@@ -191,6 +191,8 @@ export interface StoreProduct extends StoreProductCard {
    * way `videos` already is. */
   /** The attribute line under the title, e.g. "Premium Cotton | Regular Fit". */
   shortDescription: string | null;
+  /** The search-result description the admin wrote, when they wrote one. */
+  metaDescription?: string | null;
   returnPolicy: string | null;
   warranty: string | null;
   /** Units ordered, the raw figure: unlike a card's, never held back. */
@@ -468,7 +470,7 @@ async function queryProduct(id: string): Promise<StoreProduct | null> {
       `SELECT p.id, p.name, p.price, p.old_price, p.rating_avg, p.rating_count,
               p.is_best_seller, p.category_id, p.slug, p.description,
               p.hero_headline, p.hero_subtitle,
-              p.short_description, p.badge_label, p.return_policy, p.warranty,
+              p.short_description, p.badge_label, p.return_policy, p.warranty, p.meta_description,
               p.track_inventory, p.free_delivery,
               -- Units actually ordered. products.sold_count is never written by
               -- checkout, so it would read 0 on every product.
@@ -493,6 +495,7 @@ async function queryProduct(id: string): Promise<StoreProduct | null> {
         hero_headline: string | null;
         hero_subtitle: string | null;
         short_description: string | null;
+        meta_description: string | null;
         badge_label: string | null;
         return_policy: string | null;
         warranty: string | null;
@@ -750,6 +753,7 @@ async function queryProduct(id: string): Promise<StoreProduct | null> {
     tracksInventory,
     freeDelivery: row.free_delivery === 1,
     shortDescription: row.short_description,
+    metaDescription: row.meta_description?.trim() || null,
     badgeLabel: row.badge_label,
     returnPolicy: row.return_policy,
     warranty: row.warranty,

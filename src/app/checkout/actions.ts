@@ -28,6 +28,7 @@ import { getBuyNowLine, consumeBuyNowSession, clearBuyNowCookie } from "@/lib/bu
 import { planSuborders, commissionRates, createSuborders } from "@/lib/suborders";
 import { sendPurchase } from "@/lib/analytics";
 import { quoteDiscounts } from "@/lib/orderDiscounts";
+import { walletCoupons } from "@/lib/couponWallet";
 import { recordAction } from "@/lib/activity";
 
 export interface SendCodeState {
@@ -283,6 +284,7 @@ export async function placeOrderAction(
   // checked out under a number has none to spend here.
   const quote = await quoteDiscounts({
     userId: shopper.isGuest ? null : buyer.id,
+    couponUserId: buyer.id,
     lines,
     shippingFee: delivery.fee,
     usePoints: Boolean(details.usePoints),
@@ -667,6 +669,8 @@ export interface CheckoutQuote {
   pointsDiscount?: number;
   pointsUsed?: number;
   points?: { balance: number; usable: number; usableDiscount: number; blocked: string | null } | null;
+  /** Coupons in the shopper's wallet that can still be used, to tap. */
+  wallet?: { code: string; title: string; condition: string }[];
 }
 
 /** The payment step's live total: the same lines, delivery and discounts
@@ -711,8 +715,15 @@ export async function quoteCheckoutAction(input: {
     couponCode: input.couponCode || null,
     settings,
   });
+  const wallet = shopper.isGuest
+    ? []
+    : (await walletCoupons(shopper.id).catch(() => []))
+        .filter((coupon) => coupon.state === "unused")
+        .map((coupon) => ({ code: coupon.code, title: coupon.title, condition: coupon.condition }));
+
   return {
     ok: true,
+    wallet,
     shippingFee: quote.shippingFee,
     total: quote.total,
     couponDiscount: quote.coupon?.discount ?? 0,

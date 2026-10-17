@@ -23,6 +23,7 @@ interface CouponRow {
   starts_at: string | null;
   ends_at: string | null;
   is_active: number;
+  audience?: string;
 }
 
 function toCoupon(row: CouponRow): Coupon {
@@ -135,6 +136,15 @@ export async function validateCoupon(
     );
   }
 
+  if (row.audience === "new_customer") {
+    if (!userId) return REFUSED("Sign in to use this new-customer coupon.");
+    const earlier = await db
+      .prepare("SELECT 1 FROM orders WHERE user_id = ? AND status != 'cancelled' LIMIT 1")
+      .bind(userId)
+      .first();
+    if (earlier) return REFUSED("This coupon is for your first order only.");
+  }
+
   if (userId) {
     const used = await db
       .prepare("SELECT COUNT(*) AS n FROM coupon_redemptions WHERE coupon_id = ? AND user_id = ?")
@@ -201,6 +211,8 @@ export interface CouponInput {
   scopeId?: string | null;
   startsAt?: string | null;
   endsAt?: string | null;
+  audience?: "all" | "new_customer";
+  isPublic?: boolean;
 }
 
 export async function createCoupon(input: CouponInput): Promise<string> {
@@ -211,8 +223,8 @@ export async function createCoupon(input: CouponInput): Promise<string> {
     .prepare(
       `INSERT INTO coupons (id, code, description, discount_type, discount_value, min_order_amount,
                             max_discount_amount, usage_limit, per_user_limit, scope, scope_id,
-                            starts_at, ends_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+                            starts_at, ends_at, audience, is_public)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .bind(
       id,
@@ -227,7 +239,9 @@ export async function createCoupon(input: CouponInput): Promise<string> {
       input.scope ?? "all",
       input.scopeId ?? null,
       input.startsAt ?? null,
-      input.endsAt ?? null
+      input.endsAt ?? null,
+      input.audience ?? "all",
+      input.isPublic === false ? 0 : 1
     )
     .run();
 

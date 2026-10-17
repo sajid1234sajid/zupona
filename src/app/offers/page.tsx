@@ -8,7 +8,8 @@ import SiteFooter from "@/components/layout/SiteFooter";
 import PagedProductGrid from "@/components/product/PagedProductGrid";
 import FlashSaleTimer from "@/components/offers/FlashSaleTimer";
 import FlashSaleCard from "@/components/offers/FlashSaleCard";
-import CouponWallet from "@/components/offers/CouponWallet";
+import CouponCard from "@/components/offers/CouponCard";
+import { offeredCoupons } from "@/lib/couponWallet";
 import {
   DEAL_TABS,
   dealProducts,
@@ -18,7 +19,6 @@ import {
   freeDeliveryProgress,
   headlineDiscount,
   isDealTab,
-  listOfferCoupons,
   totalSavingsAvailable,
   type DealTabId,
 } from "@/lib/offers";
@@ -27,10 +27,14 @@ import { getWishlistProductIds } from "@/lib/wishlist";
 import { getCartItems, cartSubtotal } from "@/lib/cart";
 import { formatPrice } from "@/lib/format";
 
-export const metadata: Metadata = {
-  title: "Offers & Flash Sale — Zupona",
-  description: "Live flash sale, collectible coupons and every deal running on Zupona today.",
-};
+/** "Flash Sale" is in the title only while one is running. */
+export async function generateMetadata(): Promise<Metadata> {
+  const live = await flashSaleName().catch(() => null);
+  return {
+    title: live ? `${live} — Offers & Flash Sale | Zupona` : "Offers & Deals — Zupona",
+    description: "Collectible coupons and every deal running on Zupona today.",
+  };
+}
 
 export default async function OffersPage({ searchParams }: PageProps<"/offers">) {
   const query = await searchParams;
@@ -63,7 +67,7 @@ export default async function OffersPage({ searchParams }: PageProps<"/offers">)
     dealProducts(tab),
     totalSavingsAvailable(),
     headlineDiscount(),
-    listOfferCoupons(),
+    offeredCoupons(user?.id ?? null),
   ]);
 
   const endsAt = saleWindow?.endsAt ?? null;
@@ -140,17 +144,24 @@ export default async function OffersPage({ searchParams }: PageProps<"/offers">)
           </section>
         )}
 
-        {/* Coupons */}
-        <section className="pt-4">
-          <div className="flex items-center gap-1.5 px-4">
-            <Tag className="h-4 w-4 text-brand" />
-            <h2 className="text-[13px] font-bold text-heading tab:text-lg">Collect coupons</h2>
-            <span className="ml-auto text-[9.5px] text-ink-slate tab:text-xs">Apply at checkout</span>
-          </div>
-          <div className="mt-2">
-            <CouponWallet coupons={coupons} />
-          </div>
-        </section>
+        {/* Coupons -- only when there is one to collect; an empty "Collect
+            coupons" heading promised something that was not there. */}
+        {coupons.length > 0 ? (
+          <section className="px-4 pt-4">
+            <div className="flex items-center gap-1.5">
+              <Tag className="h-4 w-4 text-brand" />
+              <h2 className="text-[13px] font-bold text-heading tab:text-lg">Collect coupons</h2>
+              <Link href="/account/coupons" className="ml-auto text-[11px] font-semibold text-brand tab:text-sm">
+                My coupons ›
+              </Link>
+            </div>
+            <div className="mt-2 grid grid-cols-1 gap-2 tab:grid-cols-2 tab:gap-3 lg:grid-cols-3">
+              {coupons.map((coupon) => (
+                <CouponCard key={coupon.id} coupon={coupon} />
+              ))}
+            </div>
+          </section>
+        ) : null}
 
         {/* Deals */}
         <section className="px-4 pt-4">

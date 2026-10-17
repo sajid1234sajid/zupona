@@ -12,7 +12,7 @@
 import { getDB } from "@/lib/db";
 import { toSummary } from "@/lib/categories";
 import { listStoreProducts, type StoreProductCard } from "@/lib/storefront";
-import type { FlashSaleItem, OfferCoupon, ProductSummary } from "@/types";
+import type { FlashSaleItem, ProductSummary } from "@/types";
 
 import { getShopSettings } from "@/lib/shopSettings";
 
@@ -246,64 +246,9 @@ export async function headlineDiscount(): Promise<number> {
 }
 
 /* -------------------------------------------------------------------------- */
-/* Coupons and delivery                                                       */
+/* Delivery                                                                   */
 /* -------------------------------------------------------------------------- */
 
-/** Vouchers shown in the offers wallet, read from the coupons an admin has
- * created. Only codes that are usable right now are listed, so a shopper never
- * copies one that checkout will refuse. */
-export async function listOfferCoupons(): Promise<OfferCoupon[]> {
-  const db = await getDB();
-  const { results } = await db
-    .prepare(
-      `SELECT code, description, discount_type, discount_value, min_order_amount,
-              max_discount_amount, ends_at
-       FROM coupons
-       WHERE is_active = 1
-         AND (starts_at IS NULL OR datetime(starts_at) <= datetime('now'))
-         AND (ends_at IS NULL OR datetime(ends_at) > datetime('now'))
-         AND (usage_limit IS NULL OR usage_count < usage_limit)
-       ORDER BY discount_value DESC LIMIT 12`
-    )
-    .all<{
-      code: string;
-      description: string | null;
-      discount_type: "percent" | "fixed" | "free_shipping";
-      discount_value: number;
-      min_order_amount: number;
-      max_discount_amount: number | null;
-      ends_at: string | null;
-    }>();
-
-  return results.map((row) => ({
-    code: row.code,
-    title:
-      row.discount_type === "free_shipping"
-        ? "Free delivery"
-        : row.discount_type === "percent"
-          ? `${row.discount_value}% off`
-          : `৳ ${row.discount_value.toLocaleString("en-US")} off`,
-    description: row.description ?? "Apply this code at checkout.",
-    discountType: row.discount_type,
-    discountValue: row.discount_value,
-    minOrderAmount: row.min_order_amount,
-    maxDiscountAmount: row.max_discount_amount,
-    validity: describeValidity(row.ends_at),
-  }));
-}
-
-/** "Ends in 3 days" reads better than a timestamp on a voucher tile. */
-function describeValidity(endsAt: string | null): string {
-  if (!endsAt) return "No expiry";
-
-  const end = new Date(`${endsAt.replace(" ", "T")}Z`).getTime();
-  const days = Math.ceil((end - Date.now()) / (24 * 60 * 60 * 1000));
-
-  if (days <= 0) return "Ends today";
-  if (days === 1) return "Ends tomorrow";
-  if (days <= 30) return `Ends in ${days} days`;
-  return "Plenty of time left";
-}
 
 /** How far a cart is from free delivery, against the threshold configured in
  * the admin Settings page. `remaining` is 0 once it qualifies.

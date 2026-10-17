@@ -505,8 +505,20 @@ CREATE TABLE IF NOT EXISTS coupons (
   starts_at TEXT,
   ends_at TEXT,
   is_active INTEGER NOT NULL DEFAULT 1,
-  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  audience TEXT NOT NULL DEFAULT 'all', -- all | new_customer (0029)
+  is_public INTEGER NOT NULL DEFAULT 1 -- offered on the Offers page (0029)
 );
+
+-- Coupons a shopper has collected (0029). Rules are still checked on use.
+CREATE TABLE IF NOT EXISTS user_coupons (
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  coupon_id TEXT NOT NULL REFERENCES coupons(id) ON DELETE CASCADE,
+  claimed_at TEXT NOT NULL DEFAULT (datetime('now')),
+  PRIMARY KEY (user_id, coupon_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_coupons_coupon ON user_coupons (coupon_id);
 
 CREATE INDEX IF NOT EXISTS idx_coupons_code ON coupons (code);
 

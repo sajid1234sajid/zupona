@@ -11,7 +11,12 @@ import { createCouponAction, type CouponFormState } from "@/app/admin/(panel)/co
  * nothing at all for free shipping — so it relabels itself rather than leaving
  * an ambiguous "Value" box that quietly means something different depending on
  * a dropdown three fields up. */
-export default function CouponForm() {
+export default function CouponForm({
+  categories = [],
+}: {
+  /** Departments and their types, for a coupon that covers one of them. */
+  categories?: { id: string; name: string }[];
+}) {
   const [state, formAction, pending] = useActionState<CouponFormState, FormData>(
     createCouponAction,
     {}
@@ -120,6 +125,31 @@ export default function CouponForm() {
             <input name="endsAt" type="datetime-local" className={fieldStyles} />
           </Field>
         </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Applies to" hint="Only items in this category count">
+            <select name="scopeId" defaultValue="" className={fieldStyles}>
+              <option value="">Everything</option>
+              {categories.map((category) => (
+                <option key={category.id} value={category.id}>
+                  {category.name}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Who can use it">
+            <select name="audience" defaultValue="all" className={fieldStyles}>
+              <option value="all">Everyone</option>
+              <option value="new_customer">New customers (first order)</option>
+            </select>
+          </Field>
+        </div>
+
+        <label className="flex items-center gap-2 text-sm text-neutral-700">
+          <input type="checkbox" name="isPublic" defaultChecked className="h-4 w-4 accent-[var(--color-brand)]" />
+          Show on the Offers page for shoppers to collect
+          <span className="text-xs text-neutral-400">(off: only works for whoever has the code)</span>
+        </label>
 
         <button type="submit" disabled={pending} className={`${buttonStyles.primary} w-full`}>
           {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Ticket className="h-4 w-4" />}

@@ -76,7 +76,7 @@ Two notes carried from building `0003`:
 
 ## Schema map
 
-66 tables, grouped by concern (the marketing, assistant, system guide and visitor activity tables are described in their migrations, 0021, 0022, 0024 and 0026; review votes and the points ledger in 0027).
+67 tables, grouped by concern (the marketing, assistant, system guide and visitor activity tables are described in their migrations, 0021, 0022, 0024 and 0026; review votes and the points ledger in 0027; the coupon wallet in 0029).
 
 **Identity and access** — `users` (with `role`, `status`, verification flags,
 referral fields), `sessions` (with device metadata), `oauth_accounts` for
@@ -96,8 +96,9 @@ details) and `seller_documents` for KYC paperwork held in R2.
 **Shopping** — `cart_items`, `buy_now_sessions`, `wishlist_items`,
 `recently_viewed`, `search_queries`, `visitor_events` (what each browser viewed, added and bought; read by Admin → Activity).
 
-**Merchandising** — `coupons`, `coupon_redemptions`, `flash_sales`,
-`flash_sale_items`, `banners`.
+**Merchandising** — `coupons` (with `audience` and `is_public`),
+`coupon_redemptions`, `user_coupons` (each shopper's collected coupons),
+`flash_sales`, `flash_sale_items`, `banners`.
 
 **Social proof** — `reviews` (with fit, tags and the "rewarded" flag),
 `review_images`, `review_votes` (one Helpful per shopper), `product_questions`,

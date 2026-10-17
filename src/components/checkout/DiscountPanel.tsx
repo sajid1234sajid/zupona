@@ -82,6 +82,28 @@ export default function DiscountPanel({
               {busy && couponCode ? <LoaderCircle className="h-4 w-4 animate-spin" /> : "Apply"}
             </button>
           </div>
+          {quote?.wallet && quote.wallet.length > 0 ? (
+            <div className="mt-2">
+              <p className="text-[11.5px] font-semibold text-ink-muted">Your coupons ({quote.wallet.length})</p>
+              <div className="no-scrollbar mt-1 flex gap-2 overflow-x-auto">
+                {quote.wallet.map((coupon) => (
+                  <button
+                    key={coupon.code}
+                    type="button"
+                    disabled={busy}
+                    onClick={() => {
+                      setDraft(coupon.code);
+                      onApplyCoupon(coupon.code);
+                    }}
+                    className="shrink-0 rounded-lg border border-urgency/30 bg-badge-bg px-2.5 py-1.5 text-left"
+                  >
+                    <span className="block text-[12px] font-bold text-urgency">{coupon.title}</span>
+                    <span className="block text-[10.5px] text-ink-muted">{coupon.condition}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
           {couponCode && quote?.couponError ? (
             <p role="alert" className="mt-1.5 text-[12px] font-semibold text-accent-red">
               {quote.couponError}

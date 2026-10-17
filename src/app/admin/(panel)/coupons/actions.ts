@@ -87,6 +87,10 @@ export async function createCouponAction(
       perUserLimit: Math.max(1, readInt(formData, "perUserLimit", 1)),
       startsAt,
       endsAt,
+      scope: String(formData.get("scopeId") ?? "") ? "category" : "all",
+      scopeId: String(formData.get("scopeId") ?? "") || null,
+      audience: formData.get("audience") === "new_customer" ? "new_customer" : "all",
+      isPublic: formData.get("isPublic") === "on",
     });
 
     await logAdminAction(admin.id, "coupon.create", "coupon", id, {

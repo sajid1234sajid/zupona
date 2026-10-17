@@ -72,6 +72,9 @@ async function scopeData(lines: PricedLine[]) {
 export async function quoteDiscounts(input: {
   /** A signed-in customer's id; null for a guest, who has no points. */
   userId: string | null;
+  /** Whose limits a coupon is checked against, when that differs: a guest's
+   * order belongs to the account behind their number. */
+  couponUserId?: string | null;
   lines: PricedLine[];
   shippingFee: number;
   usePoints: boolean;
@@ -87,7 +90,7 @@ export async function quoteDiscounts(input: {
   const code = input.couponCode?.trim();
   if (code) {
     const scopes = await scopeData(input.lines);
-    const result = await validateCoupon(code, input.userId, itemsSubtotal, {
+    const result = await validateCoupon(code, input.couponUserId ?? input.userId, itemsSubtotal, {
       lines: input.lines.map((line) => ({
         amount: line.price * line.quantity,
         productId: line.productId,

@@ -2,6 +2,7 @@ import { CheckCircle2, Power, Ticket, TrendingDown, Trash2 } from "lucide-react"
 import { listAdminCoupons } from "@/lib/adminData";
 import { formatDate, formatPrice, parseDbDate } from "@/lib/format";
 import CouponForm from "@/components/admin/CouponForm";
+import { listStoreCategories } from "@/lib/storefront";
 import {
   Card,
   CardHeader,
@@ -180,7 +181,12 @@ export default async function CouponsPage() {
         </div>
 
         <div className="min-w-0 xl:col-span-4">
-          <CouponForm />
+          <CouponForm
+            categories={(await listStoreCategories()).flatMap((department) => [
+              { id: department.id, name: department.name },
+              ...department.subcategories.map((sub) => ({ id: sub.id, name: `${department.name} › ${sub.name}` })),
+            ])}
+          />
         </div>
       </div>
     </>

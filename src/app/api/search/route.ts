@@ -14,7 +14,13 @@
  * runs too, so the same words find the same products on every page. */
 
 import { listStoreCategories, listStoreProducts } from "@/lib/storefront";
-import { categoryWordsOf, searchProducts, searchTerms } from "@/lib/productSearch";
+import {
+  categoryWordsOf,
+  normalize,
+  searchCatalog,
+  searchTerms,
+  suggestQueries,
+} from "@/lib/productSearch";
 
 /** Enough to scroll through, few enough to stay a small response. */
 const LIMIT = 30;
@@ -25,7 +31,7 @@ export async function GET(request: Request) {
 
   // Punctuation alone has no words to match; it is not a request for everything.
   if (terms.length === 0) {
-    return json({ query, products: [] });
+    return json({ query, products: [], suggestions: [], categories: [], corrected: null });
   }
 
   // Independent reads, so they start together rather than one after the other.
@@ -34,13 +40,35 @@ export async function GET(request: Request) {
     listStoreCategories(),
   ]);
 
-  const ranked = searchProducts(catalog, terms, categoryWordsOf(categories));
+  const words = categoryWordsOf(categories);
+  const { products: ranked, corrected } = searchCatalog(catalog, terms, words);
+
+  // Departments and sub-departments whose name starts with what was typed,
+  // or with the corrected spelling of it.
+  const wanted = normalize(corrected ?? query);
+  const matchingCategories = categories
+    .flatMap((department) => [
+      { id: department.id, name: department.name, href: `/category/${department.id}` },
+      ...department.subcategories.map((sub) => ({
+        id: sub.id,
+        name: sub.name,
+        href: `/category/${department.id}?sub=${sub.id}`,
+      })),
+    ])
+    .filter((category) =>
+      ` ${normalize(category.name)}`.includes(` ${wanted.split(" ")[0]}`)
+    )
+    .slice(0, 3);
 
   return json({
     query,
+    corrected,
+    suggestions: suggestQueries(catalog, corrected ?? query, words, 8),
+    categories: matchingCategories,
     total: ranked.length,
     products: ranked.slice(0, LIMIT).map((product) => ({
       id: product.id,
+      slug: product.slug,
       name: product.name,
       image: product.image,
       price: product.price,

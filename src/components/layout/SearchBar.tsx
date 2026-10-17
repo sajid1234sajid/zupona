@@ -1,21 +1,22 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { Search } from "lucide-react";
 import { useProductSearch } from "@/components/search/SearchProvider";
 
 /** The storefront search box.
  *
  * The text is held in `SearchProvider` rather than here, because the results
- * appear in the product grid further down the page. Typing filters live, so
- * submitting has nothing left to do -- the button is kept because the design
- * has one, and it closes the keyboard rather than reloading the page. On the
- * home page `HideWhileSearching` clears the sections above the grid so the
- * results appear right under this box.
+ * appear in the product grid further down the page. Typing filters live; on
+ * the home page `HideWhileSearching` clears the sections above the grid so the
+ * results appear right under this box. Enter, or the button, opens the full
+ * results page with its filters and sort for the same words.
  *
  * `size="large"` is the laptop header's version: the same box on a light
  * header instead of the green one, at a readable size. */
 export default function SearchBar({ size = "compact" }: { size?: "compact" | "large" }) {
   const { query, setQuery } = useProductSearch();
+  const router = useRouter();
   const large = size === "large";
 
   return (
@@ -23,9 +24,9 @@ export default function SearchBar({ size = "compact" }: { size?: "compact" | "la
       role="search"
       onSubmit={(event) => {
         event.preventDefault();
-        // The results are already on screen; all that is left for the button
-        // or the enter key to do is put the phone's keyboard away.
         event.currentTarget.querySelector("input")?.blur();
+        const text = query.trim();
+        if (text) router.push(`/search?q=${encodeURIComponent(text)}`);
       }}
       className={
         large

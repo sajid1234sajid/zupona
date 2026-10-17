@@ -47,7 +47,15 @@ export const NAV_ITEMS: NavItem[] = [
       { label: "Banners & Sales", href: "/admin/marketing" },
     ],
   },
-  { label: "Reports", href: "/admin/reports", icon: "reports" },
+  {
+    label: "Reports",
+    href: "/admin/reports",
+    icon: "reports",
+    children: [
+      { label: "Sales Reports", href: "/admin/reports" },
+      { label: "Search Insights", href: "/admin/reports/search" },
+    ],
+  },
   { label: "Activity", href: "/admin/activity", icon: "activity" },
   {
     label: "Settings",

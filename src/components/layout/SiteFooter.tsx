@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import InstallAppButton from "./InstallAppButton";
 import { getShopSettings, DEFAULT_SETTINGS, type SocialLinks } from "@/lib/shopSettings";
+import { DEFAULT_SUPPORT_WHATSAPP, waLink } from "@/lib/contact";
 import { acceptedPaymentProviders, type PaymentProvider } from "@/lib/payments";
 
 /** Where every storefront page ends: the shop's directory, the way to reach
@@ -33,12 +34,23 @@ const SHOP_LINKS = [
   { label: "New arrivals", href: "/new-arrivals" },
   { label: "Offers", href: "/offers" },
   { label: "Wishlist", href: "/wishlist" },
+  { label: "About Zupona", href: "/about" },
 ];
 
 const SERVICE_LINKS = [
+  { label: "Help center", href: "/support" },
   { label: "Track your order", href: "/account/orders" },
+  { label: "Shipping & delivery", href: "/shipping" },
   { label: "Return & Refund Policy", href: "/returns-policy" },
-  { label: "My account", href: "/account" },
+  { label: "Our guarantees", href: "/guarantees" },
+  { label: "Contact us", href: "/contact" },
+];
+
+/** The fine print along the bottom edge. */
+const LEGAL_LINKS = [
+  { label: "Terms of use", href: "/terms" },
+  { label: "Privacy policy", href: "/privacy" },
+  { label: "Safety & scam alerts", href: "/safety" },
 ];
 
 const APP_PERKS = [
@@ -89,19 +101,19 @@ export default async function SiteFooter() {
                   </a>
                 </li>
               ) : null}
-              {social.whatsapp ? (
-                <li>
-                  <a
-                    href={`https://wa.me/${social.whatsapp.replace(/\D/g, "")}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 hover:text-white"
-                  >
-                    <MessageCircle className="h-4 w-4 shrink-0" strokeWidth={2} />
-                    Chat on WhatsApp
-                  </a>
-                </li>
-              ) : null}
+              {/* Always shown: the support line falls back to the one the
+                  account page has always used. */}
+              <li>
+                <a
+                  href={waLink(social.whatsapp || DEFAULT_SUPPORT_WHATSAPP)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 hover:text-white"
+                >
+                  <MessageCircle className="h-4 w-4 shrink-0" strokeWidth={2} />
+                  Chat on WhatsApp
+                </a>
+              </li>
               {/* The Seller Center's one public door: nobody finds it by typing
                   its address. */}
               <li>
@@ -151,9 +163,11 @@ export default async function SiteFooter() {
           <p>
             &copy; {year} {settings.storeName}. All rights reserved.
           </p>
-          <Link href="/returns-policy" prefetch={false} className="underline hover:text-white">
-            Return &amp; Refund Policy
-          </Link>
+          {LEGAL_LINKS.map((link) => (
+            <Link key={link.href} href={link.href} prefetch={false} className="underline hover:text-white">
+              {link.label}
+            </Link>
+          ))}
         </div>
       </div>
     </footer>

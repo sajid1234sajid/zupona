@@ -66,9 +66,9 @@ export default function DesktopNav() {
         <Link href="/sell" className="hover:text-brand-darkest">
           Sell on Zupona
         </Link>
-        <a href="mailto:support@zupona.shop" className="hover:text-brand-darkest">
+        <Link href="/support" className="hover:text-brand-darkest">
           Help
-        </a>
+        </Link>
       </div>
     </nav>
   );

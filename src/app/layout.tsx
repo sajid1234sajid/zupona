@@ -7,6 +7,9 @@ import MetaPixel from "@/components/analytics/MetaPixel";
 import ActivityTracker from "@/components/analytics/ActivityTracker";
 import { getShopSettings } from "@/lib/shopSettings";
 import { SITE_URL, shareMetadata } from "@/lib/shareCard";
+import JsonLd from "@/components/seo/JsonLd";
+import { DEFAULT_SETTINGS, type ShopSettings } from "@/lib/shopSettings";
+import { DEFAULT_SUPPORT_WHATSAPP } from "@/lib/contact";
 import "./globals.css";
 
 const poppins = Poppins({
@@ -81,8 +84,10 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   // guessing at on a page that is already in trouble.
   let appBannerEnabled = false;
   let appBannerSnoozeDays = 0;
+  let settings: ShopSettings = DEFAULT_SETTINGS;
   try {
-    ({ facebookPixelId, appBannerEnabled, appBannerSnoozeDays } = await getShopSettings());
+    settings = await getShopSettings();
+    ({ facebookPixelId, appBannerEnabled, appBannerSnoozeDays } = settings);
   } catch (error) {
     console.error("shop settings unreadable in root layout", error);
   }
@@ -102,6 +107,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
             <AppBanner />
           </>
         ) : null}
+        <JsonLd data={organizationSchema(settings)} />
         {children}
         <ServiceWorkerRegistration />
         {facebookPixelId ? <MetaPixel pixelId={facebookPixelId} /> : null}
@@ -109,4 +115,42 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       </body>
     </html>
   );
+}
+
+/** Who the shop is, for search engines: the name, logo and official pages a
+ * results page can show beside the site, and the support line. Built from
+ * Settings, so a Facebook page added there is claimed here too. */
+function organizationSchema(settings: ShopSettings) {
+  const social = settings.social ?? DEFAULT_SETTINGS.social;
+  const sameAs = [social.facebook, social.instagram, social.youtube, social.tiktok].filter(
+    (url): url is string => Boolean(url)
+  );
+  return {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": `${SITE_URL}/#organization`,
+        name: settings.storeName,
+        url: SITE_URL,
+        logo: `${SITE_URL}/icon-512.png`,
+        ...(sameAs.length > 0 ? { sameAs } : {}),
+        contactPoint: {
+          "@type": "ContactPoint",
+          contactType: "customer support",
+          telephone: settings.supportPhone || social.whatsapp || DEFAULT_SUPPORT_WHATSAPP,
+          ...(settings.supportEmail ? { email: settings.supportEmail } : {}),
+          areaServed: "BD",
+          availableLanguage: ["en", "bn"],
+        },
+      },
+      {
+        "@type": "WebSite",
+        "@id": `${SITE_URL}/#website`,
+        name: settings.storeName,
+        url: SITE_URL,
+        publisher: { "@id": `${SITE_URL}/#organization` },
+      },
+    ],
+  };
 }

@@ -1,7 +1,10 @@
+import type { ReactNode } from "react";
 import Image from "@/components/ui/StoreImage";
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, ShoppingCart } from "lucide-react";
+import { formatPrice } from "@/lib/format";
 import { listStoreBanners, type StoreBanner } from "@/lib/storefront";
+import { getShopSettings, DEFAULT_SETTINGS } from "@/lib/shopSettings";
 import BotanicalBackdrop from "./BotanicalBackdrop";
 
 /** The two promotional banners, in the shop's own artwork.
@@ -20,7 +23,11 @@ import BotanicalBackdrop from "./BotanicalBackdrop";
  *
  * The `tab:` classes are the laptop sizes; the phone design is the rest. */
 export default async function PromoBanners() {
-  const promos = await listStoreBanners("promo");
+  const [promos, settings] = await Promise.all([
+    listStoreBanners("promo"),
+    getShopSettings().catch(() => DEFAULT_SETTINGS),
+  ]);
+  const threshold = settings.freeShippingThreshold;
 
   return (
     <section className="grid grid-cols-2 gap-1.5 px-3.5 pt-2.5 tab:flex tab:h-full tab:flex-col tab:justify-between tab:gap-3 tab:px-0 tab:pt-0">
@@ -41,19 +48,30 @@ export default async function PromoBanners() {
         pill="bg-white text-brand-dark"
       />
 
-      <ArtworkBanner
-        card="/promo-free-delivery-card.webp"
-        wide="/promo-free-delivery.webp"
-        alt="Free delivery on orders over ৳1,000"
-        shape="aspect-[330/187] tab:aspect-[1563/275]"
-        // The card artwork is drawn with its own card and its own margin
-        // around it, so on a phone the surface behind it is the page's white
-        // and it needs no border. The wide cut on a laptop is pale to its
-        // edges and still does, so the border stays there.
-        surface="bg-white"
-        pill="bg-brand text-white"
-        frame="tab:border tab:border-brand-tint"
-      />
+      {/* The threshold is the one figure on this banner that changes, so it
+          is drawn here from Settings rather than painted into the artwork:
+          the files once said ৳1,000 on a laptop and ৳999 on a phone while
+          checkout charged by a third number. The artwork carries the truck
+          and the headline; the line under it is text. A shop with free
+          delivery switched off (a threshold of 0) has nothing to promise, so
+          the banner is not drawn at all. */}
+      {threshold > 0 ? (
+        <ArtworkBanner
+          card="/promo-free-delivery-card-art.webp"
+          wide="/promo-free-delivery-art.webp"
+          alt={`Free delivery on orders over ${formatPrice(threshold)}`}
+          shape="aspect-[330/187] tab:aspect-[1563/275]"
+          // The card artwork is drawn with its own card and its own margin
+          // around it, so on a phone the surface behind it is the page's white
+          // and it needs no border. The wide cut on a laptop is pale to its
+          // edges and still does, so the border stays there.
+          surface="bg-white"
+          pill="bg-brand text-white"
+          frame="tab:border tab:border-brand-tint"
+        >
+          <ThresholdLine amount={threshold} />
+        </ArtworkBanner>
+      ) : null}
 
       {promos.map((promo) => (
         <PromoTile key={promo.id} banner={promo} />
@@ -80,6 +98,7 @@ function ArtworkBanner({
   surface,
   pill,
   frame = "",
+  children,
 }: {
   /** The card-shaped artwork, drawn on a phone. */
   card: string;
@@ -93,11 +112,13 @@ function ArtworkBanner({
   pill: string;
   /** An edge, for artwork too pale to show one of its own. */
   frame?: string;
+  /** Live text laid over the artwork, positioned by the caller. */
+  children?: ReactNode;
 }) {
   return (
     <Link
       href="/offers"
-      className={`relative block w-full overflow-hidden rounded-xl tab:rounded-2xl ${shape} ${surface} ${frame}`}
+      className={`relative [container-type:size] block w-full overflow-hidden rounded-xl tab:rounded-2xl ${shape} ${surface} ${frame}`}
     >
       <picture>
         <source media="(min-width: 700px)" srcSet={wide} />
@@ -115,6 +136,8 @@ function ArtworkBanner({
         />
       </picture>
 
+      {children}
+
       {/* The phone artwork carries its own call to action, so the pill is the
           laptop's alone -- the wide cut has none drawn into it. */}
       <span
@@ -124,6 +147,29 @@ function ArtworkBanner({
         <ArrowRight className="h-3.5 w-3.5" strokeWidth={3} />
       </span>
     </Link>
+  );
+}
+
+/** "On orders over ৳999", set where the artwork's own line used to be.
+ *
+ * Sized in container units so it scales with the card exactly as the picture
+ * does: the banner's box is a size container, and both cuts are drawn at a
+ * fixed ratio, so a percentage of its height is a fixed fraction of the
+ * artwork. The boxes are the spans the painted line occupied -- on the phone
+ * card it starts after the cart badge, which stayed in the artwork; on the
+ * wide cut it starts where the badge was, so the badge is drawn here too. */
+function ThresholdLine({ amount }: { amount: number }) {
+  return (
+    <span
+      className="absolute left-[17.7%] top-[65%] flex h-[22.5%] w-[73%] items-center whitespace-nowrap font-bold leading-none tracking-[-0.01em] text-brand-darkest text-[12.8cqh] tab:left-[33.5%] tab:top-[59.5%] tab:h-[26.5%] tab:w-[44%] tab:gap-[1.6cqw] tab:text-[17cqh]"
+    >
+      <span className="hidden aspect-square h-full items-center justify-center rounded-full bg-brand-leaf-bright text-white tab:flex">
+        <ShoppingCart className="h-[55%] w-[55%]" strokeWidth={2.6} />
+      </span>
+      <span>
+        On orders over <span className="text-brand-leaf-bright">{formatPrice(amount)}</span>
+      </span>
+    </span>
   );
 }
 

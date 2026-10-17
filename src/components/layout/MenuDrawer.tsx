@@ -60,7 +60,7 @@ const SECTIONS: MenuSection[] = [
       // `seller.zupona.com` by typing it, so the onboarding page has to be
       // reachable from the storefront or the whole surface is invisible.
       { label: "Sell on Zupona", href: "/sell", icon: Store },
-      { label: "Help", href: "mailto:support@zupona.shop", icon: LifeBuoy },
+      { label: "Help center", href: "/support", icon: LifeBuoy },
     ],
   },
 ];

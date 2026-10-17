@@ -1,14 +1,15 @@
 import type { Metadata } from "next";
 import { RotateCcw, RefreshCw, Wallet, MessageCircle } from "lucide-react";
-import ProductHeader from "@/components/layout/ProductHeader";
-import DesktopHeader from "@/components/layout/DesktopHeader";
-import BottomNav from "@/components/layout/BottomNav";
+import Link from "next/link";
+import InfoPage from "@/components/info/InfoPage";
 import { getShopSettings } from "@/lib/shopSettings";
+import { getSupportContact, formatWhatsapp } from "@/lib/contact";
 
 export const metadata: Metadata = {
   title: "Return & Refund Policy — Zupona",
   description:
     "How returns, exchanges and refunds work on Zupona: what's eligible, the time window, and how to start one.",
+  alternates: { canonical: "/returns-policy" },
 };
 
 /** The one page every product links to instead of each repeating its own
@@ -18,12 +19,17 @@ export const metadata: Metadata = {
  * configured -- a shop that has not set one yet gets a case-by-case promise
  * instead of an invented number of days. */
 export default async function ReturnsPolicyPage() {
-  const settings = await getShopSettings();
+  const [settings, contact] = await Promise.all([getShopSettings(), getSupportContact()]);
 
-  const contactLine =
-    settings.supportEmail && settings.supportPhone
-      ? `${settings.supportEmail} or ${settings.supportPhone}`
-      : settings.supportEmail || settings.supportPhone || "support@zupona.shop";
+  // WhatsApp always; phone and email only once Settings holds them. The old
+  // fallback was an address at zupona.shop, a domain that does not exist.
+  const contactLine = [
+    `WhatsApp ${formatWhatsapp(contact.whatsapp)}`,
+    contact.phone,
+    contact.email,
+  ]
+    .filter(Boolean)
+    .join(", ");
 
   const sections = [
     {
@@ -56,37 +62,43 @@ export default async function ReturnsPolicyPage() {
   ];
 
   return (
-    <div className="mx-auto flex min-h-screen w-full max-w-md flex-col bg-white pb-[68px] tab:max-w-none tab:pb-12">
-      <div className="tab:hidden">
-        <ProductHeader />
-      </div>
-      <DesktopHeader />
-      <main className="flex-1 px-4 pt-4 tab:mx-auto tab:w-full tab:max-w-shell tab:px-6 tab:pt-6">
-        <h1 className="text-lg font-bold text-heading tab:text-2xl">Return &amp; Refund Policy</h1>
-        <p className="mt-1 max-w-prose text-xs text-ink-slate tab:text-sm">
-          The short version of what happens if something isn&apos;t right with an order.
-        </p>
-
-        <div className="mt-5 max-w-prose space-y-5">
-          {sections.map(({ icon: Icon, title, body }) => (
-            <div key={title} className="flex items-start gap-3">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-tint text-brand">
-                <Icon className="h-[18px] w-[18px]" strokeWidth={2.25} />
-              </span>
-              <div>
-                <h2 className="text-sm font-bold text-heading">{title}</h2>
-                <p className="mt-0.5 text-[13px] leading-relaxed text-ink-slate">{body}</p>
-              </div>
+    <InfoPage
+      path="/returns-policy"
+      title="Return & refund policy"
+      intro="The short version of what happens if something isn't right with an order."
+    >
+      <div className="space-y-5">
+        {sections.map(({ icon: Icon, title, body }) => (
+          <div key={title} className="flex items-start gap-3">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-tint text-brand">
+              <Icon className="h-[18px] w-[18px]" strokeWidth={2.25} />
+            </span>
+            <div>
+              <h2 className="text-sm font-bold text-heading tab:text-[15px]">{title}</h2>
+              <p className="mt-0.5 text-[13px] leading-relaxed text-ink-slate tab:text-[14px]">{body}</p>
             </div>
-          ))}
-        </div>
+          </div>
+        ))}
+      </div>
 
-        <p className="mt-6 max-w-prose text-[11px] text-ink-faint">
-          Items marked non-returnable on their product page, and items that come back used or
-          without their original packaging, are not eligible for return or exchange.
-        </p>
-      </main>
-      <BottomNav />
-    </div>
+      <a
+        href={contact.whatsappHref("Hi Zupona, I want to return an item. Order number: ")}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="mt-6 inline-flex h-11 items-center gap-2 rounded-full bg-brand px-5 text-[13.5px] font-bold text-white hover:bg-brand-dark"
+      >
+        <MessageCircle className="h-4 w-4" />
+        Start a return on WhatsApp
+      </a>
+
+      <p className="mt-6 text-[11.5px] text-ink-faint">
+        Items marked non-returnable on their product page, and items that come back used or
+        without their original packaging, are not eligible for return or exchange. See also our{" "}
+        <Link href="/guarantees" className="underline">
+          guarantees
+        </Link>
+        .
+      </p>
+    </InfoPage>
   );
 }

@@ -81,6 +81,28 @@
   --color-gold: #fcae0e;
   --color-ink-soft: #6e70a6;
   --color-heading: #00231c;
+
+  /* Commerce roles. Brand green stays the colour of actions, links and the
+   * header; orange and red are kept for the three things a shopper should
+   * read as money or time: a price, a discount and a deadline.
+   *   price      -- a sale price, orange-red that still reads on white
+   *   price-was  -- the struck-through original (= ink-faint)
+   *   discount   -- the "-28%" pill (= accent-red)
+   *   urgency    -- "Only 3 left", a countdown, a warning
+   *   success    -- free delivery reached, a verified purchase
+   *   rating     -- stars (= gold)
+   *   badge-bg   -- the soft orange behind an urgency chip or notice
+   *   trustbar-bg-- the dark strip a trust message sits on (= heading)
+   *   skeleton   -- a placeholder still loading (= line-soft) */
+  --color-price: #d9480f;
+  --color-price-was: #8496a6;
+  --color-discount: #e03131;
+  --color-urgency: #f76707;
+  --color-success: #2b8a3e;
+  --color-rating: #fcae0e;
+  --color-badge-bg: #fff4e6;
+  --color-trustbar-bg: #00231c;
+  --color-skeleton: #e8eff4;
 }
 
 @theme inline {
@@ -111,6 +133,15 @@
   --color-gold: var(--color-gold);
   --color-ink-soft: var(--color-ink-soft);
   --color-heading: var(--color-heading);
+  --color-price: var(--color-price);
+  --color-price-was: var(--color-price-was);
+  --color-discount: var(--color-discount);
+  --color-urgency: var(--color-urgency);
+  --color-success: var(--color-success);
+  --color-rating: var(--color-rating);
+  --color-badge-bg: var(--color-badge-bg);
+  --color-trustbar-bg: var(--color-trustbar-bg);
+  --color-skeleton: var(--color-skeleton);
   --font-sans: var(--font-poppins);
   /* A system serif rather than a downloaded one. The display headline this
    * token dresses only renders when no banner artwork has been uploaded --
@@ -187,4 +218,10 @@ body {
   html[data-app-banner] .app-banner {
     display: flex;
   }
+}
+
+/* A closed scam reminder stays closed from the first frame; see
+ * src/components/info/ScamNotice.tsx. */
+html[data-scam-note-closed] .scam-note {
+  display: none;
 }

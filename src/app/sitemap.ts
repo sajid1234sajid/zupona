@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { listStoreCategories, listStoreProducts } from "@/lib/storefront";
+import { INFO_LINKS } from "@/components/info/links";
 
 const ORIGIN = "https://zupona.com";
 
@@ -23,6 +24,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${ORIGIN}/categories`, changeFrequency: "weekly", priority: 0.8 },
     { url: `${ORIGIN}/offers`, changeFrequency: "daily", priority: 0.8 },
     { url: `${ORIGIN}/new-arrivals`, changeFrequency: "daily", priority: 0.7 },
+    // The help and policy pages: what a shopper checking whether the shop is
+    // real searches for before buying.
+    ...INFO_LINKS.map((link) => ({
+      url: `${ORIGIN}${link.href}`,
+      changeFrequency: "monthly" as const,
+      priority: 0.4,
+    })),
   ];
 
   return [

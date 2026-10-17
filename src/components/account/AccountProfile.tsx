@@ -1,3 +1,4 @@
+import ScamNotice from "@/components/info/ScamNotice";
 import Link from "next/link";
 import {
   MapPin,
@@ -178,6 +179,8 @@ export default function AccountProfile({
             Message
           </span>
         </a>
+
+        <ScamNotice className="mt-2.5" />
 
         {/* ---------------- Points ---------------- */}
         <Link href="/account/points" className={`mt-2.5 flex items-center gap-3 p-3.5 ${CARD}`}>

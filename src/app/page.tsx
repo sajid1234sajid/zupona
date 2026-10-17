@@ -7,6 +7,7 @@ import PromoBanners from "@/components/home/PromoBanners";
 import FeaturedProducts from "@/components/home/FeaturedProducts";
 import SearchProvider from "@/components/search/SearchProvider";
 import HideWhileSearching from "@/components/search/HideWhileSearching";
+import ScamNotice from "@/components/info/ScamNotice";
 import { getCurrentUser } from "@/lib/session";
 import { getWishlistProductIds } from "@/lib/wishlist";
 import { listStoreCategories, listStoreProducts } from "@/lib/storefront";
@@ -57,6 +58,9 @@ export default async function Home() {
                 <PromoBanners />
               </div>
             </div>
+            {/* Below the hero, never above it: the hero is the page's
+                largest paint and nothing should push it down. */}
+            <ScamNotice className="mx-3.5 mt-3 tab:mx-0" />
           </HideWhileSearching>
           <FeaturedProducts
             featured={featured}

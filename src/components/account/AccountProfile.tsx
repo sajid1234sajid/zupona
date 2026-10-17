@@ -17,6 +17,7 @@ import {
   ShoppingBag,
   MessageSquareText,
   Ticket,
+  PackageOpen,
 } from "lucide-react";
 import AccountHeader from "@/components/layout/AccountHeader";
 import DesktopHeader from "@/components/layout/DesktopHeader";
@@ -32,6 +33,12 @@ const MENU_ITEMS = [
     subtitle: "Review what you received",
     icon: MessageSquareText,
     href: "/account/reviews",
+  },
+  {
+    label: "Returns & Refunds",
+    subtitle: "Return an item and follow it",
+    icon: PackageOpen,
+    href: "/account/returns",
   },
   {
     label: "My Coupons",

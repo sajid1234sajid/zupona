@@ -14,26 +14,7 @@ import {
   tagsFor,
   type ReviewFit,
 } from "@/lib/reviewTags";
-
-/** Longest side a review photo is shrunk to before it leaves the phone: a
- * 12-megapixel camera shot is 4MB on mobile data and nobody can see the
- * difference at the size a review shows it. */
-const PHOTO_MAX_SIDE = 1600;
-
-async function shrink(file: File): Promise<Blob> {
-  try {
-    const bitmap = await createImageBitmap(file);
-    const scale = Math.min(1, PHOTO_MAX_SIDE / Math.max(bitmap.width, bitmap.height));
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.round(bitmap.width * scale);
-    canvas.height = Math.round(bitmap.height * scale);
-    canvas.getContext("2d")?.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.85));
-    return blob ?? file;
-  } catch {
-    return file;
-  }
-}
+import { shrinkPhoto } from "@/lib/shrinkPhoto";
 
 /** Stars, fit, tags, words and photos for one delivered order line.
  *
@@ -79,7 +60,7 @@ export default function ReviewForm({
     for (const file of chosen) {
       try {
         const form = new FormData();
-        form.append("file", new File([await shrink(file)], "review.jpg", { type: "image/jpeg" }));
+        form.append("file", new File([await shrinkPhoto(file)], "review.jpg", { type: "image/jpeg" }));
         const response = await fetch("/api/reviews/upload", { method: "POST", body: form });
         const result = (await response.json()) as { url?: string; error?: string };
         if (!response.ok || !result.url) throw new Error(result.error ?? "Upload failed.");

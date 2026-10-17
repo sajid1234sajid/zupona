@@ -3,14 +3,14 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FileText, LoaderCircle, MessageCircle, PenLine, RotateCcw, Truck, X } from "lucide-react";
+import { FileText, LoaderCircle, MessageCircle, PackageOpen, PenLine, RotateCcw, Truck, X } from "lucide-react";
 import { buyAgainAction, cancelMyOrderAction } from "@/app/account/orders/actions";
 import { CANCEL_REASONS } from "@/lib/cancelReasons";
 
 /** What a shopper can do with an order, by where it is:
  *  - placed or confirmed: cancel (with a reason) or ask for help;
  *  - shipped: track it or ask for help;
- *  - delivered: review, buy again, open the invoice;
+ *  - delivered: review, return, buy again, open the invoice;
  *  - cancelled: buy again. */
 export default function OrderActions({
   orderId,
@@ -117,6 +117,9 @@ export default function OrderActions({
             <>
               <Link href="/account/reviews" className={quiet}>
                 <PenLine className="h-4 w-4" /> Review
+              </Link>
+              <Link href={`/account/orders/${orderId}/return`} className={quiet}>
+                <PackageOpen className="h-4 w-4" /> Return
               </Link>
               <Link href={`/account/orders/${orderId}/invoice`} className={quiet}>
                 <FileText className="h-4 w-4" /> Invoice

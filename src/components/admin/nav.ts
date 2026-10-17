@@ -33,7 +33,15 @@ export const NAV_ITEMS: NavItem[] = [
     ],
   },
   { label: "Categories", href: "/admin/categories", icon: "categories" },
-  { label: "Orders", href: "/admin/orders", icon: "orders" },
+  {
+    label: "Orders",
+    href: "/admin/orders",
+    icon: "orders",
+    children: [
+      { label: "All Orders", href: "/admin/orders" },
+      { label: "Returns", href: "/admin/orders/returns" },
+    ],
+  },
   { label: "Customers", href: "/admin/customers", icon: "customers" },
   { label: "Distributors", href: "/admin/distributors", icon: "distributors" },
   { label: "Coupons", href: "/admin/coupons", icon: "coupons" },

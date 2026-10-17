@@ -100,6 +100,12 @@ export default async function OrdersPage({ searchParams }: PageProps<"/account/o
                   </Link>
                 );
               })}
+              <Link
+                href="/account/returns"
+                className="shrink-0 rounded-full bg-white px-3.5 py-1.5 text-[12px] font-semibold text-ink-muted"
+              >
+                Returns
+              </Link>
             </nav>
 
             {shown.length === 0 ? (

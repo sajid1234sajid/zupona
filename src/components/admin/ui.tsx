@@ -193,6 +193,12 @@ const STATUS_STYLES: Record<string, string> = {
   archived: "bg-neutral-100 text-neutral-500",
   low_stock: "bg-amber-50 text-amber-700",
   out_of_stock: "bg-red-50 text-red-600",
+  // Returns
+  requested: "bg-amber-50 text-amber-700",
+  pickup_scheduled: "bg-sky-50 text-sky-700",
+  received: "bg-sky-50 text-sky-700",
+  exchanged: "bg-emerald-50 text-emerald-700",
+  store_credit: "bg-emerald-50 text-emerald-700",
   // Reviews & moderation
   approved: "bg-emerald-50 text-emerald-700",
   spam: "bg-neutral-800 text-white",

@@ -27,7 +27,7 @@ const freeLine = (f: PolicyFacts) =>
 const returnWindow = (f: PolicyFacts) =>
   f.returnDays > 0
     ? `You can request a return within ${days(f.returnDays)} of delivery.`
-    : "Contact us as soon as you notice the problem.";
+    : "You can request a return within 7 days of delivery.";
 
 export const FAQ_TOPICS: FaqTopic[] = [
   {
@@ -112,7 +112,7 @@ export const FAQ_TOPICS: FaqTopic[] = [
       {
         q: "How do refunds get paid?",
         a: () =>
-          "Once a returned item reaches us and passes a check, we refund it. For a Cash on Delivery order, we agree with you how to send the refund. See our return policy for details.",
+          "Once a returned item reaches us and passes a check, we send the refund to the bKash, Nagad or bank account you gave in your return request, or add store credit to My Coupons if you chose that. See our return policy for details.",
       },
     ],
   },
@@ -128,7 +128,7 @@ export const FAQ_TOPICS: FaqTopic[] = [
       {
         q: "How do I start a return?",
         a: () =>
-          "Message us on WhatsApp with your order number, what is wrong, and a photo of the item. We will tell you the next step.",
+          "Open the order in My Orders and tap “Return”. Choose the items, the reason, add a photo, and pick a refund to bKash, Nagad or your bank, an exchange, or store credit. You can follow it in Returns & refunds, and we tell you at every step.",
       },
       {
         q: "Can I exchange for a different size or colour?",

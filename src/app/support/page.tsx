@@ -18,8 +18,8 @@ export const metadata: Metadata = {
 const QUICK_ACTIONS = [
   { label: "Track my order", href: "/account/orders", icon: Truck },
   { label: "Delivery fees", href: "/shipping", icon: Package },
-  { label: "Return an item", href: "/returns-policy", icon: RotateCcw },
-  { label: "Cancel an order", href: "#cancel", icon: XCircle },
+  { label: "Return an item", href: "/account/orders?tab=delivered", icon: RotateCcw },
+  { label: "Cancel an order", href: "/account/orders?tab=to-confirm", icon: XCircle },
 ];
 
 export default async function SupportPage() {

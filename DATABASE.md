@@ -76,7 +76,7 @@ Two notes carried from building `0003`:
 
 ## Schema map
 
-67 tables, grouped by concern (the marketing, assistant, system guide and visitor activity tables are described in their migrations, 0021, 0022, 0024 and 0026; review votes and the points ledger in 0027; the coupon wallet in 0029).
+67 tables, grouped by concern (the marketing, assistant, system guide and visitor activity tables are described in their migrations, 0021, 0022, 0024 and 0026; review votes and the points ledger in 0027; the coupon wallet in 0029; return requests in 0030).
 
 **Identity and access** — `users` (with `role`, `status`, verification flags,
 referral fields), `sessions` (with device metadata), `oauth_accounts` for
@@ -111,6 +111,16 @@ in one batch, and only once per (user, reason, ref).
 
 **Orders** — `orders`, `order_items`, `suborders` (one per seller in an order),
 `order_status_history`, `shipments`, `returns_refunds`, `phone_verifications`.
+
+**Returns** — `returns_refunds`, one row per order line a shopper sends back
+(0030 added `order_id`, `quantity`, `resolution`, `refund_method`,
+`refund_account` and `photos`). Status runs requested → approved / rejected →
+pickup_scheduled → received → refunded / exchanged / store_credit, and moves
+only through `advanceReturn()` in `src/lib/returns.ts`, which notifies the
+shopper at each step, puts stock back at "received" when the admin ticks it,
+takes back the points the returned share earned, and issues store credit as a
+single-use coupon with `audience = 'owner'` that only the shopper whose
+`user_coupons` row holds it can use.
 
 **Money** — `payment_transactions`, `seller_payouts`, `payout_line_items`.
 

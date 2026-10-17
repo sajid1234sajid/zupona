@@ -6,7 +6,7 @@
 
 import { getMedia } from "@/lib/db";
 
-export type MediaFolder = "products" | "videos" | "reviews" | "sellers" | "avatars" | "kyc";
+export type MediaFolder = "products" | "videos" | "reviews" | "returns" | "sellers" | "avatars" | "kyc";
 
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024; // 10 MB
 

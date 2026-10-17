@@ -2,21 +2,26 @@ import Link from "next/link";
 import DesktopHeader from "@/components/layout/DesktopHeader";
 import Image from "@/components/ui/StoreImage";
 import { notFound } from "next/navigation";
-import { ChevronLeft, MapPin, CreditCard, BadgeCheck, PenLine } from "lucide-react";
+import { ChevronLeft, MapPin, CreditCard, BadgeCheck, PenLine, PackageOpen, ChevronRight } from "lucide-react";
 import { requireUser } from "@/lib/session";
 import { getOrder } from "@/lib/orders";
 import { getOrderReviewStates } from "@/lib/reviews";
+import { orderReturns } from "@/lib/returns";
+import { RETURN_STATUS_LABELS } from "@/lib/returnOptions";
 import { formatPrice } from "@/lib/format";
 import OrderTracker from "@/components/order/OrderTracker";
 
 export default async function OrderDetailPage({ params }: PageProps<"/account/orders/[id]">) {
   const user = await requireUser();
   const { id } = await params;
-  const order = await getOrder(user.id, id);
+  // The order, its review states and its returns are independent reads.
+  const [order, reviewStates, returns] = await Promise.all([
+    getOrder(user.id, id),
+    getOrderReviewStates(user.id, id),
+    orderReturns(user.id, id),
+  ]);
 
   if (!order) notFound();
-
-  const reviewStates = await getOrderReviewStates(user.id, order.id);
 
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-md flex-col bg-brand-mist pb-10 tab:max-w-none tab:pb-12">
@@ -135,6 +140,48 @@ export default async function OrderDetailPage({ params }: PageProps<"/account/or
             ) : null}
           </div>
         </section>
+
+        {order.status === "delivered" || returns.length > 0 ? (
+          <section className="mt-3 rounded-2xl bg-white p-4 shadow-card">
+            <h2 className="mb-2 flex items-center gap-1.5 text-sm font-bold text-heading">
+              <PackageOpen className="h-4 w-4 text-brand" />
+              Returns
+            </h2>
+            {returns.length > 0 ? (
+              <ul className="mb-3 flex flex-col gap-1.5">
+                {returns.map((entry) => (
+                  <li key={entry.id} className="flex items-center justify-between gap-2 text-[12.5px]">
+                    <span className="min-w-0 truncate text-ink">
+                      {entry.quantity > 1 ? `${entry.quantity} × ` : ""}
+                      {entry.name}
+                    </span>
+                    <span className="shrink-0 rounded-full bg-brand-tint px-2 py-0.5 text-[11px] font-bold text-brand-dark">
+                      {RETURN_STATUS_LABELS[entry.status]}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+            <div className="flex flex-wrap gap-2">
+              {order.status === "delivered" ? (
+                <Link
+                  href={`/account/orders/${order.id}/return`}
+                  className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-brand px-3.5 text-[12px] font-bold text-brand-darkest"
+                >
+                  <PackageOpen className="h-4 w-4" /> Request a return
+                </Link>
+              ) : null}
+              {returns.length > 0 ? (
+                <Link
+                  href="/account/returns"
+                  className="inline-flex min-h-10 items-center gap-1 rounded-xl border border-line px-3.5 text-[12px] font-bold text-ink"
+                >
+                  Follow my returns <ChevronRight className="h-4 w-4" />
+                </Link>
+              ) : null}
+            </div>
+          </section>
+        ) : null}
       </main>
     </div>
   );

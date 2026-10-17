@@ -145,6 +145,17 @@ export async function validateCoupon(
     if (earlier) return REFUSED("This coupon is for your first order only.");
   }
 
+  // A store credit belongs to the one shopper it was issued to.
+  if (row.audience === "owner") {
+    const held = userId
+      ? await db
+          .prepare("SELECT 1 FROM user_coupons WHERE user_id = ? AND coupon_id = ?")
+          .bind(userId, row.id)
+          .first()
+      : null;
+    if (!held) return REFUSED("That coupon code isn't valid.");
+  }
+
   if (userId) {
     const used = await db
       .prepare("SELECT COUNT(*) AS n FROM coupon_redemptions WHERE coupon_id = ? AND user_id = ?")

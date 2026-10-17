@@ -772,12 +772,22 @@ CREATE TABLE IF NOT EXISTS returns_refunds (
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   reason TEXT NOT NULL,
   detail TEXT,
-  status TEXT NOT NULL DEFAULT 'requested', -- requested|approved|rejected|refunded|completed
+  status TEXT NOT NULL DEFAULT 'requested', -- requested|approved|rejected|pickup_scheduled|received|refunded|exchanged|store_credit
   refund_amount INTEGER NOT NULL DEFAULT 0,
   resolution_note TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  order_id TEXT REFERENCES orders(id) ON DELETE CASCADE, -- (0030)
+  quantity INTEGER NOT NULL DEFAULT 1, -- (0030)
+  resolution TEXT NOT NULL DEFAULT 'refund', -- refund | exchange | store_credit (0030)
+  refund_method TEXT, -- bkash | nagad | bank (0030)
+  refund_account TEXT, -- where to send the refund (0030)
+  photos TEXT -- JSON array of /api/media URLs (0030)
 );
+
+CREATE INDEX IF NOT EXISTS idx_returns_user ON returns_refunds (user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_returns_status ON returns_refunds (status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_returns_item ON returns_refunds (order_item_id);
 
 CREATE INDEX IF NOT EXISTS idx_returns_refunds_order_item_id ON returns_refunds (order_item_id);
 CREATE INDEX IF NOT EXISTS idx_returns_refunds_user_id ON returns_refunds (user_id);

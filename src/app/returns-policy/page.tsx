@@ -38,7 +38,7 @@ export default async function ReturnsPolicyPage() {
       body:
         settings.returnDays > 0
           ? `You can request a return within ${settings.returnDays} day${settings.returnDays === 1 ? "" : "s"} of delivery, on items that are unused, in their original packaging, and not marked non-returnable on the product page.`
-          : "If an item arrives damaged, wrong, or not as described, contact us as soon as you notice it and we'll make it right.",
+          : "If an item arrives damaged, wrong, or not as described, you can request a return within 7 days of delivery and we'll make it right. Send it back unused, with its tags and packaging.",
     },
     {
       icon: RefreshCw,
@@ -52,12 +52,12 @@ export default async function ReturnsPolicyPage() {
       icon: Wallet,
       title: "Refunds",
       body:
-        "Once a returned item reaches us and passes a quick check, the refund goes to your original payment method, or as store credit for a Cash on Delivery order, within a few business days.",
+        "Once a returned item reaches us and passes a quick check, you choose how it is settled: a refund to bKash, Nagad or your bank account, an exchange, or store credit added to My Coupons. Pickup is free when the item was damaged, wrong or not as described; for other reasons the courier charge may be taken off the refund.",
     },
     {
       icon: MessageCircle,
       title: "How to start one",
-      body: `Contact us with your order number at ${contactLine} and we'll walk you through the next step.`,
+      body: `Open the order in My Orders and tap “Return”, then follow it under Returns & refunds in your account. Questions? Reach us at ${contactLine}.`,
     },
   ];
 

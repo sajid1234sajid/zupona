@@ -139,19 +139,21 @@ export async function collectCoupon(
   const db = await getDB();
   const row =
     "id" in by
-      ? await db.prepare("SELECT id, code, is_active, is_public, ends_at FROM coupons WHERE id = ?").bind(by.id).first<{
+      ? await db.prepare("SELECT id, code, is_active, is_public, ends_at, audience FROM coupons WHERE id = ?").bind(by.id).first<{
           id: string;
           code: string;
           is_active: number;
           is_public: number;
           ends_at: string | null;
+          audience: string;
         }>()
       : await db
-          .prepare("SELECT id, code, is_active, is_public, ends_at FROM coupons WHERE UPPER(code) = ?")
+          .prepare("SELECT id, code, is_active, is_public, ends_at, audience FROM coupons WHERE UPPER(code) = ?")
           .bind(by.code.trim().toUpperCase())
-          .first<{ id: string; code: string; is_active: number; is_public: number; ends_at: string | null }>();
+          .first<{ id: string; code: string; is_active: number; is_public: number; ends_at: string | null; audience: string }>();
 
-  if (!row || ("id" in by && row.is_public !== 1)) return { ok: false, error: "That coupon code isn't valid." };
+  // A store credit is issued into its owner's wallet and can't be collected by anyone else.
+  if (!row || ("id" in by && row.is_public !== 1) || row.audience === "owner") return { ok: false, error: "That coupon code isn't valid." };
   if (row.is_active !== 1) return { ok: false, error: "This coupon is no longer active." };
   const now = new Date().toISOString().slice(0, 19).replace("T", " ");
   if (row.ends_at && row.ends_at < now) return { ok: false, error: "This coupon has expired." };

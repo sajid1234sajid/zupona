@@ -18,6 +18,10 @@ export async function addToCartAction(productId: string, color = "", quantity = 
   // panel can no longer be added to a cart.
   const card = await getStoreProductCard(productId);
   if (!card) return;
+  // Never a line for a product sold in options with none chosen: nobody can
+  // pack "a shirt". Cards open a picker for these and call
+  // `addSelectionToCartAction`; this refuses anything that slips past.
+  if (card.hasOptions) return;
   const user = await getOrCreateShopper();
 
   const db = await getDB();

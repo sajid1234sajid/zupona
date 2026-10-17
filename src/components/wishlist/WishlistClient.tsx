@@ -88,10 +88,20 @@ export default function WishlistClient({
 
     startTransition(async () => {
       const result = await moveToCartAction(productIds);
+      // What was skipped stays in the list: it needs a size or colour chosen.
+      if (result.skipped.length > 0) {
+        setRemoved((current) => {
+          const next = new Set(current);
+          for (const id of productIds) next.delete(id);
+          return next;
+        });
+      }
       setNotice(
-        result.moved === 1
-          ? "Moved to cart"
-          : `${result.moved} items moved to cart`
+        result.skipped.length > 0
+          ? `${result.moved > 0 ? `${result.moved} moved to cart. ` : ""}Choose a size or colour for ${result.skipped.join(", ")} first.`
+          : result.moved === 1
+            ? "Moved to cart"
+            : `${result.moved} items moved to cart`
       );
       router.refresh();
     });

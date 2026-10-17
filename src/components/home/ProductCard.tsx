@@ -1,20 +1,27 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Image from "@/components/ui/StoreImage";
-import { Star, Heart, LoaderCircle, Check, ShoppingCart, Truck } from "lucide-react";
+import { Star, Heart, LoaderCircle, Check, ShoppingCart, Truck, Play, Trophy } from "lucide-react";
 import type { ProductSummary } from "@/types";
 import { formatPrice } from "@/lib/format";
 import { toggleWishlistAction } from "@/app/wishlist/actions";
-import { addToCartAction } from "@/app/cart/actions";
+import { addSelectionToCartAction } from "@/app/cart/actions";
+import { callAction } from "@/lib/callAction";
 import { signalCartAdd } from "@/lib/cartSignal";
 
-/** "84 sold", "1.2K+ sold", "13K+ sold" -- the figure rounded down, so the
- * plus is always true. */
-function soldLabel(count: number): string {
-  if (count < 1000) return `${count} sold`;
+/** Fetched with the first tap on a cart button that needs it, not with every
+ * grid: most visits never open it. */
+const QuickView = dynamic(() => import("@/components/product/QuickView"), { ssr: false });
+
+/** "84 sold", "120+ sold", "1.2K+ sold", "13K+ sold" -- the figure rounded
+ * down, so the plus is always true. */
+export function soldLabel(count: number): string {
+  if (count < 100) return `${count} sold`;
+  if (count < 1000) return `${Math.floor(count / 10) * 10}+ sold`;
   const thousands = Math.floor(count / 100) / 10;
   return `${thousands >= 10 ? Math.floor(thousands) : thousands}K+ sold`;
 }
@@ -31,8 +38,8 @@ function tagFor(product: ProductSummary): string | null {
 export function cardLineCount(product: ProductSummary): number {
   return (
     (product.reviews > 0 ? 1 : 0) +
-    (product.stockLeft ? 1 : 0) +
     (product.oldPrice > product.price ? 1 : 0) +
+    (product.rank ? 1 : 0) +
     (product.freeDelivery || product.brand ? 1 : 0)
   );
 }
@@ -68,6 +75,7 @@ export default function ProductCard({
   const [wishlistPending, startWishlistTransition] = useTransition();
   const [cartPending, startCartTransition] = useTransition();
   const [justAdded, setJustAdded] = useState(false);
+  const [picking, setPicking] = useState(false);
   const tag = tagFor(product);
   const soldCount = product.soldCount ?? 0;
   const stockLeft = product.stockLeft ?? 0;
@@ -88,17 +96,23 @@ export default function ProductCard({
   }
 
   function handleAddToCart() {
+    // A product sold in sizes or colours never goes into the cart without
+    // one: the button opens the picker instead.
+    if (product.hasOptions) {
+      setPicking(true);
+      return;
+    }
     // Announced before the action rather than after it, the same way the
-    // wishlist heart flips before its action: the server is what decides, but
-    // waiting for it to answer left the badge still on the old number for
-    // about two seconds, which is long enough for a shopper to think the tap
-    // was ignored and press again. If the add is refused -- an unpublished
-    // product -- `router.refresh()` brings the real count and the guess is
-    // dropped, so nothing can stay wrong.
+    // wishlist heart flips before its action: waiting for the server left the
+    // badge on the old number for about two seconds, long enough for a
+    // shopper to think the tap was ignored and press again. If the add is
+    // refused, `router.refresh()` brings the real count back.
     signalCartAdd(1);
     startCartTransition(async () => {
-      await addToCartAction(product.id);
-      setJustAdded(true);
+      const attempt = await callAction(() =>
+        addSelectionToCartAction({ productId: product.id, quantity: 1 })
+      );
+      if (attempt.ok && attempt.value.ok) setJustAdded(true);
       router.refresh();
     });
   }
@@ -151,6 +165,34 @@ export default function ProductCard({
           />
         </Link>
 
+        {product.listRank ? (
+          <span
+            className={`pointer-events-none absolute left-1.5 top-1.5 grid h-7 min-w-7 place-items-center rounded-lg px-1 text-[13px] font-extrabold text-white shadow ${
+              product.listRank === 1 ? "bg-rating" : product.listRank <= 3 ? "bg-urgency" : "bg-heading/80"
+            }`}
+          >
+            #{product.listRank}
+          </span>
+        ) : null}
+
+        {product.hasVideo ? (
+          <span
+            aria-label="Has video"
+            className="pointer-events-none absolute bottom-1.5 left-1.5 grid h-6 w-6 place-items-center rounded-full bg-black/55 text-white"
+          >
+            <Play className="h-3 w-3 fill-white" />
+          </span>
+        ) : null}
+
+        {/* The shop's own stock figure, shown only when the admin has turned
+            stock display on and this product has fallen to the low-stock
+            threshold -- never made up to hurry anyone. */}
+        {stockLeft > 0 ? (
+          <span className="pointer-events-none absolute bottom-1.5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-black/65 px-2 py-0.5 text-[9.5px] font-bold uppercase tracking-wide text-white">
+            Only {stockLeft} left
+          </span>
+        ) : null}
+
         {/* Bottom corner rather than top: the top of a product photo is where
             its headline is printed, and the discount lives beside the price. */}
         <button
@@ -172,13 +214,14 @@ export default function ProductCard({
 
       <div className="flex flex-col gap-[3px] p-1.5">
         <Link prefetch={false} href={`/products/${product.slug}`} className="block">
-          {/* One line, the way Temu sets it: the lines below are what tell
-              products apart, and a second line of name pushed them down. The
-              tag stays out of the categories pane's narrow tile, where it left
-              room for one word of the name. */}
-          <h3 className="line-clamp-1 text-[12px] font-semibold leading-[1.3] text-heading">
+          {/* Two lines: one cut most names off before the word that said what
+              the product was ("Classic Full Sleeve…"). Larger on a laptop,
+              where the column is wide enough for it. The tag stays out of the
+              categories pane's narrow tile, where it left room for one word
+              of the name. */}
+          <h3 className="line-clamp-2 text-[12px] font-medium leading-[1.3] text-heading tab:text-[14px]">
             {tag && (
-              <span className="mr-1 hidden @[150px]:inline-block rounded-[3px] bg-[#e8590c] px-1 align-[1px] text-[9px] font-bold leading-[1.45] text-white">
+              <span className="mr-1 hidden @[150px]:inline-block rounded-[3px] bg-urgency px-1 align-[1px] text-[9px] font-bold leading-[1.45] text-white">
                 {tag}
               </span>
             )}
@@ -193,18 +236,12 @@ export default function ProductCard({
                 key={star}
                 className={`h-2.5 w-2.5 shrink-0 ${
                   star <= Math.round(product.rating)
-                    ? "fill-gold text-gold"
+                    ? "fill-rating text-rating"
                     : "fill-line text-line"
                 }`}
               />
             ))}
             <span className="ml-0.5">{product.reviews}</span>
-          </span>
-        )}
-
-        {stockLeft > 0 && (
-          <span className="text-[10px] font-semibold leading-none text-[#e8590c]">
-            Only {stockLeft} left
           </span>
         )}
 
@@ -214,7 +251,7 @@ export default function ProductCard({
             out rather than squeezing the price. */}
         <div className="flex items-center justify-between gap-1">
           <span className="flex min-w-0 items-baseline gap-1">
-            <span className="whitespace-nowrap text-[13px] font-extrabold leading-tight text-brand-darkest">
+            <span className="whitespace-nowrap text-[13px] font-extrabold leading-tight text-price tab:text-[15px]">
               {formatPrice(product.price)}
             </span>
             {soldCount > 0 && (
@@ -243,11 +280,11 @@ export default function ProductCard({
 
         {product.oldPrice > product.price && (
           <span className="flex flex-wrap items-baseline gap-x-1 text-[10px] leading-tight">
-            <span className="whitespace-nowrap text-ink-slate line-through">
+            <span className="whitespace-nowrap text-price-was line-through">
               {formatPrice(product.oldPrice)}
             </span>
             {product.discountPercent > 0 && (
-              <span className="whitespace-nowrap font-bold text-[#e8590c]">
+              <span className="whitespace-nowrap font-bold text-discount">
                 <span className="@[150px]:hidden">-{product.discountPercent}%</span>
                 <span className="hidden @[150px]:inline">
                   ({product.discountPercent}% OFF)
@@ -256,6 +293,15 @@ export default function ProductCard({
             )}
           </span>
         )}
+
+        {product.rank ? (
+          <span className="flex min-w-0 items-center gap-1 text-[10px] font-bold leading-tight text-urgency">
+            <Trophy className="h-3 w-3 shrink-0" strokeWidth={2.4} />
+            <span className="truncate">
+              #{product.rank.position} best seller in {product.rank.category}
+            </span>
+          </span>
+        ) : null}
 
         {product.freeDelivery ? (
           <span className="flex min-w-0 items-center gap-1 text-[10px] font-semibold leading-tight text-brand">
@@ -270,6 +316,18 @@ export default function ProductCard({
           )
         )}
       </div>
+
+      {picking ? (
+        <QuickView
+          productId={product.id}
+          slug={product.slug}
+          onClose={() => setPicking(false)}
+          onAdded={() => {
+            setPicking(false);
+            setJustAdded(true);
+          }}
+        />
+      ) : null}
     </article>
   );
 }

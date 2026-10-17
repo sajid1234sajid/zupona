@@ -21,6 +21,7 @@
 import { getDB } from "@/lib/db";
 import { CacheKeys, cached } from "@/lib/cache";
 import { UNLIMITED_STOCK } from "@/lib/stockLimits";
+import { bestSellerRanks, type ProductRank } from "@/lib/bestSellers";
 import { getShopSettings } from "@/lib/shopSettings";
 
 /* -------------------------------------------------------------------------- */
@@ -67,6 +68,14 @@ export interface StoreProductCard {
   /** The admin panel's badge: "Best Seller", "Popular", "New Arrival". */
   badgeLabel: string | null;
   brand: string | null;
+  /** The product is sold in options (a size, a colour) the shopper must pick,
+   * so a card's cart button opens a picker instead of adding straight away. */
+  hasOptions?: boolean;
+  /** It has a video, which the card marks with a play icon. */
+  hasVideo?: boolean;
+  /** Its place among its category's best sellers of the last 30 days, when it
+   * is one of the top three; see `src/lib/bestSellers.ts`. */
+  rank?: { position: number; category: string } | null;
 }
 
 /** The settings that decide which of a card's lines are shown. A subset of
@@ -261,6 +270,8 @@ interface CardRow {
   sold_count: number | null;
   free_delivery: number;
   badge_label: string | null;
+  has_options: number | null;
+  has_video: number | null;
 }
 
 function discountPercent(price: number, oldPrice: number): number {
@@ -314,6 +325,8 @@ function toCard(row: CardRow, signals?: CardSignalSettings): StoreProductCard {
         : null,
     freeDelivery: row.free_delivery === 1,
     badgeLabel: row.badge_label?.trim() || null,
+    hasOptions: row.has_options === 1,
+    hasVideo: row.has_video === 1,
     brand: row.brand_name,
   };
 }
@@ -335,7 +348,10 @@ const CARD_SELECT = `
            AS stock_total,
          (SELECT name FROM brands b WHERE b.id = p.brand_id) AS brand_name,
          (SELECT group_concat(a.attr_value, ' ') FROM product_attributes a
-           WHERE a.product_id = p.id AND a.attr_name = 'tag') AS tags
+           WHERE a.product_id = p.id AND a.attr_name = 'tag') AS tags,
+         EXISTS (SELECT 1 FROM product_option_groups g
+                  WHERE g.product_id = p.id AND g.is_active = 1) AS has_options,
+         EXISTS (SELECT 1 FROM product_videos pv WHERE pv.product_id = p.id) AS has_video
   FROM products p
   LEFT JOIN categories c ON c.id = p.category_id`;
 
@@ -416,7 +432,8 @@ async function queryCards(query: StoreQuery): Promise<StoreProductCard[]> {
     .bind(...binds, limit)
     .all<CardRow>();
 
-  return results.map((row) => toCard(row, settings));
+  const ranks = await bestSellerRanks().catch(() => ({}) as Record<string, ProductRank>);
+  return results.map((row) => ({ ...toCard(row, settings), rank: ranks[row.id] ?? null }));
 }
 
 /** How long a catalog read may be served from KV.
@@ -821,12 +838,21 @@ async function queryCategories(): Promise<StoreCategory[]> {
   const totalFor = (row: CategoryRow) => row.own_count + (childTotals.get(row.id) ?? 0);
 
   const departments = results.filter((row) => row.parent_id === null);
+  const productImage = await topProductImages(db);
+  // The category's own picture when the admin uploaded one; otherwise the
+  // photo of its best-selling product. A stock photo set on a category is
+  // treated as no picture: a tile should show what the shop actually sells.
+  const imageFor = (row: CategoryRow) =>
+    (row.image_url && !isStockPhoto(row.image_url) ? row.image_url : null) ??
+    productImage.get(row.id) ??
+    row.image_url ??
+    PLACEHOLDER_IMAGE;
 
   return departments.map((department) => ({
     id: department.id,
     name: department.name,
     subtitle: department.subtitle,
-    image: department.image_url ?? PLACEHOLDER_IMAGE,
+    image: imageFor(department),
     accent: CATEGORY_ACCENTS[department.id] ?? FALLBACK_ACCENT,
     productCount: totalFor(department),
     subcategories: results
@@ -834,10 +860,59 @@ async function queryCategories(): Promise<StoreCategory[]> {
       .map((row) => ({
         id: row.id,
         name: row.name,
-        image: row.image_url ?? PLACEHOLDER_IMAGE,
+        image: imageFor(row),
         productCount: totalFor(row),
       })),
   }));
+}
+
+/** Pictures from a stock library, set on categories before the shop had its
+ * own photos. */
+function isStockPhoto(url: string): boolean {
+  return /^https:\/\/images\.unsplash\.com\//.test(url);
+}
+
+/** category id (department or sub-department) -> the main photo of its
+ * best-selling active product. One query for every category. */
+async function topProductImages(db: D1Database): Promise<Map<string, string>> {
+  const { results } = await db
+    .prepare(
+      `SELECT p.category_id AS categoryId, c.parent_id AS parentId,
+              (SELECT url FROM product_images i WHERE i.product_id = p.id
+                ORDER BY i.is_primary DESC, i.sort_order ASC LIMIT 1) AS image,
+              (SELECT COALESCE(SUM(oi.quantity), 0) FROM order_items oi
+                 JOIN orders o ON o.id = oi.order_id
+                WHERE oi.product_id = p.id AND o.status != 'cancelled') AS sold
+       FROM products p
+       JOIN categories c ON c.id = p.category_id
+       WHERE p.status = 'active'`
+    )
+    .all<{ categoryId: string; parentId: string | null; image: string | null; sold: number }>();
+
+  const best = new Map<string, { image: string; sold: number }>();
+  const consider = (id: string | null, image: string, sold: number) => {
+    if (!id) return;
+    const current = best.get(id);
+    if (!current || sold > current.sold) best.set(id, { image, sold });
+  };
+  for (const row of results) {
+    if (!row.image) continue;
+    consider(row.categoryId, row.image, row.sold);
+    consider(row.parentId, row.image, row.sold);
+  }
+  return new Map([...best].map(([id, entry]) => [id, entry.image]));
+}
+
+/** Only the departments, and the sub-departments within them, that have
+ * something to sell: a tile that opens onto "nothing here" costs a shopper's
+ * trust and a tap. */
+export function withProducts<T extends StoreCategory>(categories: T[]): T[] {
+  return categories
+    .filter((category) => category.productCount > 0)
+    .map((category) => ({
+      ...category,
+      subcategories: category.subcategories.filter((sub) => sub.productCount > 0),
+    }));
 }
 
 export async function listStoreCategories(): Promise<StoreCategory[]> {

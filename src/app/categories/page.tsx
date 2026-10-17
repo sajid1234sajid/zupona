@@ -4,6 +4,7 @@ import DesktopHeader from "@/components/layout/DesktopHeader";
 import BottomNav from "@/components/layout/BottomNav";
 import CategoryBrowser from "@/components/category/CategoryBrowser";
 import { categoryOverviews } from "@/lib/categories";
+import { withProducts } from "@/lib/storefront";
 import { getCurrentUser } from "@/lib/session";
 import { getWishlistProductIds } from "@/lib/wishlist";
 
@@ -16,7 +17,9 @@ export default async function CategoriesPage() {
   // `categoryOverviews` is the same for every visitor, so it starts with the
   // session lookup instead of after it. Only the wishlist has to wait to learn
   // whose it is.
-  const [user, categories] = await Promise.all([getCurrentUser(), categoryOverviews()]);
+  const [user, overviews] = await Promise.all([getCurrentUser(), categoryOverviews(8)]);
+  // Departments and types with nothing in them are left out entirely.
+  const categories = withProducts(overviews);
   const wishlistIds = await getWishlistProductIds(user?.id ?? null);
 
   return (

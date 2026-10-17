@@ -33,12 +33,20 @@ export default function ListingFilterBar({
   facets,
   total,
   defaultSort = "relevance",
+  keepParams = "",
+  relevanceLabel = "Relevance",
 }: {
   basePath: string;
   filters: ListingFilters;
   facets: ListingFacets;
   total: number;
   defaultSort?: ListingSort;
+  /** Query parameters that belong to the page rather than the filters, such
+   * as a category page's `sub=`, kept on every link. */
+  keepParams?: string;
+  /** What the default order is called here: "Relevance" for a search,
+   * "Popular" for a category. */
+  relevanceLabel?: string;
 }) {
   const router = useRouter();
   const [panel, setPanel] = useState<Panel>(null);
@@ -70,7 +78,7 @@ export default function ListingFilterBar({
 
   function go(next: ListingFilters, keepOpen = false) {
     if (!keepOpen) setPanel(null);
-    const query = listingQuery(next, defaultSort);
+    const query = [keepParams, listingQuery(next, defaultSort)].filter(Boolean).join("&");
     startTransition(() => {
       router.replace(query ? `${basePath}?${query}` : basePath, { scroll: false });
     });
@@ -86,7 +94,10 @@ export default function ListingFilterBar({
     (filters.freeDelivery ? 1 : 0) +
     (filters.rating4 ? 1 : 0);
 
-  const sortLabel = LISTING_SORTS.find((s) => s.id === filters.sort)?.label ?? "Relevance";
+  const sorts = LISTING_SORTS.map((sort) =>
+    sort.id === "relevance" ? { ...sort, label: relevanceLabel } : sort
+  );
+  const sortLabel = sorts.find((s) => s.id === filters.sort)?.label ?? relevanceLabel;
   const categoryLabel = facets.categories.find((c) => c.value === filters.category)?.label;
 
   const chip = (active: boolean) =>
@@ -180,7 +191,7 @@ export default function ListingFilterBar({
           "sort",
           `Sort: ${sortLabel}`,
           filters.sort !== defaultSort,
-          LISTING_SORTS.map((s) =>
+          sorts.map((s) =>
             optionRow(s.label, s.id === filters.sort, () => go({ ...filters, sort: s.id }), undefined, s.id)
           )
         )}
@@ -273,7 +284,7 @@ export default function ListingFilterBar({
 
             <div className="flex-1 overflow-y-auto px-4 py-2">
               <DrawerSection title="Sort by">
-                {LISTING_SORTS.map((sort) =>
+                {sorts.map((sort) =>
                   optionRow(sort.label, sort.id === filters.sort, () => go({ ...filters, sort: sort.id }, true), undefined, sort.id)
                 )}
               </DrawerSection>

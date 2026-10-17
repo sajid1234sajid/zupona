@@ -155,7 +155,7 @@ export default function CategoryBrowser({
         {active.highlights.length > 0 && (
           <>
             <h3 className="mt-4 text-[10px] font-semibold uppercase tracking-wide text-ink-slate tab:mt-7 tab:text-xs">
-              Popular in {active.name}
+              Top picks in {active.name}
             </h3>
             <div className="mt-1.5 grid grid-cols-2 gap-2 tab:mt-3 tab:grid-cols-3 tab:gap-3 lg:grid-cols-4">
               {active.highlights.map((product) => (

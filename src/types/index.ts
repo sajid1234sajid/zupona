@@ -124,6 +124,11 @@ export interface ProductSummary {
   badgeLabel?: string | null;
   bestSeller?: boolean;
   brand?: string | null;
+  hasOptions?: boolean;
+  hasVideo?: boolean;
+  rank?: { position: number; category: string } | null;
+  /** Its place in a ranked list such as /best-sellers, drawn on the photo. */
+  listRank?: number;
 }
 
 export interface CartItem {

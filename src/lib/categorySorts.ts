@@ -1,6 +1,6 @@
 /** Category sort options, kept apart from the queries that use them.
  *
- * `CategoryToolbar` is a client component and needs this list to render its
+ * A client component may need this list to render a sort
  * dropdown. Importing it from `@/lib/categories` would drag that module's
  * database access into the browser bundle -- and `cloudflare:workers` does not
  * resolve there, so the build fails outright. Splitting the constants out is

@@ -32,6 +32,7 @@ import { acceptedPaymentProviders, type PaymentProvider } from "@/lib/payments";
 const SHOP_LINKS = [
   { label: "All categories", href: "/categories" },
   { label: "New arrivals", href: "/new-arrivals" },
+  { label: "Best sellers", href: "/best-sellers" },
   { label: "Offers", href: "/offers" },
   { label: "Wishlist", href: "/wishlist" },
   { label: "About Zupona", href: "/about" },

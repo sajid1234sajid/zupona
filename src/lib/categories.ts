@@ -76,6 +76,9 @@ export function toSummary(product: StoreProductCard): ProductSummary {
     badgeLabel: product.badgeLabel,
     bestSeller: product.bestSeller,
     brand: product.brand,
+    hasOptions: product.hasOptions,
+    hasVideo: product.hasVideo,
+    rank: product.rank ?? null,
   };
 }
 

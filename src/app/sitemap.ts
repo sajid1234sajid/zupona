@@ -24,6 +24,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${ORIGIN}/categories`, changeFrequency: "weekly", priority: 0.8 },
     { url: `${ORIGIN}/offers`, changeFrequency: "daily", priority: 0.8 },
     { url: `${ORIGIN}/new-arrivals`, changeFrequency: "daily", priority: 0.7 },
+    { url: `${ORIGIN}/best-sellers`, changeFrequency: "daily", priority: 0.7 },
     // The help and policy pages: what a shopper checking whether the shop is
     // real searches for before buying.
     ...INFO_LINKS.map((link) => ({

@@ -10,7 +10,7 @@ import HideWhileSearching from "@/components/search/HideWhileSearching";
 import ScamNotice from "@/components/info/ScamNotice";
 import { getCurrentUser } from "@/lib/session";
 import { getWishlistProductIds } from "@/lib/wishlist";
-import { listStoreCategories, listStoreProducts } from "@/lib/storefront";
+import { listStoreCategories, listStoreProducts, withProducts } from "@/lib/storefront";
 import { categoryWordsOf } from "@/lib/productSearch";
 
 /** The storefront home page.
@@ -52,7 +52,7 @@ export default async function Home() {
                 <HeroBanner />
               </div>
               <div className="tab:col-span-2 tab:row-start-2">
-                <CategoryGrid categories={categories} />
+                <CategoryGrid categories={withProducts(categories)} />
               </div>
               <div className="tab:col-start-2 tab:row-start-1">
                 <PromoBanners />

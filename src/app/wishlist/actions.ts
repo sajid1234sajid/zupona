@@ -98,7 +98,10 @@ export async function moveToCartAction(
   // One catalog read covers both the "can this move" check and the names used
   // in the skipped list below.
   const catalog = await getStoreProductsByIds(productIds);
-  const known = productIds.filter((id) => catalog.has(id));
+  // A product sold in options (a size, a colour) cannot become a cart line
+  // until one is chosen, so it stays saved and is reported back; the shopper
+  // picks its options from its card or page.
+  const known = productIds.filter((id) => catalog.has(id) && !catalog.get(id)?.hasOptions);
   if (known.length === 0) return { moved: 0, skipped: [] };
 
   const db = await getDB();
@@ -142,7 +145,8 @@ export async function moveToCartAction(
   revalidateWishlist();
 
   // A product that has been unpublished since it was saved has no catalog
-  // row, so its id is the only label left to show.
+  // row, so its id is the only label left to show. One that needs options
+  // chosen is skipped too, and kept in the wishlist.
   const skipped = productIds
     .filter((id) => !known.includes(id))
     .map((id) => catalog.get(id)?.name ?? id);

@@ -48,6 +48,9 @@ export interface ShopSettings {
   reviewPhotoPoints: number;
   /** Days a shopper has to return an item. 0 hides the line on product pages. */
   returnDays: number;
+  /** The size table the product page's size guide shows; see `src/lib/sizeGuide.ts`.
+   * Empty hides the size guide link. */
+  sizeGuide: string;
   /** Days a shopper has to exchange an item. 0 hides the line on product pages. */
   exchangeDays: number;
   guestCheckoutEnabled: boolean;
@@ -116,6 +119,7 @@ export const DEFAULT_SETTINGS: ShopSettings = {
   reviewPhotoPoints: 0,
   // Zero until the shop states a policy, so no product promises one it has not made.
   returnDays: 0,
+  sizeGuide: "",
   exchangeDays: 0,
   guestCheckoutEnabled: true,
   maintenanceMode: false,
@@ -184,6 +188,7 @@ async function querySettings(): Promise<ShopSettings> {
     reviewPoints: readInt(map.get("review_points"), DEFAULT_SETTINGS.reviewPoints),
     reviewPhotoPoints: readInt(map.get("review_photo_points"), DEFAULT_SETTINGS.reviewPhotoPoints),
     returnDays: readInt(map.get("return_days"), DEFAULT_SETTINGS.returnDays),
+    sizeGuide: map.get("size_guide")?.trim() ?? "",
     exchangeDays: readInt(map.get("exchange_days"), DEFAULT_SETTINGS.exchangeDays),
     guestCheckoutEnabled: readFlag(
       map.get("guest_checkout_enabled"),

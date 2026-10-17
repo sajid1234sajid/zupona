@@ -2,7 +2,7 @@
 
 import { useActionState } from "react";
 import { KeyRound, Loader2, MessageSquare, Save, Send } from "lucide-react";
-import { Card, CardHeader, Field, FormMessage, buttonStyles, fieldStyles } from "./ui";
+import { Card, CardHeader, Field, FormMessage, buttonStyles, fieldStyles, textareaStyles } from "./ui";
 import {
   changeAdminPasswordAction,
   saveSettingsAction,
@@ -182,6 +182,26 @@ export function StoreSettingsForm({
             />
           </Field>
         </div>
+      </Card>
+
+      <Card>
+        <CardHeader
+          title="Size guide"
+          subtitle="Shown as “Size guide” beside the size choices on clothing. Measurements in inches; shoppers can switch to cm."
+        />
+        <Field
+          label="Size table"
+          hint="First line: column names. Then one line per size, cells split by | — e.g. “Size | Chest | Length | Sleeve” then “M | 40 | 28 | 24”. Leave empty to hide the size guide."
+        >
+          <textarea
+            name="size_guide"
+            rows={6}
+            maxLength={2000}
+            defaultValue={settings.sizeGuide}
+            placeholder={"Size | Chest | Length | Sleeve\nM | 40 | 28 | 24\nL | 42 | 29 | 24.5\nXL | 44 | 30 | 25"}
+            className={`${textareaStyles} font-mono`}
+          />
+        </Field>
       </Card>
 
       <Card>

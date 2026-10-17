@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import Image from "@/components/ui/StoreImage";
 import type { StoreOptionGroup, StoreVariant } from "@/lib/storefront";
 import { isValueAvailable, type Selections } from "./variantMatching";
@@ -20,11 +21,17 @@ export default function OptionGroups({
   variants,
   selections,
   onSelect,
+  aside,
+  missing,
 }: {
   groups: StoreOptionGroup[];
   variants: StoreVariant[];
   selections: Selections;
   onSelect: (groupKey: string, value: string) => void;
+  /** Something to show beside a group's name, e.g. the size guide link. */
+  aside?: (groupKey: string) => ReactNode;
+  /** The group the shopper tried to buy without choosing, called out. */
+  missing?: string | null;
 }) {
   if (groups.length === 0) return null;
 
@@ -35,10 +42,23 @@ export default function OptionGroups({
         const chosenLabel = group.values.find((value) => value.value === chosen)?.label;
 
         return (
-          <fieldset key={group.id} className="border-0 p-0">
-            <div className="mb-2.5 flex items-baseline justify-between gap-3">
-              <legend className="text-sm font-bold text-heading">{group.name}</legend>
-              <span className="truncate text-xs text-ink-soft">{chosenLabel ?? "Select"}</span>
+          <fieldset
+            key={group.id}
+            id={`option-${group.key}`}
+            className={`scroll-mt-24 border-0 p-0 ${missing === group.key ? "rounded-xl ring-2 ring-accent-red ring-offset-4" : ""}`}
+          >
+            <div className="mb-2.5 flex items-center justify-between gap-3">
+              <legend className="text-sm font-bold text-heading">
+                {group.name}
+                <span
+                  className={`ml-2 text-xs font-semibold ${
+                    chosenLabel ? "text-ink-soft" : missing === group.key ? "text-accent-red" : "text-ink-soft"
+                  }`}
+                >
+                  {chosenLabel ?? `Select ${group.name.toLowerCase()}`}
+                </span>
+              </legend>
+              {aside?.(group.key)}
             </div>
 
             <div className="flex flex-wrap gap-2.5">

@@ -118,3 +118,50 @@ export function resolvePricing(product: StoreProduct, variant: StoreVariant | nu
 
   return { price, compareAtPrice, available, discountPercent };
 }
+
+/** "Royal Blue" -> "royal-blue": how an option reads in a link. */
+export function optionSlug(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/&/g, "and")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+/** Groups the shopper has to choose themselves rather than have chosen for
+ * them: a size picked by default is how a shirt arrives in the wrong size.
+ * Only when there is a real choice -- a one-size product stays chosen. */
+function mustChoose(group: StoreProduct["optionGroups"][number]): boolean {
+  return group.key === "size" && group.values.length > 1;
+}
+
+/**
+ * What the product page opens on: the usual opening selection, without a
+ * size, and with whatever the link asked for (`?color=royal-blue&size=m`, by
+ * value or by label) laid over it -- so an ad for the grey shirt opens on the
+ * grey shirt.
+ */
+export function openingSelections(product: StoreProduct, requested: Record<string, string> = {}): Selections {
+  const selections = initialSelections(product);
+  for (const group of product.optionGroups) {
+    if (mustChoose(group)) delete selections[group.key];
+    const asked = requested[group.key];
+    if (!asked) continue;
+    const wanted = optionSlug(asked);
+    const match = group.values.find((value) => optionSlug(value.value) === wanted || optionSlug(value.label) === wanted);
+    if (match) selections[group.key] = match.value;
+  }
+  return selections;
+}
+
+/** The picture for what is chosen so far, even before every group is: a
+ * colour brings its photo with it while the size is still open. */
+export function imageFor(variants: StoreVariant[], selections: Selections): string | null {
+  const chosen = Object.entries(selections).filter(([, value]) => Boolean(value));
+  if (chosen.length === 0) return null;
+  return (
+    variants.find(
+      (variant) => variant.imageId && chosen.every(([key, value]) => variant.optionValues[key] === value)
+    )?.imageId ?? null
+  );
+}

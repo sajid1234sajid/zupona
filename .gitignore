@@ -62,3 +62,6 @@ android/**/settings.gradle
 
 # The System Guide is edited here and pushed to the database; never commit it
 /.guide/
+
+# merge-shirt-variants.mjs working files
+scripts/.merge-shirts*

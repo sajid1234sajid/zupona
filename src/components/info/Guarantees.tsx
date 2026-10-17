@@ -16,8 +16,8 @@ export interface Guarantee {
  *
  * Only what is already true goes in: Cash on Delivery is how every order can
  * be paid, reviews are limited to delivered orders in code, and the return
- * line quotes the window from Settings or, with none set, the case-by-case
- * promise the returns page makes. A delivery-time refund promise is left out
+ * line quotes the window from Settings or, with none set, the 7 days the
+ * in-app return flow allows. A delivery-time refund promise is left out
  * until the owner decides on one. One source, so the guarantees page and any
  * block reusing it on the product page, cart or orders can never disagree. */
 export function guaranteesFrom(facts: PolicyFacts): Guarantee[] {
@@ -31,11 +31,9 @@ export function guaranteesFrom(facts: PolicyFacts): Guarantee[] {
     {
       key: "returns",
       icon: RotateCcw,
-      title: facts.returnDays > 0 ? `${days(facts.returnDays)} easy returns` : "Wrong or damaged? We fix it",
-      body:
-        facts.returnDays > 0
-          ? `Return an item within ${days(facts.returnDays)} of delivery if it is damaged, wrong or not as described.`
-          : "If an item arrives damaged, wrong or not as described, tell us and we'll make it right.",
+      // 7 days is what the in-app return flow allows when Settings names none.
+      title: `${days(facts.returnDays > 0 ? facts.returnDays : 7)} easy returns`,
+      body: `Return an item within ${days(facts.returnDays > 0 ? facts.returnDays : 7)} of delivery if it is damaged, wrong or not as described. Ask for it from My Orders.`,
       href: "/returns-policy",
     },
     {

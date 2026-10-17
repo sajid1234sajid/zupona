@@ -98,7 +98,7 @@ export default function SimilarProducts({
   return (
     <section id="similar" aria-labelledby="similar-title" className="scroll-mt-4">
       <h2 id="similar-title" className="text-base font-extrabold text-heading">
-        Similar Products
+        You may also like
       </h2>
       <ul className="mt-2.5 grid grid-cols-2 gap-2.5 tab:grid-cols-4 lg:grid-cols-6">
         {products.map((product) => (

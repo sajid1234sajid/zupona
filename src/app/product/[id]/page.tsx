@@ -1,5 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { getStoreProduct } from "@/lib/storefront";
+import { productRedirect } from "@/lib/productRedirects";
 
 /** The old id-based product address.
  *
@@ -14,6 +15,10 @@ export default async function ProductRedirect({ params }: PageProps<"/product/[i
   const { id } = await params;
   const product = await getStoreProduct(id);
 
-  if (!product) notFound();
+  if (!product) {
+    const moved = await productRedirect({ id });
+    if (moved) redirect(moved);
+    notFound();
+  }
   redirect(`/products/${product.slug}`);
 }

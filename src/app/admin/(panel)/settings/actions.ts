@@ -9,6 +9,7 @@ import { requireUser } from "@/lib/session";
 import { normalizeBdPhone } from "@/lib/checkout";
 import { getShopSettings } from "@/lib/shopSettings";
 import { maskPhone, sendSms } from "@/lib/sms";
+import { parseSizeGuide, SIZE_GUIDE_MAX_LENGTH } from "@/lib/sizeGuide";
 
 export interface SettingsFormState {
   error?: string;
@@ -39,6 +40,7 @@ const EDITABLE: Record<string, "text" | "number" | "boolean"> = {
   review_points: "number",
   review_photo_points: "number",
   exchange_days: "number",
+  size_guide: "text",
   reviews_need_approval: "boolean",
   seller_products_need_review: "boolean",
   guest_checkout_enabled: "boolean",
@@ -159,6 +161,17 @@ export async function saveSettingsAction(
         const phone = normalizeBdPhone(value);
         if (!phone) return { error: "Enter the WhatsApp number as a Bangladeshi mobile, e.g. 01712345678." };
         changed[key] = phone;
+        continue;
+      }
+
+      if (key === "size_guide") {
+        if (value !== "" && !parseSizeGuide(value)) {
+          return {
+            error:
+              "The size guide needs a first line of column names and one line per size, e.g. \"Size | Chest | Length\" then \"M | 40 | 28\".",
+          };
+        }
+        changed[key] = value.slice(0, SIZE_GUIDE_MAX_LENGTH);
         continue;
       }
 

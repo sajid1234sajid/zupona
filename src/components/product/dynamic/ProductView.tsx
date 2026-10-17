@@ -1,9 +1,12 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Heart, LayoutGrid, LoaderCircle, ShoppingCart, Star, Zap } from "lucide-react";
+import { Flame, Heart, LayoutGrid, LoaderCircle, MessageCircle, ShoppingCart, Star, Trophy, Zap } from "lucide-react";
+import Image from "@/components/ui/StoreImage";
+import type { ProductRank } from "@/lib/bestSellers";
+import type { SizeGuide as SizeGuideTable } from "@/lib/sizeGuide";
 import type { StoreProduct } from "@/lib/storefront";
 import { formatPrice } from "@/lib/format";
 import { addSelectionToCartAction, buyNowAction } from "@/app/cart/actions";
@@ -16,9 +19,13 @@ import QuantityPicker from "./QuantityPicker";
 import ShareButton from "./ShareButton";
 import FeatureBar from "./FeatureBar";
 import PurchaseInfo, { type DeliveryLine } from "./PurchaseInfo";
+import SizeGuide from "./SizeGuide";
+import StickyColumn from "./StickyColumn";
 import {
   findVariant,
-  initialSelections,
+  imageFor,
+  openingSelections,
+  optionSlug,
   resolvePricing,
   type Selections,
 } from "./variantMatching";
@@ -48,6 +55,15 @@ export default function ProductView({
   hasSimilar,
   initiallyWishlisted,
   showStock,
+  requested = {},
+  whatsapp,
+  productUrl,
+  rank = null,
+  lowStockThreshold = 0,
+  sizeGuide = null,
+  fit = null,
+  guarantees,
+  details,
 }: {
   product: StoreProduct;
   /** Built on the server from the category tree, which the read model returns
@@ -67,6 +83,23 @@ export default function ProductView({
    * only whether the item can be bought -- the count is the shop's own figure
    * and the admin panel is where it is read. */
   showStock: boolean;
+  /** Options named in the link (`?color=grey&size=m`), opened on. */
+  requested?: Record<string, string>;
+  /** The shop's WhatsApp number, for "Ask on WhatsApp". */
+  whatsapp: string;
+  /** This page's full address, quoted in the WhatsApp message. */
+  productUrl: string;
+  /** Its place among its category's best sellers, when it has one. */
+  rank?: ProductRank | null;
+  /** At or under this many left, the page says "Only N left". */
+  lowStockThreshold?: number;
+  sizeGuide?: SizeGuideTable | null;
+  fit?: { small: number; true: number; large: number } | null;
+  /** The promises box under the delivery details. */
+  guarantees?: ReactNode;
+  /** Description, reviews and the seller: under the gallery on a wide screen,
+   * under the buy box on a phone. */
+  details?: ReactNode;
 }) {
   const router = useRouter();
 
@@ -79,8 +112,25 @@ export default function ProductView({
   const media = useMemo(() => product.media ?? [], [product.media]);
   const groupKeys = useMemo(() => optionGroups.map((group) => group.key), [optionGroups]);
 
-  const [selections, setSelections] = useState<Selections>(() => initialSelections(product));
-  const [activeMediaId, setActiveMediaId] = useState(media[0]?.id ?? "");
+  const [selections, setSelections] = useState<Selections>(() => openingSelections(product, requested));
+  const [activeMediaId, setActiveMediaId] = useState(() => {
+    const chosen = imageFor(variants, selections);
+    return chosen && media.some((item) => item.id === chosen) ? chosen : (media[0]?.id ?? "");
+  });
+  const [missing, setMissing] = useState<string | null>(null);
+  const actionsRef = useRef<HTMLDivElement>(null);
+  const [barShown, setBarShown] = useState(false);
+
+  useEffect(() => {
+    const node = actionsRef.current;
+    if (!node || typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver(
+      ([entry]) => setBarShown(!entry.isIntersecting && entry.boundingClientRect.top < 0),
+      { rootMargin: "-64px 0px 0px 0px" }
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
   const [quantity, setQuantity] = useState(1);
   const [wishlisted, setWishlisted] = useState(initiallyWishlisted);
   const [feedback, setFeedback] = useState<{ ok: boolean; message: string } | null>(null);
@@ -109,17 +159,65 @@ export default function ProductView({
   const sellable = available > 0 && !soldOutOfOptions;
   const canBuy =
     sellable && (optionGroups.length === 0 || (Boolean(variant) && selectionComplete));
+  const missingGroup = optionGroups.find((group) => !selections[group.key]) ?? null;
+  const lowStock =
+    showStock && product.tracksInventory !== false && Boolean(variant) && available > 0 && available <= lowStockThreshold;
+  const chosenText = optionGroups
+    .map((group) => group.values.find((value) => value.value === selections[group.key])?.label)
+    .filter(Boolean)
+    .join(", ");
+  const chosenQuery = optionGroups
+    .map((group) => {
+      const label = group.values.find((value) => value.value === selections[group.key])?.label;
+      return label ? `${group.key}=${optionSlug(label)}` : null;
+    })
+    .filter(Boolean)
+    .join("&");
+  const whatsappHref = `https://wa.me/${whatsapp.replace(/\D/g, "")}?text=${encodeURIComponent(
+    `Hi Zupona! I have a question about this product:\n${product.name}${chosenText ? ` (${chosenText})` : ""} – ${formatPrice(price)}\n${productUrl}${chosenQuery ? `?${chosenQuery}` : ""}`
+  )}`;
+
+  /** Buying needs every option answered. Rather than a dead button, a tap
+   * says which one is missing and takes the shopper to it. */
+  function ready(): boolean {
+    if (missingGroup) {
+      setMissing(missingGroup.key);
+      setFeedback({ ok: false, message: `Please select a ${missingGroup.name.toLowerCase()}.` });
+      document.getElementById(`option-${missingGroup.key}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+      return false;
+    }
+    if (!canBuy) {
+      setFeedback({ ok: false, message: "That combination isn't available. Try another." });
+      return false;
+    }
+    return true;
+  }
 
   function choose(groupKey: string, value: string) {
     const next = { ...selections, [groupKey]: value };
     setSelections(next);
     setFeedback(null);
+    setMissing(null);
     setQuantity(1);
 
-    // A variant with its own picture brings the gallery with it.
-    const matched = findVariant(variants, next, groupKeys);
-    if (matched?.imageId && media.some((item) => item.id === matched.imageId)) {
-      setActiveMediaId(matched.imageId);
+    // A colour with its own picture brings the gallery with it, before the
+    // size is chosen too.
+    const picture = imageFor(variants, next);
+    if (picture && media.some((item) => item.id === picture)) {
+      setActiveMediaId(picture);
+    }
+
+    // The choice goes into the address, so a shared or bookmarked link opens
+    // on the same colour and size. Other parameters (ad tracking) are kept.
+    try {
+      const url = new URL(window.location.href);
+      for (const group of optionGroups) {
+        const label = group.values.find((entry) => entry.value === next[group.key])?.label;
+        if (label) url.searchParams.set(group.key, optionSlug(label));
+      }
+      window.history.replaceState(window.history.state, "", url);
+    } catch {
+      // An address that will not update is no reason to lose the choice.
     }
   }
 
@@ -221,8 +319,8 @@ export default function ProductView({
     <>
       <button
         type="button"
-        onClick={() => startAdd(addToCart())}
-        disabled={!canBuy || addPending || buyPending}
+        onClick={() => ready() && startAdd(addToCart())}
+        disabled={!sellable || addPending || buyPending}
         className="flex min-h-[46px] flex-1 items-center justify-center gap-2 rounded-full border-2 border-brand-darkest bg-white px-4 text-sm font-extrabold text-brand-darkest transition disabled:cursor-not-allowed disabled:opacity-45 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
       >
         {addPending ? (
@@ -235,8 +333,8 @@ export default function ProductView({
 
       <button
         type="button"
-        onClick={() => startBuy(buyNow())}
-        disabled={!canBuy || addPending || buyPending}
+        onClick={() => ready() && startBuy(buyNow())}
+        disabled={!sellable || addPending || buyPending}
         className="flex min-h-[46px] flex-1 items-center justify-center gap-2 rounded-full bg-brand px-4 text-sm font-extrabold text-white transition disabled:cursor-not-allowed disabled:opacity-45 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
       >
         {buyPending ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Zap className="h-[18px] w-[18px] fill-current" />}
@@ -247,8 +345,8 @@ export default function ProductView({
 
   return (
     <>
-      <div className="tab:grid tab:grid-cols-[minmax(0,1.05fr)_minmax(320px,0.95fr)] tab:items-start tab:gap-8">
-        <div className="min-w-0">
+      <div className="tab:grid tab:grid-cols-[minmax(0,1.05fr)_minmax(320px,0.95fr)] tab:items-start tab:gap-x-8">
+        <div className="min-w-0 tab:col-start-1 tab:row-start-1">
           {breadcrumbs.length > 0 && (
             <nav aria-label="Breadcrumb" className="mb-3 hidden text-xs text-ink-soft tab:block">
               {breadcrumbs.map((crumb, index) => (
@@ -297,7 +395,10 @@ export default function ProductView({
           />
         </div>
 
-        <div className="min-w-0 pt-4 tab:pt-0">
+        {/* The buy box spans the gallery and the details beside it, and keeps
+            to the screen while they scroll past. */}
+        <div className="min-w-0 pt-4 tab:col-start-2 tab:row-span-2 tab:row-start-1 tab:self-stretch tab:pt-0">
+        <StickyColumn>
           <p className="text-[11px] font-extrabold uppercase tracking-wide text-brand">
             {product.categoryName}
             {product.brand && <span className="text-ink-soft"> · {product.brand}</span>}
@@ -365,6 +466,16 @@ export default function ProductView({
             )}
           </div>
 
+          {rank ? (
+            <Link
+              href="/best-sellers"
+              prefetch={false}
+              className="mt-1.5 inline-flex min-h-[30px] items-center gap-1.5 rounded-full bg-badge-bg px-3 text-[12px] font-bold text-heading"
+            >
+              <Trophy className="h-3.5 w-3.5 text-rating" aria-hidden />#{rank.position} best seller in {rank.category}
+            </Link>
+          ) : null}
+
           <div className="mt-3 flex flex-wrap items-baseline gap-x-2 gap-y-1">
             <span className="text-[30px] font-extrabold leading-none tracking-tight text-brand">
               {formatPrice(price)}
@@ -375,6 +486,12 @@ export default function ProductView({
             {discountPercent > 0 && (
               <span className="text-sm font-extrabold text-brand">({discountPercent}% OFF)</span>
             )}
+            {lowStock ? (
+              <span className="inline-flex items-center gap-1 self-center rounded-full bg-urgency/10 px-2.5 py-1 text-[11.5px] font-bold text-urgency">
+                <Flame className="h-3.5 w-3.5" aria-hidden />
+                Only {available} left
+              </span>
+            ) : null}
           </div>
 
           <div className="mt-4 rounded-2xl border border-line bg-white p-4">
@@ -385,7 +502,10 @@ export default function ProductView({
                   variants={variants}
                   selections={selections}
                   onSelect={choose}
+                  missing={missing}
+                  aside={(key) => (key === "size" && sizeGuide ? <SizeGuide guide={sizeGuide} fit={fit} /> : null)}
                 />
+                {fit && optionGroups.some((group) => group.key === "size") ? <FitLine fit={fit} /> : null}
               </div>
             )}
 
@@ -419,11 +539,50 @@ export default function ProductView({
             </p>
           )}
 
-          <div className="mt-4 hidden gap-3 tab:flex">{actions}</div>
+          <div ref={actionsRef} className="mt-4 hidden gap-3 tab:flex">
+            {actions}
+          </div>
+
+          <a
+            href={whatsappHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-3 flex min-h-[44px] items-center justify-center gap-2 rounded-full border border-line bg-white text-[13px] font-bold text-heading hover:border-brand"
+          >
+            <MessageCircle className="h-[18px] w-[18px] text-[#25D366]" aria-hidden />
+            Ask on WhatsApp
+          </a>
+
+          {guarantees ? <div className="mt-4">{guarantees}</div> : null}
 
           <FeatureBar features={product.features ?? []} />
+        </StickyColumn>
         </div>
+
+        {details ? <div className="mt-4 min-w-0 space-y-4 tab:col-start-1 tab:row-start-2 tab:mt-8">{details}</div> : null}
       </div>
+
+      {/* Wide screens: once the buy buttons scroll out of sight, a slim bar
+          under the header keeps them one click away. */}
+      {barShown ? (
+        <div className="fixed inset-x-0 top-16 z-30 hidden border-b border-line bg-white/95 shadow-card backdrop-blur tab:block">
+          <div className="mx-auto flex max-w-[1200px] items-center gap-3 px-6 py-2">
+            {media[0]?.poster ? (
+              <span className="relative h-11 w-11 shrink-0 overflow-hidden rounded-lg bg-mint">
+                <Image src={media.find((item) => item.id === activeMediaId)?.poster ?? media[0].poster} alt="" fill sizes="44px" className="object-cover" />
+              </span>
+            ) : null}
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[13px] font-bold text-heading">{product.name}</p>
+              <p className="text-[12px] text-ink-slate">
+                <span className="font-extrabold text-brand">{formatPrice(price)}</span>
+                {chosenText ? ` · ${chosenText}` : ""}
+              </p>
+            </div>
+            <div className="flex w-[340px] shrink-0 gap-2">{actions}</div>
+          </div>
+        </div>
+      ) : null}
 
       {/* Mobile only: the buy buttons take the bottom of the screen, where the
           tab bar sits on other pages. They go away once there is room to put
@@ -433,4 +592,18 @@ export default function ProductView({
       </div>
     </>
   );
+}
+
+/** "Most say true to size", from the reviews that answered, once enough have. */
+function FitLine({ fit }: { fit: { small: number; true: number; large: number } }) {
+  const answered = fit.small + fit.true + fit.large;
+  if (answered < 3) return null;
+  const share = (n: number) => Math.round((n / answered) * 100);
+  const lean =
+    fit.small > fit.true && fit.small >= fit.large
+      ? `${share(fit.small)}% say it runs small – consider a size up`
+      : fit.large > fit.true && fit.large > fit.small
+        ? `${share(fit.large)}% say it runs large`
+        : `${share(fit.true)}% say it fits true to size`;
+  return <p className="mt-2.5 text-[12px] font-semibold text-ink-slate">ⓘ {lean} ({answered} reviews)</p>;
 }

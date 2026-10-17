@@ -76,7 +76,7 @@ Two notes carried from building `0003`:
 
 ## Schema map
 
-67 tables, grouped by concern (the marketing, assistant, system guide and visitor activity tables are described in their migrations, 0021, 0022, 0024 and 0026; review votes and the points ledger in 0027; the coupon wallet in 0029; return requests in 0030).
+67 tables, grouped by concern (the marketing, assistant, system guide and visitor activity tables are described in their migrations, 0021, 0022, 0024 and 0026; review votes and the points ledger in 0027; the coupon wallet in 0029; return requests in 0030; product redirects in 0031).
 
 **Identity and access** — `users` (with `role`, `status`, verification flags,
 referral fields), `sessions` (with device metadata), `oauth_accounts` for
@@ -90,8 +90,10 @@ details) and `seller_documents` for KYC paperwork held in R2.
 `products`, `product_images`, `product_videos`, `product_variants`,
 `product_option_groups` / `product_option_values` / `product_variant_options`
 (the dynamic option system), `product_attributes` (spec sheet),
-`product_features` (badge icons), `inventory_movements` (the stock ledger) and
-`price_history`.
+`product_features` (badge icons), `inventory_movements` (the stock ledger),
+`price_history` and `product_redirects` (0031: a retired listing's slug and id,
+pointing at the product it was merged into by id, with the `?color=` to open
+it on; read only when a product page or `/product/<id>` finds nothing).
 
 **Shopping** — `cart_items`, `buy_now_sessions`, `wishlist_items`,
 `recently_viewed`, `search_queries`, `visitor_events` (what each browser viewed, added and bought; read by Admin → Activity).

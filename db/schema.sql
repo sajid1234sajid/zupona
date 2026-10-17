@@ -349,6 +349,18 @@ CREATE TABLE IF NOT EXISTS product_variant_options (
 
 CREATE INDEX IF NOT EXISTS idx_variant_options_value ON product_variant_options (value_id);
 
+-- Old product addresses that now live on another product, e.g. merged
+-- colour listings (0031). Target by id so a later slug rename keeps working.
+CREATE TABLE IF NOT EXISTS product_redirects (
+  from_slug TEXT PRIMARY KEY,
+  from_id TEXT,
+  to_product_id TEXT NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  query TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_product_redirects_from_id ON product_redirects (from_id);
+
 -- Free-form spec sheet (e.g. "Battery Life" -> "18 hours").
 CREATE TABLE IF NOT EXISTS product_attributes (
   id TEXT PRIMARY KEY,

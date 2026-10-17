@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import ProductHeader from "@/components/layout/ProductHeader";
 import DesktopHeader from "@/components/layout/DesktopHeader";
 import SiteFooter from "@/components/layout/SiteFooter";
@@ -22,6 +22,17 @@ import { formatPrice } from "@/lib/format";
 import { getCurrentUser } from "@/lib/session";
 import { getWishlistProductIds } from "@/lib/wishlist";
 import { getRatingBreakdown, getReviewableLines, listReviews } from "@/lib/reviews";
+import { bestSellerRanks } from "@/lib/bestSellers";
+import { getSupportContact } from "@/lib/contact";
+import { parseSizeGuide } from "@/lib/sizeGuide";
+import { getProductSeller } from "@/lib/productSeller";
+import { toSummary } from "@/lib/summary";
+import { SITE_URL } from "@/lib/shareCard";
+import { productRedirect } from "@/lib/productRedirects";
+import ProductPromises from "@/components/product/ProductPromises";
+import SellerLine from "@/components/product/SellerLine";
+import PagedProductGrid from "@/components/product/PagedProductGrid";
+import MountWhenNear from "@/components/ui/MountWhenNear";
 
 /** The dynamic product page.
  *
@@ -82,8 +93,18 @@ export async function generateMetadata({
   };
 }
 
-export default async function DynamicProductPage({ params }: PageProps<"/products/[slug]">) {
-  const { slug } = await params;
+/** How many products "More to explore" carries under the page. */
+const EXPLORE_LIMIT = 40;
+
+export default async function DynamicProductPage({ params, searchParams }: PageProps<"/products/[slug]">) {
+  const [{ slug }, query] = await Promise.all([params, searchParams]);
+  // `?color=grey&size=m` opens the page on that choice.
+  const requested = Object.fromEntries(
+    Object.entries(query).flatMap(([key, value]) => {
+      const first = Array.isArray(value) ? value[0] : value;
+      return first && /^[a-z]{1,20}$/.test(key) ? [[key, first.slice(0, 60)]] : [];
+    })
+  );
 
   const [product, user, settings] = await Promise.all([
     getStoreProductBySlug(slug),
@@ -92,10 +113,15 @@ export default async function DynamicProductPage({ params }: PageProps<"/product
   ]);
 
   // Covers both "never existed" and "unpublished in the admin panel", which
-  // should look the same to a shopper.
-  if (!product) notFound();
+  // should look the same to a shopper -- unless the listing was merged into
+  // another, whose page it now opens (with the same colour chosen).
+  if (!product) {
+    const moved = await productRedirect({ slug });
+    if (moved) permanentRedirect(moved);
+    notFound();
+  }
 
-  const [wishlistIds, department, breakdown, reviews, reviewableLines, related, facts] = await Promise.all([
+  const [wishlistIds, department, breakdown, reviews, reviewableLines, related, facts, ranks, contact, seller, popular] = await Promise.all([
     getWishlistProductIds(user?.id ?? null),
     product.categoryId ? getStoreCategory(product.categoryId) : Promise.resolve(undefined),
     getRatingBreakdown(product.id),
@@ -105,9 +131,20 @@ export default async function DynamicProductPage({ params }: PageProps<"/product
       ? listStoreProducts({ categoryId: product.categoryId, sort: "popular", limit: SIMILAR_LIMIT + 1 })
       : Promise.resolve([]),
     getPolicyFacts(),
+    bestSellerRanks().catch(() => ({}) as Awaited<ReturnType<typeof bestSellerRanks>>),
+    getSupportContact(),
+    getProductSeller(product.id).catch(() => null),
+    listStoreProducts({ sort: "popular" }),
   ]);
 
   const similar = related.filter((entry) => entry.id !== product.id).slice(0, SIMILAR_LIMIT);
+  // Everything else worth a look, most popular first, without repeating what
+  // is already on the page.
+  const shown = new Set([product.id, ...similar.map((entry) => entry.id)]);
+  const explore = popular
+    .filter((entry) => !shown.has(entry.id) && entry.inStock)
+    .slice(0, EXPLORE_LIMIT)
+    .map(toSummary);
 
   const breadcrumbs = [
     "Home",
@@ -197,23 +234,53 @@ export default async function DynamicProductPage({ params }: PageProps<"/product
             hasSimilar={similar.length > 0}
             initiallyWishlisted={wishlistIds.has(product.id)}
             showStock={settings.showStockToShoppers}
+            requested={requested}
+            whatsapp={contact.whatsapp}
+            productUrl={`${SITE_URL}/products/${product.slug}`}
+            rank={ranks[product.id] ?? null}
+            lowStockThreshold={settings.lowStockThreshold}
+            sizeGuide={parseSizeGuide(settings.sizeGuide)}
+            fit={breakdown.fit ?? null}
+            guarantees={<ProductPromises facts={facts} />}
+            details={
+              <>
+                <ProductDescription description={product.description} attributes={product.attributes ?? []} />
+                <ProductReviews
+                  productId={product.id}
+                  breakdown={breakdown}
+                  reviews={reviews}
+                  reviewableLines={reviewableLines}
+                  apparel={(product.optionGroups ?? []).some((group) => group.key === "size")}
+                  reward={{ text: settings.reviewPoints, photo: settings.reviewPhotoPoints }}
+                />
+                <SellerLine seller={seller} />
+              </>
+            }
           />
 
-          <div className="mt-4 space-y-4 tab:mt-8">
-            <ProductDescription description={product.description} attributes={product.attributes ?? []} />
-            <ProductReviews
-              productId={product.id}
-              breakdown={breakdown}
-              reviews={reviews}
-              reviewableLines={reviewableLines}
-              apparel={(product.optionGroups ?? []).some((group) => group.key === "size")}
-              reward={{ text: settings.reviewPoints, photo: settings.reviewPhotoPoints }}
-            />
+          <div className="mt-6 space-y-6 tab:mt-10">
             <SimilarProducts
               products={similar}
               wishlistIds={[...wishlistIds]}
               isSignedIn={Boolean(user)}
             />
+            {explore.length > 0 ? (
+              <section aria-labelledby="explore-title">
+                <h2 id="explore-title" className="text-base font-extrabold text-heading">
+                  More to explore
+                </h2>
+                {/* Far below the buy buttons: it mounts as the shopper scrolls
+                    towards it, so its cards cost nothing at load. */}
+                <MountWhenNear>
+                  <PagedProductGrid
+                    products={explore}
+                    wishlistIds={[...wishlistIds]}
+                    isSignedIn={Boolean(user)}
+                    className="mt-2.5"
+                  />
+                </MountWhenNear>
+              </section>
+            ) : null}
           </div>
         </StoreContainer>
       </main>

@@ -76,7 +76,7 @@ Two notes carried from building `0003`:
 
 ## Schema map
 
-64 tables, grouped by concern (the marketing, assistant, system guide and visitor activity tables are described in their migrations, 0021, 0022, 0024 and 0026).
+66 tables, grouped by concern (the marketing, assistant, system guide and visitor activity tables are described in their migrations, 0021, 0022, 0024 and 0026; review votes and the points ledger in 0027).
 
 **Identity and access** — `users` (with `role`, `status`, verification flags,
 referral fields), `sessions` (with device metadata), `oauth_accounts` for
@@ -99,8 +99,14 @@ details) and `seller_documents` for KYC paperwork held in R2.
 **Merchandising** — `coupons`, `coupon_redemptions`, `flash_sales`,
 `flash_sale_items`, `banners`.
 
-**Social proof** — `reviews`, `review_images`, `product_questions`,
+**Social proof** — `reviews` (with fit, tags and the "rewarded" flag),
+`review_images`, `review_votes` (one Helpful per shopper), `product_questions`,
 `product_answers`.
+
+**Points** — `points_ledger`, one row per change with its reason (order,
+review, redeem, adjust…). `users.points` is the cached balance; change it only
+through `src/lib/points.ts`, which writes the ledger row and moves the balance
+in one batch, and only once per (user, reason, ref).
 
 **Orders** — `orders`, `order_items`, `suborders` (one per seller in an order),
 `order_status_history`, `shipments`, `returns_refunds`, `phone_verifications`.

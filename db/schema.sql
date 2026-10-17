@@ -579,12 +579,39 @@ CREATE TABLE IF NOT EXISTS reviews (
   is_approved INTEGER NOT NULL DEFAULT 1, -- what storefront queries filter on
   status TEXT NOT NULL DEFAULT 'approved', -- approved|pending|rejected|spam (moderation queue)
   helpful_count INTEGER NOT NULL DEFAULT 0,
-  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  fit TEXT, -- small | true | large, apparel only (0027)
+  tags TEXT, -- JSON array of up to 3 tag ids (0027)
+  incentivized INTEGER NOT NULL DEFAULT 0 -- earned points: shown as "Rewarded review" (0027)
 );
 
 CREATE INDEX IF NOT EXISTS idx_reviews_product_id ON reviews (product_id);
 CREATE INDEX IF NOT EXISTS idx_reviews_user_id ON reviews (user_id);
 CREATE INDEX IF NOT EXISTS idx_reviews_status ON reviews (status);
+
+-- One "Helpful" vote per shopper per review (0027).
+CREATE TABLE IF NOT EXISTS review_votes (
+  review_id TEXT NOT NULL REFERENCES reviews(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  PRIMARY KEY (review_id, user_id)
+);
+
+-- Every change to a shopper's points, with why (0027). users.points is the
+-- cached sum, written in the same batch as each row here.
+CREATE TABLE IF NOT EXISTS points_ledger (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  delta INTEGER NOT NULL,
+  reason TEXT NOT NULL, -- order|review|signup|redeem|reverse|expire|adjust
+  ref_id TEXT,
+  note TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  expires_at TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_points_ledger_user ON points_ledger (user_id, created_at DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_points_ledger_once ON points_ledger (user_id, reason, ref_id);
 
 CREATE TABLE IF NOT EXISTS review_images (
   id TEXT PRIMARY KEY,

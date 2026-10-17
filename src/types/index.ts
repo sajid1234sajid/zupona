@@ -346,6 +346,12 @@ export interface Review {
   createdAt: string;
   /** What the reviewer bought, e.g. "Size: L", when the review came from an order. */
   purchasedOption?: string | null;
+  /** How it fitted, for apparel: small | true | large. */
+  fit?: "small" | "true" | "large" | null;
+  /** Tag ids from `REVIEW_TAGS`. */
+  tags?: string[];
+  /** The reviewer earned points for it; shown as "Rewarded review". */
+  incentivized?: boolean;
 }
 
 export type CouponType = "percent" | "fixed" | "free_shipping";

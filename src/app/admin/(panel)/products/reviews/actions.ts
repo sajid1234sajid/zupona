@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getDB } from "@/lib/db";
 import { invalidateCatalog } from "@/lib/cache";
 import { logAdminAction, requireStaff } from "@/lib/admin";
-import { recalculateRating, replyToReview } from "@/lib/reviews";
+import { recalculateRating, replyToReview, rewardReview } from "@/lib/reviews";
 
 /** Moderation states the queue offers. `is_approved` is the older two-state
  * column the storefront filters on, so it is derived from this rather than set
@@ -44,6 +44,12 @@ async function applyStatus(reviewIds: string[], status: ReviewStatus): Promise<s
 
   for (const row of affected) {
     await recalculateRating(row.product_id);
+  }
+
+  // A review held for moderation earns its points when it is published.
+  // Approving it again changes nothing: the ledger takes one entry a review.
+  if (status === "approved") {
+    for (const id of reviewIds) await rewardReview(id);
   }
 
   await invalidateCatalog();

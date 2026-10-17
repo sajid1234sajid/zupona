@@ -10,6 +10,7 @@
  * stock exactly the way an admin's would rather than through a lookalike. */
 
 import { getDB } from "@/lib/db";
+import { getShopSettings } from "@/lib/shopSettings";
 import { statusLabel } from "@/lib/orders";
 import { applyStockForStatus, FULFILMENT_RANK, type StockOutcome } from "@/lib/orderStock";
 import type { OrderStatus } from "@/types";
@@ -109,6 +110,32 @@ export async function changeOrderStatus(params: {
    * status does nothing, because the order has already left the state the move
    * would have claimed. */
   const stock = await applyStockForStatus(orderId, status);
+
+  // Delivered is the moment a review becomes possible, and the shopper is
+  // still holding the item: ask now, and say what it earns when it earns
+  // anything. A failure here must not undo the status change above.
+  if (status === "delivered") {
+    try {
+      const settings = await getShopSettings();
+      const reward =
+        settings.reviewPoints > 0 ? ` Review it and earn ${settings.reviewPoints} points.` : " Tell other shoppers what you think.";
+      await db
+        .prepare(
+          `INSERT INTO notifications (id, user_id, title, body, type, order_id)
+           VALUES (?, ?, ?, ?, 'order', ?)`
+        )
+        .bind(
+          crypto.randomUUID(),
+          before.user_id,
+          "How was your order?",
+          `Your order #${before.order_number} has arrived.${reward} Go to Account → My reviews.`,
+          orderId
+        )
+        .run();
+    } catch (error) {
+      console.error("review prompt not sent", { orderId, error });
+    }
+  }
 
   return { before: { status: before.status }, stock };
 }

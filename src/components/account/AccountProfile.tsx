@@ -14,6 +14,7 @@ import {
   Headset,
   Camera,
   ShoppingBag,
+  MessageSquareText,
 } from "lucide-react";
 import AccountHeader from "@/components/layout/AccountHeader";
 import DesktopHeader from "@/components/layout/DesktopHeader";
@@ -24,6 +25,12 @@ import { logOutAction } from "@/app/account/actions";
 import type { AuthUser, Order } from "@/types";
 
 const MENU_ITEMS = [
+  {
+    label: "My Reviews",
+    subtitle: "Review what you received",
+    icon: MessageSquareText,
+    href: "/account/reviews",
+  },
   {
     label: "Saved Addresses",
     subtitle: "Manage your delivery addresses",

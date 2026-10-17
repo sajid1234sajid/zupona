@@ -27,6 +27,7 @@ import { reserveStock, releaseReservation } from "@/lib/inventory";
 import { getBuyNowLine, consumeBuyNowSession, clearBuyNowCookie } from "@/lib/buyNow";
 import { planSuborders, commissionRates, createSuborders } from "@/lib/suborders";
 import { sendPurchase } from "@/lib/analytics";
+import { pointsStatements } from "@/lib/points";
 import { recordAction } from "@/lib/activity";
 
 export interface SendCodeState {
@@ -417,7 +418,12 @@ export async function placeOrderAction(
       .run();
   }
 
-  await db.prepare("UPDATE users SET points = points + ? WHERE id = ?").bind(pointsEarned, buyer.id).run();
+  // Through the ledger, so the points page can say which order earned them.
+  if (pointsEarned > 0) {
+    await db.batch(
+      pointsStatements(db, { userId: buyer.id, delta: pointsEarned, reason: "order", refId: orderId })
+    );
+  }
 
   // users.phone is UNIQUE, so only claim the number when it is free. A guest
   // already took it, or found its owner, in `claimGuest`.

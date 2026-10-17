@@ -206,6 +206,8 @@ export default async function DynamicProductPage({ params }: PageProps<"/product
               breakdown={breakdown}
               reviews={reviews}
               reviewableLines={reviewableLines}
+              apparel={(product.optionGroups ?? []).some((group) => group.key === "size")}
+              reward={{ text: settings.reviewPoints, photo: settings.reviewPhotoPoints }}
             />
             <SimilarProducts
               products={similar}

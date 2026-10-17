@@ -185,6 +185,64 @@ export function StoreSettingsForm({
       </Card>
 
       <Card>
+        <CardHeader
+          title="Points & Rewards"
+          subtitle="Customers earn 1 point for every ৳50 spent. These decide what points are worth and how reviews are rewarded."
+        />
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Value of 1 point (৳)" hint="e.g. 0.25 — 1,000 points = ৳250">
+            <input
+              name="point_value"
+              inputMode="decimal"
+              defaultValue={settings.pointValue}
+              className={fieldStyles}
+            />
+          </Field>
+          <Field label="Points can pay up to (% of items)">
+            <input
+              name="points_max_percent"
+              type="number"
+              min={0}
+              max={100}
+              defaultValue={settings.pointsMaxPercent}
+              className={fieldStyles}
+            />
+          </Field>
+          <Field label="Fewest points to redeem">
+            <input
+              name="points_min_redeem"
+              type="number"
+              min={0}
+              defaultValue={settings.pointsMinRedeem}
+              className={fieldStyles}
+            />
+          </Field>
+          <Field label="Points for a review" hint="Needs at least 20 characters of text. 0 = no reward">
+            <input
+              name="review_points"
+              type="number"
+              min={0}
+              defaultValue={settings.reviewPoints}
+              className={fieldStyles}
+            />
+          </Field>
+          <Field label="Extra points for a photo" hint="Added when the review has a photo">
+            <input
+              name="review_photo_points"
+              type="number"
+              min={0}
+              defaultValue={settings.reviewPhotoPoints}
+              className={fieldStyles}
+            />
+          </Field>
+        </div>
+        <p className="mt-3 text-xs text-neutral-400">
+          A review that earned points is labelled “Rewarded review” on the product page. Points never
+          depend on the star rating.
+        </p>
+      </Card>
+
+      <Card>
         <CardHeader title="Marketplace & Inventory" />
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Default commission rate (%)" hint="Applied to new distributor stores">

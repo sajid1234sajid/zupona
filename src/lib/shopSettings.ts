@@ -35,6 +35,17 @@ export interface ShopSettings {
    * anything on the storefront unseen is one bad listing away from a problem
    * the platform answers for. */
   sellerProductsNeedReview: boolean;
+  /** What one point is worth in Taka when redeemed. */
+  pointValue: number;
+  /** Points can pay at most this percent of an order's items. */
+  pointsMaxPercent: number;
+  /** The fewest points that can be redeemed at once. */
+  pointsMinRedeem: number;
+  /** Points for a published review with at least 20 characters of text. 0
+   * gives none, and then no review is labelled as rewarded. */
+  reviewPoints: number;
+  /** Extra points when the review has a photo. */
+  reviewPhotoPoints: number;
   /** Days a shopper has to return an item. 0 hides the line on product pages. */
   returnDays: number;
   /** Days a shopper has to exchange an item. 0 hides the line on product pages. */
@@ -97,6 +108,12 @@ export const DEFAULT_SETTINGS: ShopSettings = {
   cardSoldMin: 5,
   reviewsNeedApproval: false,
   sellerProductsNeedReview: true,
+  pointValue: 0.25,
+  pointsMaxPercent: 20,
+  pointsMinRedeem: 100,
+  // Off until the owner decides what a review is worth.
+  reviewPoints: 0,
+  reviewPhotoPoints: 0,
   // Zero until the shop states a policy, so no product promises one it has not made.
   returnDays: 0,
   exchangeDays: 0,
@@ -113,6 +130,12 @@ export const DEFAULT_SETTINGS: ShopSettings = {
 function readInt(raw: string | undefined, fallback: number): number {
   if (raw === undefined) return fallback;
   const parsed = Number.parseInt(raw, 10);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
+}
+
+function readDecimal(raw: string | undefined, fallback: number): number {
+  if (raw === undefined) return fallback;
+  const parsed = Number.parseFloat(raw);
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
 }
 
@@ -155,6 +178,11 @@ async function querySettings(): Promise<ShopSettings> {
       map.get("seller_products_need_review"),
       DEFAULT_SETTINGS.sellerProductsNeedReview
     ),
+    pointValue: readDecimal(map.get("point_value"), DEFAULT_SETTINGS.pointValue),
+    pointsMaxPercent: Math.min(100, readInt(map.get("points_max_percent"), DEFAULT_SETTINGS.pointsMaxPercent)),
+    pointsMinRedeem: readInt(map.get("points_min_redeem"), DEFAULT_SETTINGS.pointsMinRedeem),
+    reviewPoints: readInt(map.get("review_points"), DEFAULT_SETTINGS.reviewPoints),
+    reviewPhotoPoints: readInt(map.get("review_photo_points"), DEFAULT_SETTINGS.reviewPhotoPoints),
     returnDays: readInt(map.get("return_days"), DEFAULT_SETTINGS.returnDays),
     exchangeDays: readInt(map.get("exchange_days"), DEFAULT_SETTINGS.exchangeDays),
     guestCheckoutEnabled: readFlag(

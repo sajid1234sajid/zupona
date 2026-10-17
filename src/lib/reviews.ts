@@ -7,6 +7,9 @@
 import { getDB } from "@/lib/db";
 import { DELIVERED_AFTER_HOURS } from "@/lib/orders";
 import type { Review } from "@/types";
+import { getShopSettings } from "@/lib/shopSettings";
+import { pointsStatements } from "@/lib/points";
+import { REVIEW_TAGS, type ReviewFit } from "@/lib/reviewTags";
 
 interface ReviewRow {
   id: string;
@@ -21,6 +24,19 @@ interface ReviewRow {
   seller_reply: string | null;
   helpful_count: number;
   created_at: string;
+  fit: string | null;
+  tags: string | null;
+  incentivized: number;
+}
+
+function parseTags(raw: string | null): string[] {
+  if (!raw) return [];
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter((t): t is string => typeof t === "string") : [];
+  } catch {
+    return [];
+  }
 }
 
 function toReview(row: ReviewRow, images: string[] = [], purchasedOption: string | null = null): Review {
@@ -38,6 +54,9 @@ function toReview(row: ReviewRow, images: string[] = [], purchasedOption: string
     images,
     createdAt: row.created_at,
     purchasedOption,
+    fit: row.fit === "small" || row.fit === "true" || row.fit === "large" ? row.fit : null,
+    tags: parseTags(row.tags),
+    incentivized: row.incentivized === 1,
   };
 }
 
@@ -50,7 +69,8 @@ export async function listReviews(
     .prepare(
       `SELECT r.id, r.product_id, r.user_id, u.name AS user_name, r.order_item_id,
               oi.color AS line_label, r.rating,
-              r.title, r.body, r.seller_reply, r.helpful_count, r.created_at
+              r.title, r.body, r.seller_reply, r.helpful_count, r.created_at,
+              r.fit, r.tags, r.incentivized
        FROM reviews r
        JOIN users u ON u.id = r.user_id
        LEFT JOIN order_items oi ON oi.id = r.order_item_id
@@ -111,31 +131,73 @@ export interface RatingBreakdown {
   total: number;
   /** Count of reviews at each star level, indexed 1-5. */
   counts: Record<1 | 2 | 3 | 4 | 5, number>;
+  /** How apparel fitted, from the reviews that said. */
+  fit: { small: number; true: number; large: number };
+  /** Tag id -> how many reviews picked it, most picked first. */
+  tags: { id: string; count: number }[];
+  /** Reviews with at least one photo. */
+  withPhotos: number;
+  /** The newest customer photos, for the strip above the reviews. */
+  photos: string[];
 }
 
-/** The star histogram shown on a product page. */
+/** Everything the summary above the reviews shows, from approved reviews. */
 export async function getRatingBreakdown(productId: string): Promise<RatingBreakdown> {
   const db = await getDB();
-  const { results } = await db
-    .prepare(
-      `SELECT rating, COUNT(*) AS n FROM reviews
-       WHERE product_id = ? AND is_approved = 1 GROUP BY rating`
-    )
-    .bind(productId)
-    .all<{ rating: number; n: number }>();
+  const [ratings, extras, photos] = await db.batch<Record<string, unknown>>([
+    db
+      .prepare(
+        `SELECT rating, COUNT(*) AS n FROM reviews
+         WHERE product_id = ? AND is_approved = 1 GROUP BY rating`
+      )
+      .bind(productId),
+    db
+      .prepare(
+        `SELECT fit, tags FROM reviews
+         WHERE product_id = ? AND is_approved = 1 AND (fit IS NOT NULL OR tags IS NOT NULL)`
+      )
+      .bind(productId),
+    db
+      .prepare(
+        `SELECT i.url, i.review_id FROM review_images i
+         JOIN reviews r ON r.id = i.review_id
+         WHERE r.product_id = ? AND r.is_approved = 1
+         ORDER BY r.created_at DESC LIMIT 40`
+      )
+      .bind(productId),
+  ]);
 
   const counts: Record<1 | 2 | 3 | 4 | 5, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
   let total = 0;
   let sum = 0;
-
-  for (const row of results) {
+  for (const row of ratings.results as unknown as { rating: number; n: number }[]) {
     const star = Math.min(5, Math.max(1, row.rating)) as 1 | 2 | 3 | 4 | 5;
     counts[star] = row.n;
     total += row.n;
     sum += row.rating * row.n;
   }
 
-  return { average: total === 0 ? 0 : Math.round((sum / total) * 10) / 10, total, counts };
+  const fit = { small: 0, true: 0, large: 0 };
+  const tagCounts = new Map<string, number>();
+  for (const row of extras.results as unknown as { fit: string | null; tags: string | null }[]) {
+    if (row.fit === "small" || row.fit === "true" || row.fit === "large") fit[row.fit]++;
+    for (const tag of parseTags(row.tags)) tagCounts.set(tag, (tagCounts.get(tag) ?? 0) + 1);
+  }
+
+  const photoRows = photos.results as unknown as { url: string; review_id: string }[];
+
+  return {
+    average: total === 0 ? 0 : Math.round((sum / total) * 10) / 10,
+    total,
+    counts,
+    fit,
+    tags: [...tagCounts.entries()]
+      .filter(([id]) => REVIEW_TAGS.some((tag) => tag.id === id))
+      .sort((a, b) => b[1] - a[1])
+      .map(([id, count]) => ({ id, count })),
+    withPhotos: new Set(photoRows.map((row) => row.review_id)).size,
+    photos: photoRows.slice(0, 20).map((row) => row.url),
+  };
 }
 
 /* -------------------------------------------------------------------------- */
@@ -245,6 +307,8 @@ export interface ReviewInput {
   orderItemId?: string | null;
   /** "pending" holds the review for moderation. */
   status?: "approved" | "pending";
+  fit?: ReviewFit | null;
+  tags?: string[];
 }
 
 /** Writes a review and refreshes the product's rating aggregate in the same
@@ -265,8 +329,8 @@ export async function createReview(input: ReviewInput): Promise<string | null> {
   const [inserted] = await db.batch([
     db
       .prepare(
-        `INSERT INTO reviews (id, product_id, user_id, order_item_id, rating, title, body, status, is_approved)
-         SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?
+        `INSERT INTO reviews (id, product_id, user_id, order_item_id, rating, title, body, status, is_approved, fit, tags)
+         SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
          WHERE ? IS NULL OR NOT EXISTS (SELECT 1 FROM reviews WHERE order_item_id = ?)`
       )
       .bind(
@@ -279,6 +343,8 @@ export async function createReview(input: ReviewInput): Promise<string | null> {
         input.body ?? null,
         status,
         status === "approved" ? 1 : 0,
+        input.fit ?? null,
+        input.tags && input.tags.length > 0 ? JSON.stringify(input.tags) : null,
         orderItemId,
         orderItemId
       ),
@@ -347,10 +413,134 @@ export async function replyToReview(reviewId: string, reply: string): Promise<vo
     .run();
 }
 
-export async function markHelpful(reviewId: string): Promise<void> {
+/** One "Helpful" per shopper per review; the count is recounted from the
+ * votes, so pressing again changes nothing. Returns the new count. */
+export async function voteHelpful(reviewId: string, userId: string): Promise<number> {
   const db = await getDB();
-  await db
-    .prepare("UPDATE reviews SET helpful_count = helpful_count + 1 WHERE id = ?")
+  const [, , row] = await db.batch<{ helpful_count: number }>([
+    db
+      .prepare("INSERT OR IGNORE INTO review_votes (review_id, user_id) VALUES (?, ?)")
+      .bind(reviewId, userId),
+    db
+      .prepare(
+        "UPDATE reviews SET helpful_count = (SELECT COUNT(*) FROM review_votes WHERE review_id = ?) WHERE id = ?"
+      )
+      .bind(reviewId, reviewId),
+    db.prepare("SELECT helpful_count FROM reviews WHERE id = ?").bind(reviewId),
+  ]);
+  return row.results[0]?.helpful_count ?? 0;
+}
+
+/** Points for a published review, once: `reviewPoints` when it has at least
+ * 20 characters of text, plus `reviewPhotoPoints` with a photo -- never more
+ * or less for the stars it gives. A review that earned points is marked so
+ * the page can say so. Safe to call again: the ledger takes one review entry
+ * per review. */
+export async function rewardReview(reviewId: string): Promise<number> {
+  const [settings, db] = await Promise.all([getShopSettings(), getDB()]);
+  if (settings.reviewPoints <= 0 && settings.reviewPhotoPoints <= 0) return 0;
+
+  const review = await db
+    .prepare(
+      `SELECT r.user_id, r.body, r.is_approved,
+              EXISTS (SELECT 1 FROM review_images i WHERE i.review_id = r.id) AS has_photo
+       FROM reviews r WHERE r.id = ?`
+    )
     .bind(reviewId)
-    .run();
+    .first<{ user_id: string; body: string | null; is_approved: number; has_photo: number }>();
+  if (!review || review.is_approved !== 1) return 0;
+
+  const written = (review.body ?? "").trim().length >= 20;
+  const points =
+    (written ? settings.reviewPoints : 0) + (written && review.has_photo ? settings.reviewPhotoPoints : 0);
+  if (points <= 0) return 0;
+
+  await db.batch([
+    ...pointsStatements(db, { userId: review.user_id, delta: points, reason: "review", refId: reviewId }),
+    db.prepare("UPDATE reviews SET incentivized = 1 WHERE id = ?").bind(reviewId),
+  ]);
+  return points;
+}
+
+export interface ReviewTask {
+  orderItemId: string;
+  orderNumber: string;
+  productId: string;
+  slug: string | null;
+  name: string;
+  image: string;
+  label: string | null;
+  deliveredAt: string;
+}
+
+/** For Account > My reviews: what the shopper can still review, and what they
+ * already have. */
+export async function getMyReviews(userId: string): Promise<{
+  toReview: ReviewTask[];
+  reviewed: (Review & { productName: string; productSlug: string | null; productImage: string })[];
+}> {
+  const db = await getDB();
+  const [pending, done] = await db.batch<Record<string, unknown>>([
+    db
+      .prepare(
+        `SELECT oi.id, o.order_number, oi.product_id, oi.name, oi.image, oi.color,
+                o.placed_at AS delivered_at,
+                CASE WHEN p.status = 'active' THEN p.slug END AS slug
+         FROM order_items oi
+         JOIN orders o ON o.id = oi.order_id
+         LEFT JOIN products p ON p.id = oi.product_id
+         WHERE o.user_id = ? AND ${DELIVERED_SQL}
+           AND NOT EXISTS (SELECT 1 FROM reviews r WHERE r.order_item_id = oi.id)
+         ORDER BY o.placed_at DESC LIMIT 50`
+      )
+      .bind(userId, DELIVERED_BIND),
+    db
+      .prepare(
+        `SELECT r.id, r.product_id, r.user_id, u.name AS user_name, r.order_item_id,
+                oi.color AS line_label, r.rating, r.title, r.body, r.seller_reply,
+                r.helpful_count, r.created_at, r.fit, r.tags, r.incentivized,
+                p.name AS product_name, CASE WHEN p.status = 'active' THEN p.slug END AS product_slug,
+                COALESCE(oi.image, (SELECT url FROM product_images i WHERE i.product_id = p.id
+                  ORDER BY i.is_primary DESC, i.sort_order ASC LIMIT 1), '') AS product_image
+         FROM reviews r
+         JOIN users u ON u.id = r.user_id
+         LEFT JOIN order_items oi ON oi.id = r.order_item_id
+         LEFT JOIN products p ON p.id = r.product_id
+         WHERE r.user_id = ?
+         ORDER BY r.created_at DESC LIMIT 100`
+      )
+      .bind(userId),
+  ]);
+
+  return {
+    toReview: (pending.results as unknown as {
+      id: string;
+      order_number: string;
+      product_id: string;
+      name: string;
+      image: string;
+      color: string | null;
+      delivered_at: string;
+      slug: string | null;
+    }[]).map((row) => ({
+      orderItemId: row.id,
+      orderNumber: row.order_number,
+      productId: row.product_id,
+      slug: row.slug,
+      name: row.name,
+      image: row.image,
+      label: row.color,
+      deliveredAt: row.delivered_at,
+    })),
+    reviewed: (done.results as unknown as (ReviewRow & {
+      product_name: string | null;
+      product_slug: string | null;
+      product_image: string;
+    })[]).map((row) => ({
+      ...toReview(row, [], row.line_label),
+      productName: row.product_name ?? "Product",
+      productSlug: row.product_slug,
+      productImage: row.product_image,
+    })),
+  };
 }

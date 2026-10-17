@@ -33,6 +33,11 @@ const EDITABLE: Record<string, "text" | "number" | "boolean"> = {
   show_stock_to_shoppers: "boolean",
   card_sold_min: "number",
   return_days: "number",
+  point_value: "text",
+  points_max_percent: "number",
+  points_min_redeem: "number",
+  review_points: "number",
+  review_photo_points: "number",
   exchange_days: "number",
   reviews_need_approval: "boolean",
   seller_products_need_review: "boolean",
@@ -154,6 +159,15 @@ export async function saveSettingsAction(
         const phone = normalizeBdPhone(value);
         if (!phone) return { error: "Enter the WhatsApp number as a Bangladeshi mobile, e.g. 01712345678." };
         changed[key] = phone;
+        continue;
+      }
+
+      if (key === "point_value") {
+        const parsed = Number.parseFloat(value);
+        if (!Number.isFinite(parsed) || parsed < 0 || parsed > 10) {
+          return { error: "Point value must be a Taka amount between 0 and 10, e.g. 0.25." };
+        }
+        changed[key] = String(Math.round(parsed * 100) / 100);
         continue;
       }
 

@@ -1,5 +1,6 @@
 "use server";
 
+import { pointsStatements } from "@/lib/points";
 import { revalidatePath } from "next/cache";
 import { getDB } from "@/lib/db";
 import { logAdminAction, requireAdmin, setUserRole, setUserStatus } from "@/lib/admin";
@@ -82,12 +83,17 @@ export async function adjustPointsAction(formData: FormData): Promise<void> {
   if (!userId || !Number.isFinite(delta) || delta === 0) return;
 
   const db = await getDB();
-  await db
-    .prepare(
-      "UPDATE users SET points = MAX(0, points + ?), updated_at = datetime('now') WHERE id = ?"
-    )
-    .bind(delta, userId)
-    .run();
+  // A ledger row with the admin's reason, so the shopper's points history
+  // explains the change.
+  await db.batch(
+    pointsStatements(db, {
+      userId,
+      delta,
+      reason: "adjust",
+      refId: crypto.randomUUID(),
+      note: reason,
+    })
+  );
 
   await db
     .prepare(

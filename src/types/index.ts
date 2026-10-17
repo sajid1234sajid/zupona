@@ -121,6 +121,8 @@ export interface ProductSummary {
   soldCount?: number;
   stockLeft?: number | null;
   freeDelivery?: boolean;
+  /** The running flash sale's name, shown as a chip on the card while it lasts. */
+  campaign?: string | null;
   badgeLabel?: string | null;
   bestSeller?: boolean;
   brand?: string | null;

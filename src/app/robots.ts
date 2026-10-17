@@ -18,7 +18,7 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: "*",
       allow: "/",
-      disallow: ["/account", "/cart", "/checkout", "/wishlist", "/admin", "/api/"],
+      disallow: ["/account", "/cart", "/checkout", "/wishlist", "/admin", "/api/", "/dev/"],
     },
     sitemap: "https://zupona.com/sitemap.xml",
   };

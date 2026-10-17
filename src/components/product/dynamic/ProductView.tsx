@@ -5,6 +5,9 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Flame, Heart, LayoutGrid, LoaderCircle, MessageCircle, ShoppingCart, Star, Trophy, Zap } from "lucide-react";
 import Image from "@/components/ui/StoreImage";
+import Badge from "@/components/ui/Badge";
+import Price from "@/components/ui/Price";
+import RatingStars from "@/components/ui/RatingStars";
 import type { ProductRank } from "@/lib/bestSellers";
 import type { SizeGuide as SizeGuideTable } from "@/lib/sizeGuide";
 import type { StoreProduct } from "@/lib/storefront";
@@ -143,7 +146,7 @@ export default function ProductView({
     () => findVariant(variants, selections, groupKeys),
     [variants, selections, groupKeys]
   );
-  const { price, compareAtPrice, available, discountPercent } = resolvePricing(product, variant);
+  const { price, compareAtPrice, available } = resolvePricing(product, variant);
 
   // Every group has to be answered before anything can be bought, so a shirt
   // cannot be added with a colour and no size.
@@ -439,14 +442,13 @@ export default function ProductView({
               href="#reviews"
               className="flex min-h-[36px] items-center gap-1 rounded-md font-semibold text-heading focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
             >
-              {reviewSummary.total > 0 && (
-                <>
-                  <Star className="h-4 w-4 fill-gold text-gold" aria-hidden />
-                  {reviewSummary.average.toFixed(1)}
-                  <span className="text-ink-muted">·</span>
-                </>
-              )}
-              {reviewSummary.total} {reviewSummary.total === 1 ? "Review" : "Reviews"}
+              <RatingStars
+                value={reviewSummary.average}
+                count={reviewSummary.total}
+                size="md"
+                showValue
+                empty="No reviews yet"
+              />
             </a>
             <span aria-hidden className="mx-2.5 h-3.5 w-px bg-line" />
             <span className="font-semibold text-heading">
@@ -467,30 +469,20 @@ export default function ProductView({
           </div>
 
           {rank ? (
-            <Link
-              href="/best-sellers"
-              prefetch={false}
-              className="mt-1.5 inline-flex min-h-[30px] items-center gap-1.5 rounded-full bg-badge-bg px-3 text-[12px] font-bold text-heading"
-            >
-              <Trophy className="h-3.5 w-3.5 text-rating" aria-hidden />#{rank.position} best seller in {rank.category}
+            <Link href="/best-sellers" prefetch={false} className="mt-1.5 inline-flex">
+              <Badge kind="rank">
+                <Trophy className="h-3.5 w-3.5 text-rating" aria-hidden />#{rank.position} best seller in {rank.category}
+              </Badge>
             </Link>
           ) : null}
 
-          <div className="mt-3 flex flex-wrap items-baseline gap-x-2 gap-y-1">
-            <span className="text-[30px] font-extrabold leading-none tracking-tight text-brand">
-              {formatPrice(price)}
-            </span>
-            {compareAtPrice > price && (
-              <span className="text-sm text-ink-faint line-through">{formatPrice(compareAtPrice)}</span>
-            )}
-            {discountPercent > 0 && (
-              <span className="text-sm font-extrabold text-brand">({discountPercent}% OFF)</span>
-            )}
+          <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1">
+            <Price price={price} compareAt={compareAtPrice} size="pdp" />
             {lowStock ? (
-              <span className="inline-flex items-center gap-1 self-center rounded-full bg-urgency/10 px-2.5 py-1 text-[11.5px] font-bold text-urgency">
+              <Badge kind="lowStock">
                 <Flame className="h-3.5 w-3.5" aria-hidden />
                 Only {available} left
-              </span>
+              </Badge>
             ) : null}
           </div>
 

@@ -7,6 +7,7 @@ import Link from "next/link";
 import { Minus, Plus, Trash2 } from "lucide-react";
 import type { CartItem } from "@/types";
 import { formatPrice } from "@/lib/format";
+import Price from "@/components/ui/Price";
 import { updateCartQuantityAction, removeFromCartAction } from "@/app/cart/actions";
 
 export default function CartItemRow({ item }: { item: CartItem }) {
@@ -53,11 +54,11 @@ export default function CartItemRow({ item }: { item: CartItem }) {
         </div>
 
         <div className="flex items-center justify-between">
-          <span
-            className={`text-sm font-bold ${gone ? "text-ink-slate line-through" : "text-heading"}`}
-          >
-            {formatPrice(item.product.price)}
-          </span>
+          {gone ? (
+            <span className="text-sm font-bold text-ink-slate line-through">{formatPrice(item.product.price)}</span>
+          ) : (
+            <Price price={item.product.price} compareAt={item.product.oldPrice} size="cart" />
+          )}
 
           <div className="flex items-center gap-2">
             {/* The stepper is pointless on a line that cannot be bought, and

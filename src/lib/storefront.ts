@@ -62,6 +62,9 @@ export interface StoreProductCard {
   /** Units left, only when the shop shows stock to shoppers and this product
    * has fallen to its low-stock threshold; otherwise null, so the count of a
    * well-stocked product never reaches the browser. */
+  /** The running flash sale's name, set per request by `withCampaign()`;
+   * never cached with the row, since a sale starts and ends on the clock. */
+  campaign?: string | null;
   stockLeft: number | null;
   /** This product carries its own delivery. */
   freeDelivery: boolean;

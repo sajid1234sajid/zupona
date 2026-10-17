@@ -410,6 +410,20 @@ export default function FeaturedProducts({
             // happens to have.
             <div ref={sentinelRef} aria-hidden className="h-1 w-full" />
           )}
+          {!hasMore && matching.length > 8 ? (
+            // The end of the feed says so, rather than leaving the shopper
+            // scrolling into the footer wondering whether more is coming.
+            <p className="py-6 text-center text-[12px] text-ink-muted tab:text-sm">
+              You&apos;ve seen all {matching.length} products.{" "}
+              <button
+                type="button"
+                onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+                className="font-semibold text-brand"
+              >
+                Back to top
+              </button>
+            </p>
+          ) : null}
         </div>
       </section>
     </>

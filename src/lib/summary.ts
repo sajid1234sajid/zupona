@@ -29,5 +29,6 @@ export function toSummary(product: StoreProductCard): ProductSummary {
     hasOptions: product.hasOptions,
     hasVideo: product.hasVideo,
     rank: product.rank ?? null,
+    campaign: product.campaign ?? null,
   };
 }

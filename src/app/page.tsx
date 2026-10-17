@@ -10,6 +10,7 @@ import HideWhileSearching from "@/components/search/HideWhileSearching";
 import ScamNotice from "@/components/info/ScamNotice";
 import TrustBar from "@/components/home/TrustBar";
 import HomeRails from "@/components/home/HomeRails";
+import { liveFlashSale, withCampaign } from "@/lib/offers";
 import { getCurrentUser } from "@/lib/session";
 import { getWishlistProductIds } from "@/lib/wishlist";
 import { listStoreCategories, listStoreProducts, withProducts } from "@/lib/storefront";
@@ -26,11 +27,14 @@ import { categoryWordsOf } from "@/lib/productSearch";
  * alongside them rather than one after another. */
 export default async function Home() {
   const user = await getCurrentUser();
-  const [wishlistIds, catalog, categories] = await Promise.all([
+  const [wishlistIds, rows, categories, sale] = await Promise.all([
     getWishlistProductIds(user?.id ?? null),
     listStoreProducts({ sort: "popular" }),
     listStoreCategories(),
+    liveFlashSale().catch(() => null),
   ]);
+  // Products in a running flash sale carry its name on their cards.
+  const catalog = await withCampaign(rows, sale);
 
   const featured = catalog.filter((product) => product.featured);
 
@@ -66,6 +70,7 @@ export default async function Home() {
             <ScamNotice className="mx-3.5 mt-3 tab:mx-0" />
             <HomeRails
               catalog={catalog}
+              sale={sale}
               wishlistIds={Array.from(wishlistIds)}
               isSignedIn={Boolean(user)}
             />

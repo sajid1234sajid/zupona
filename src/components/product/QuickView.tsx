@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { ChevronRight, LoaderCircle, ShoppingCart, X } from "lucide-react";
 import Image from "@/components/ui/StoreImage";
 import type { StoreProduct } from "@/lib/storefront";
-import { formatPrice } from "@/lib/format";
+import Price from "@/components/ui/Price";
 import { addSelectionToCartAction } from "@/app/cart/actions";
 import { callAction } from "@/lib/callAction";
 import { signalCartAdd } from "@/lib/cartSignal";
@@ -229,17 +229,5 @@ export default function QuickView({
 }
 
 function Prices({ pricing }: { pricing: { price: number; compareAtPrice: number; discountPercent: number } }) {
-  return (
-    <p className="mt-1.5 flex flex-wrap items-baseline gap-x-2">
-      <span className="text-xl font-extrabold text-price">{formatPrice(pricing.price)}</span>
-      {pricing.compareAtPrice > pricing.price ? (
-        <span className="text-[13px] text-price-was line-through">{formatPrice(pricing.compareAtPrice)}</span>
-      ) : null}
-      {pricing.discountPercent > 0 ? (
-        <span className="rounded bg-discount px-1.5 py-0.5 text-[11px] font-bold text-white">
-          -{pricing.discountPercent}%
-        </span>
-      ) : null}
-    </p>
-  );
+  return <Price price={pricing.price} compareAt={pricing.compareAtPrice} size="sheet" className="mt-1.5" />;
 }

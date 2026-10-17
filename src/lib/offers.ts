@@ -292,3 +292,16 @@ export async function freeDeliveryProgress(subtotal: number): Promise<{
     enabled: true,
   };
 }
+
+/** Marks the products in the running flash sale with its name, which their
+ * cards show as a chip while it lasts (Doc 03 §4.5). Takes the sale when the
+ * caller already read it, so a page reads it once. */
+export async function withCampaign<T extends { id: string }>(
+  cards: T[],
+  given?: Awaited<ReturnType<typeof liveFlashSale>>
+): Promise<(T & { campaign?: string | null })[]> {
+  const sale = given === undefined ? await liveFlashSale().catch(() => null) : given;
+  if (!sale) return cards;
+  const inSale = new Set(sale.items.filter((item) => !item.soldOut).map((item) => item.product.id));
+  return cards.map((card) => (inSale.has(card.id) ? { ...card, campaign: sale.name } : card));
+}

@@ -5,9 +5,11 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Image from "@/components/ui/StoreImage";
-import { Star, Heart, LoaderCircle, Check, ShoppingCart, Truck, Play, Trophy } from "lucide-react";
+import { Heart, LoaderCircle, Check, ShoppingCart, Truck, Play, Trophy } from "lucide-react";
+import Badge from "@/components/ui/Badge";
+import RatingStars from "@/components/ui/RatingStars";
+import { PriceNow, PriceWas } from "@/components/ui/Price";
 import type { ProductSummary } from "@/types";
-import { formatPrice } from "@/lib/format";
 import { toggleWishlistAction } from "@/app/wishlist/actions";
 import { addSelectionToCartAction } from "@/app/cart/actions";
 import { callAction } from "@/lib/callAction";
@@ -30,7 +32,7 @@ export function soldLabel(count: number): string {
 /** The tag printed before the name: the admin panel's badge, or "Best Seller"
  * for a product ticked as one without a badge of its own. */
 function tagFor(product: ProductSummary): string | null {
-  return product.badgeLabel || (product.bestSeller ? "Best Seller" : null);
+  return product.campaign || product.badgeLabel || (product.bestSeller ? "Best Seller" : null);
 }
 
 /** How many of a card's optional lines this product has, which is what makes
@@ -244,29 +246,15 @@ export default function ProductCard({
               of the name. */}
           <h3 className="line-clamp-2 text-[12px] font-medium leading-[1.3] text-heading tab:text-[14px]">
             {tag && (
-              <span className="mr-1 hidden @[150px]:inline-block rounded-[3px] bg-urgency px-1 align-[1px] text-[9px] font-bold leading-[1.45] text-white">
+              <Badge kind={product.campaign ? "seasonal" : "label"} size="xs" className="mr-1 hidden align-[1px] @[150px]:inline-flex">
                 {tag}
-              </span>
+              </Badge>
             )}
             {product.name}
           </h3>
         </Link>
 
-        {product.reviews > 0 && (
-          <span className="flex items-center gap-[1px] text-[10px] leading-none text-ink-slate">
-            {[1, 2, 3, 4, 5].map((star) => (
-              <Star
-                key={star}
-                className={`h-2.5 w-2.5 shrink-0 ${
-                  star <= Math.round(product.rating)
-                    ? "fill-rating text-rating"
-                    : "fill-line text-line"
-                }`}
-              />
-            ))}
-            <span className="ml-0.5">{product.reviews}</span>
-          </span>
-        )}
+        <RatingStars value={product.rating} count={product.reviews} size="xs" />
 
         {/* Price and the cart button share one row, the button at the right
             edge. "Sold" rides beside the price where there is room for it; the
@@ -274,9 +262,7 @@ export default function ProductCard({
             out rather than squeezing the price. */}
         <div className="flex items-center justify-between gap-1">
           <span className="flex min-w-0 items-baseline gap-1">
-            <span className="whitespace-nowrap text-[13px] font-extrabold leading-tight text-price tab:text-[15px]">
-              {formatPrice(product.price)}
-            </span>
+            <PriceNow price={product.price} size="card" />
             {soldCount > 0 && (
               <span className="hidden truncate text-[10px] leading-tight text-ink-slate @[150px]:inline">
                 {soldLabel(soldCount)}
@@ -301,21 +287,7 @@ export default function ProductCard({
           </button>
         </div>
 
-        {product.oldPrice > product.price && (
-          <span className="flex flex-wrap items-baseline gap-x-1 text-[10px] leading-tight">
-            <span className="whitespace-nowrap text-price-was line-through">
-              {formatPrice(product.oldPrice)}
-            </span>
-            {product.discountPercent > 0 && (
-              <span className="whitespace-nowrap font-bold text-discount">
-                <span className="@[150px]:hidden">-{product.discountPercent}%</span>
-                <span className="hidden @[150px]:inline">
-                  ({product.discountPercent}% OFF)
-                </span>
-              </span>
-            )}
-          </span>
-        )}
+        <PriceWas price={product.price} compareAt={product.oldPrice} size="card" />
 
         {product.rank ? (
           <span className="flex min-w-0 items-center gap-1 text-[10px] font-bold leading-tight text-urgency">

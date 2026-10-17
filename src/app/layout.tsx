@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Poppins } from "next/font/google";
+import { Hind_Siliguri, Poppins } from "next/font/google";
 import ServiceWorkerRegistration from "@/components/app/ServiceWorkerRegistration";
 import AppBanner from "@/components/app/AppBanner";
 import { appBannerScript } from "@/components/app/appBannerScript";
@@ -16,6 +16,18 @@ const poppins = Poppins({
   variable: "--font-poppins",
   subsets: ["latin"],
   weight: ["400", "500", "600", "700", "800"],
+});
+
+/* Bengali text (product descriptions, the owner's taglines) in one consistent
+ * face instead of whatever the phone has. Poppins has no Bengali letters, so
+ * the browser reaches for this only for those characters, and the font's
+ * unicode-range means a page with no Bengali never downloads it -- hence no
+ * preload. */
+const bengali = Hind_Siliguri({
+  variable: "--font-bengali",
+  subsets: ["bengali"],
+  weight: ["400", "600"],
+  preload: false,
 });
 
 /* The display serif that used to be loaded here is gone. `--font-serif` in
@@ -97,7 +109,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
     // `data-app-banner` to this element before React hydrates it.
     <html
       lang="en"
-      className={`${poppins.variable} h-full antialiased`}
+      className={`${poppins.variable} ${bengali.variable} h-full antialiased`}
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col bg-white">

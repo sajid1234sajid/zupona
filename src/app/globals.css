@@ -142,7 +142,7 @@
   --color-badge-bg: var(--color-badge-bg);
   --color-trustbar-bg: var(--color-trustbar-bg);
   --color-skeleton: var(--color-skeleton);
-  --font-sans: var(--font-poppins);
+  --font-sans: var(--font-poppins), var(--font-bengali);
   /* A system serif rather than a downloaded one. The display headline this
    * token dresses only renders when no banner artwork has been uploaded --
    * uploaded banners carry their own headline -- so Playfair Display was being
@@ -167,7 +167,7 @@
 body {
   background: #ffffff;
   color: var(--color-ink);
-  font-family: var(--font-poppins), Arial, Helvetica, sans-serif;
+  font-family: var(--font-poppins), var(--font-bengali), Arial, Helvetica, sans-serif;
   /* The platform's own subpixel rendering, deliberately: grayscale smoothing
    * thins these weights and is what makes small copy read washed out rather
    * than sharp. `optimizeLegibility` is left off for the same reason -- it

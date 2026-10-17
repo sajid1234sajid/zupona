@@ -18,15 +18,17 @@ const RAIL_LENGTH = 12;
  * would be short. */
 export default async function HomeRails({
   catalog,
+  sale,
   wishlistIds,
   isSignedIn,
 }: {
   catalog: StoreProductCard[];
+  /** The running flash sale, read once by the page. */
+  sale: Awaited<ReturnType<typeof liveFlashSale>>;
   wishlistIds: string[];
   isSignedIn: boolean;
 }) {
-  const [sale, units, newest] = await Promise.all([
-    liveFlashSale().catch(() => null),
+  const [units, newest] = await Promise.all([
     unitsSold(30).catch(() => ({}) as Record<string, number>),
     listStoreProducts({ sort: "newest", limit: RAIL_LENGTH }),
   ]);
@@ -40,7 +42,7 @@ export default async function HomeRails({
       .filter((item) => !item.soldOut)
       .map((item) => {
         const card = byId.get(item.product.id);
-        const base = card ? toSummary(card) : item.product;
+        const base = { ...(card ? toSummary(card) : item.product), campaign: sale.name };
         const was = Math.max(base.oldPrice, base.price);
         return {
           ...base,

@@ -64,6 +64,8 @@ interface OrderRow {
   shipping_fee: number;
   total: number;
   points_earned: number;
+  discount_total: number | null;
+  coupon_code: string | null;
   address_label: string;
   address_full_name: string;
   address_phone: string;
@@ -111,6 +113,8 @@ function toOrder(row: OrderRow, itemRows: OrderItemRow[]): Order {
     shippingFee: row.shipping_fee,
     total: row.total,
     pointsEarned: row.points_earned,
+    discountTotal: row.discount_total ?? 0,
+    couponCode: row.coupon_code,
     addressLabel: row.address_label,
     addressFullName: row.address_full_name,
     addressPhone: row.address_phone,
@@ -133,7 +137,7 @@ export async function getOrders(userId: string): Promise<Order[]> {
   const db = await getDB();
   const { results: orderRows } = await db
     .prepare(
-      `SELECT id, order_number, status, subtotal, shipping_fee, total, points_earned,
+      `SELECT id, order_number, status, subtotal, shipping_fee, total, points_earned, discount_total, coupon_code,
               address_label, address_full_name, address_phone, address_line, address_area,
               address_district, address_city, payment_label, delivery_method, placed_at
        FROM orders WHERE user_id = ? ORDER BY placed_at DESC`
@@ -162,7 +166,7 @@ export async function getOrder(userId: string, orderId: string): Promise<Order |
   const db = await getDB();
   const row = await db
     .prepare(
-      `SELECT id, order_number, status, subtotal, shipping_fee, total, points_earned,
+      `SELECT id, order_number, status, subtotal, shipping_fee, total, points_earned, discount_total, coupon_code,
               address_label, address_full_name, address_phone, address_line, address_area,
               address_district, address_city, payment_label, delivery_method, placed_at
        FROM orders WHERE id = ? AND user_id = ?`

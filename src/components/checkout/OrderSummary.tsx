@@ -18,6 +18,8 @@ interface OrderSummaryProps {
   deliveryFee: number;
   total: number;
   subtitle: string;
+  /** Coupon and points, each shown as its own line under the items. */
+  discounts?: { label: string; amount: number }[];
   /** Bare layout (no card chrome) for embedding inside another card. */
   bare?: boolean;
 }
@@ -28,6 +30,7 @@ export default function OrderSummary({
   deliveryFee,
   total,
   subtitle,
+  discounts = [],
   bare = false,
 }: OrderSummaryProps) {
   const body = (
@@ -83,6 +86,14 @@ export default function OrderSummary({
           <span>Item price (after discount)</span>
           <span className="font-semibold text-ink-strong">{formatPrice(subtotal)}</span>
         </div>
+        {discounts
+          .filter((line) => line.amount > 0)
+          .map((line) => (
+            <div key={line.label} className="flex items-center justify-between text-[12px] text-ink-slate">
+              <span>{line.label}</span>
+              <span className="font-semibold text-success">−{formatPrice(line.amount)}</span>
+            </div>
+          ))}
         <div className="flex items-center justify-between text-[12px] text-ink-slate">
           <span>Delivery charge</span>
           <span className="font-semibold text-ink-strong">

@@ -1,4 +1,5 @@
 import ScamNotice from "@/components/info/ScamNotice";
+import AvatarImage from "./AvatarImage";
 import Link from "next/link";
 import {
   MapPin,
@@ -39,7 +40,7 @@ const MENU_ITEMS = [
   },
   {
     label: "Payment Methods",
-    subtitle: "Cards, mobile banking & COD",
+    subtitle: "How you can pay",
     icon: CreditCard,
     href: "/account/payment-methods",
   },
@@ -111,20 +112,7 @@ export default function AccountProfile({
               className="relative block shrink-0 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-brand-dark"
             >
               <span className="grid h-[58px] w-[58px] place-items-center overflow-hidden rounded-full bg-white/15 text-lg font-bold ring-2 ring-white/40 sm:h-16 sm:w-16">
-                {user.avatarUrl ? (
-                  // Avatar URLs are user-supplied and can point at any host, so
-                  // they stay on a plain <img>: next/image would need every one
-                  // of those hosts allow-listed in next.config.ts and would
-                  // fail the request for the rest.
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={user.avatarUrl}
-                    alt={`Profile photo of ${user.name}`}
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  initials
-                )}
+                <AvatarImage src={user.avatarUrl ?? null} name={user.name} initials={initials} />
               </span>
               <span
                 aria-hidden

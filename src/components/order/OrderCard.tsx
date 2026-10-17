@@ -1,8 +1,9 @@
-import Link from "next/link";
 import Image from "@/components/ui/StoreImage";
 import { Check, CreditCard, MapPin, Package } from "lucide-react";
 import type { Order } from "@/types";
 import { formatPrice, SHOP_TIME_ZONE } from "@/lib/format";
+import { DEFAULT_SUPPORT_WHATSAPP, waLink } from "@/lib/contact";
+import OrderActions from "./OrderActions";
 
 const STATUS_TONE: Record<string, string> = {
   placed: "bg-brand-mist text-ink-slate",
@@ -37,7 +38,14 @@ function formatArrival(iso: string | null): string {
  * 320px screen. Every text column is `min-w-0` and truncating, which is what
  * keeps the status pill from pushing the page sideways -- the pill may not
  * shrink, so the title must. */
-export default function OrderCard({ order }: { order: Order }) {
+export default function OrderCard({
+  order,
+  supportWhatsapp = DEFAULT_SUPPORT_WHATSAPP,
+}: {
+  order: Order;
+  /** The support line from Settings, when the page has read it. */
+  supportWhatsapp?: string;
+}) {
   const firstItem = order.items[0];
   const extraCount = order.items.length - 1;
   const arrival = formatArrival(order.estimatedDeliveryAt);
@@ -152,12 +160,11 @@ export default function OrderCard({ order }: { order: Order }) {
         ))}
       </ol>
 
-      <Link
-        href={`/account/orders/${order.id}`}
-        className="mt-3 flex min-h-11 w-full items-center justify-center rounded-xl border border-brand bg-white px-3 text-[12px] font-bold text-brand-darkest focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
-      >
-        Track Order
-      </Link>
+      <OrderActions
+        orderId={order.id}
+        status={order.status}
+        supportHref={waLink(supportWhatsapp, `Hi Zupona, I need help with order ${order.orderNumber}`)}
+      />
     </article>
   );
 }

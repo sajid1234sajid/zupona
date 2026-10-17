@@ -170,17 +170,11 @@ export async function updateProfileAction(
   const user = await requireUser();
   const name = String(formData.get("name") ?? "").trim();
   const phoneRaw = String(formData.get("phone") ?? "").trim();
-  const avatarUrlRaw = String(formData.get("avatarUrl") ?? "").trim();
 
   if (!name) return { error: "Enter your name." };
 
   const phone = phoneRaw ? normalizePhone(phoneRaw) : null;
   if (phone && !PHONE_RE.test(phone)) return { error: "Enter a valid mobile number." };
-
-  const avatarUrl = avatarUrlRaw || null;
-  if (avatarUrl && !/^https?:\/\//.test(avatarUrl)) {
-    return { error: "Avatar URL must start with http:// or https://" };
-  }
 
   const db = await getDB();
 
@@ -193,8 +187,10 @@ export async function updateProfileAction(
   }
 
   await db
-    .prepare("UPDATE users SET name = ?, phone = ?, avatar_url = ? WHERE id = ?")
-    .bind(name, phone, avatarUrl, user.id)
+    // The photo has its own upload (/api/account/avatar); this form no longer
+    // takes an address for it.
+    .prepare("UPDATE users SET name = ?, phone = ? WHERE id = ?")
+    .bind(name, phone, user.id)
     .run();
 
   redirect("/account");

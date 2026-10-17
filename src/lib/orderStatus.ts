@@ -11,6 +11,7 @@
 
 import { getDB } from "@/lib/db";
 import { getShopSettings } from "@/lib/shopSettings";
+import { pointsStatements } from "@/lib/points";
 import { statusLabel } from "@/lib/orders";
 import { applyStockForStatus, FULFILMENT_RANK, type StockOutcome } from "@/lib/orderStock";
 import type { OrderStatus } from "@/types";
@@ -111,6 +112,8 @@ export async function changeOrderStatus(params: {
    * would have claimed. */
   const stock = await applyStockForStatus(orderId, status);
 
+  await settlePointsAndCoupon(orderId, status);
+
   // Delivered is the moment a review becomes possible, and the shopper is
   // still holding the item: ask now, and say what it earns when it earns
   // anything. A failure here must not undo the status change above.
@@ -138,4 +141,86 @@ export async function changeOrderStatus(params: {
   }
 
   return { before: { status: before.status }, stock };
+}
+
+/** Points and coupons follow the order, each at most once (the ledger's
+ * unique index makes a repeat a no-op):
+ *  - delivered: the points the order promised are credited;
+ *  - cancelled: points spent on it come back, its coupon is usable again, and
+ *    points it had already earned are taken back. */
+async function settlePointsAndCoupon(orderId: string, status: OrderStatus): Promise<void> {
+  if (status !== "delivered" && status !== "cancelled") return;
+  try {
+    const db = await getDB();
+    const order = await db
+      .prepare("SELECT user_id, points_earned FROM orders WHERE id = ?")
+      .bind(orderId)
+      .first<{ user_id: string; points_earned: number }>();
+    if (!order) return;
+
+    if (status === "delivered") {
+      if (order.points_earned > 0) {
+        await db.batch(
+          pointsStatements(db, {
+            userId: order.user_id,
+            delta: order.points_earned,
+            reason: "order",
+            refId: orderId,
+          })
+        );
+      }
+      return;
+    }
+
+    const [spent, earned] = await db.batch<{ total: number | null }>([
+      db
+        .prepare(
+          "SELECT -SUM(delta) AS total FROM points_ledger WHERE user_id = ? AND reason = 'redeem' AND ref_id = ?"
+        )
+        .bind(order.user_id, orderId),
+      db
+        .prepare(
+          "SELECT SUM(delta) AS total FROM points_ledger WHERE user_id = ? AND reason = 'order' AND ref_id = ?"
+        )
+        .bind(order.user_id, orderId),
+    ]);
+    const statements: D1PreparedStatement[] = [];
+    const back = spent.results[0]?.total ?? 0;
+    if (back > 0) {
+      statements.push(
+        ...pointsStatements(db, {
+          userId: order.user_id,
+          delta: back,
+          reason: "reverse",
+          refId: `${orderId}:redeemed`,
+          note: "Points returned from a cancelled order",
+        })
+      );
+    }
+    const taken = earned.results[0]?.total ?? 0;
+    if (taken > 0) {
+      statements.push(
+        ...pointsStatements(db, {
+          userId: order.user_id,
+          delta: -taken,
+          reason: "reverse",
+          refId: `${orderId}:earned`,
+          note: "Points from a cancelled order",
+        })
+      );
+    }
+    // The coupon can be used again.
+    statements.push(
+      db
+        .prepare(
+          `UPDATE coupons SET usage_count = MAX(0, usage_count - 1)
+           WHERE id IN (SELECT coupon_id FROM coupon_redemptions WHERE order_id = ?)`
+        )
+        .bind(orderId),
+      db.prepare("DELETE FROM coupon_redemptions WHERE order_id = ?").bind(orderId)
+    );
+    await db.batch(statements);
+  } catch (error) {
+    console.error("points/coupon settlement failed", { orderId, status, error });
+  }
 }

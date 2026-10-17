@@ -74,10 +74,36 @@ export function calcDiscount(coupon: Coupon, subtotal: number): number {
 
 /** Checks a code against every rule: existence, active window, usage limits,
  * per-user limits and minimum spend. Does not consume anything. */
+export interface CouponScopeLine {
+  amount: number;
+  productId: string;
+  /** The product's category and its department. */
+  categories: string[];
+  sellerId: string | null;
+}
+
+/** The part of the order a coupon applies to: everything for an "all"
+ * coupon, otherwise only the lines in its category, product or shop. */
+function inScopeSubtotal(row: CouponRow, subtotal: number, lines?: CouponScopeLine[]): number {
+  if (!lines || row.scope === "all" || !row.scope_id) return subtotal;
+  return lines
+    .filter((line) =>
+      row.scope === "category"
+        ? line.categories.includes(row.scope_id as string)
+        : row.scope === "product"
+          ? line.productId === row.scope_id
+          : row.scope === "seller"
+            ? line.sellerId === row.scope_id
+            : true
+    )
+    .reduce((sum, line) => sum + line.amount, 0);
+}
+
 export async function validateCoupon(
   code: string,
   userId: string | null,
-  subtotal: number
+  subtotal: number,
+  options: { lines?: CouponScopeLine[] } = {}
 ): Promise<CouponResult> {
   const trimmed = code.trim().toUpperCase();
   if (!trimmed) return REFUSED("Enter a coupon code.");
@@ -99,8 +125,14 @@ export async function validateCoupon(
     return REFUSED("This coupon has been fully claimed.");
   }
 
-  if (subtotal < row.min_order_amount) {
-    return REFUSED(`Spend ৳ ${row.min_order_amount.toLocaleString("en-US")} to use this coupon.`);
+  // Checked against the items the coupon covers, and the discount is taken
+  // off those items only.
+  const scoped = inScopeSubtotal(row, subtotal, options.lines);
+  if (scoped <= 0) return REFUSED("This coupon doesn't apply to the items in your order.");
+  if (scoped < row.min_order_amount) {
+    return REFUSED(
+      `Add ৳ ${(row.min_order_amount - scoped).toLocaleString("en-US")} more to use this coupon.`
+    );
   }
 
   if (userId) {
@@ -118,7 +150,7 @@ export async function validateCoupon(
   return {
     ok: true,
     coupon,
-    discount: calcDiscount(coupon, subtotal),
+    discount: calcDiscount(coupon, scoped),
     freeShipping: coupon.discountType === "free_shipping",
   };
 }

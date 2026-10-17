@@ -122,8 +122,15 @@ function sortEntries(entries: WishlistEntry[], sort: WishlistSort): WishlistEntr
 export async function getWishlistCount(userId: string | null): Promise<number> {
   if (!userId) return 0;
   const db = await getDB();
+  // Counts what the wishlist page shows -- products still on sale. Counting
+  // every saved row made the header say 1 over a page that said "empty" when
+  // the saved product had since been archived.
   const row = await db
-    .prepare("SELECT COUNT(*) as count FROM wishlist_items WHERE user_id = ?")
+    .prepare(
+      `SELECT COUNT(*) as count FROM wishlist_items w
+       JOIN products p ON p.id = w.product_id
+       WHERE w.user_id = ? AND p.status = 'active'`
+    )
     .bind(userId)
     .first<{ count: number }>();
   return row?.count ?? 0;

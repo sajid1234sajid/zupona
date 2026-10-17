@@ -239,6 +239,12 @@ export default async function OrderConfirmedPage({ params }: PageProps<"/checkou
                 <span>Item Price (after discount)</span>
                 <span className="font-bold text-heading">{formatPrice(order.subtotal)}</span>
               </div>
+              {order.discountTotal > 0 ? (
+                <div className="mt-1.5 flex items-center justify-between text-[12px] text-ink-slate">
+                  <span>Discount{order.couponCode ? ` (${order.couponCode})` : ""}</span>
+                  <span className="font-bold text-success">−{formatPrice(order.discountTotal)}</span>
+                </div>
+              ) : null}
               <div className="mt-1.5 flex items-center justify-between text-[12px] text-ink-slate">
                 <span>Delivery Charge</span>
                 <span className="font-bold text-heading">{formatPrice(order.shippingFee)}</span>
@@ -251,7 +257,7 @@ export default async function OrderConfirmedPage({ params }: PageProps<"/checkou
               </div>
               {order.pointsEarned > 0 && (
                 <p className="mt-2 text-right text-[10.5px] font-semibold text-brand">
-                  +{order.pointsEarned} Zupona points earned
+                  +{order.pointsEarned} Zupona points when it is delivered
                 </p>
               )}
             </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState, useTransition } from "react";
+import { useActionState, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { isServedLocation } from "@/data/locations";
 import {
@@ -10,7 +10,14 @@ import {
   type DeliveryMethod,
   type PaymentMethodId,
 } from "@/lib/checkout";
-import { placeOrderAction, sendCodeAction, type PlaceOrderState } from "@/app/checkout/actions";
+import {
+  placeOrderAction,
+  quoteCheckoutAction,
+  sendCodeAction,
+  type CheckoutQuote,
+  type PlaceOrderState,
+} from "@/app/checkout/actions";
+import DiscountPanel from "./DiscountPanel";
 import CheckoutHeader from "./CheckoutHeader";
 import CheckoutStepper from "./CheckoutStepper";
 import LeafBackdrop from "./LeafBackdrop";
@@ -74,7 +81,33 @@ export default function CheckoutWizard({
   const delivery =
     deliveryOptions.find((option) => option.id === details.deliveryMethod && !option.locked) ??
     deliveryOptions[0];
-  const fee = delivery.fee;
+
+  // Coupon and points, priced by the server for what is on screen. The order
+  // is placed with the same choices and priced again there.
+  const [couponCode, setCouponCode] = useState("");
+  const [usePoints, setUsePoints] = useState(false);
+  const [quote, setQuote] = useState<CheckoutQuote | null>(null);
+  const [quoting, startQuote] = useTransition();
+  useEffect(() => {
+    if (step !== 3) return;
+    let current = true;
+    startQuote(async () => {
+      const result = await quoteCheckoutAction({
+        source,
+        deliveryMethod: delivery.id,
+        usePoints,
+        couponCode,
+      });
+      if (current) setQuote(result.ok ? result : null);
+    });
+    return () => {
+      current = false;
+    };
+  }, [step, source, delivery.id, usePoints, couponCode]);
+  // A refused code is dropped from what gets submitted, so it cannot block
+  // the order; its message stays on screen.
+  const appliedCoupon = quote?.couponCode && !quote.couponError ? quote.couponCode : "";
+  const fee = quote?.shippingFee ?? delivery.fee;
 
   const [orderState, placeOrder, placing] = useActionState<PlaceOrderState, FormData>(
     placeOrderAction.bind(null, {
@@ -84,6 +117,8 @@ export default function CheckoutWizard({
       code,
       source,
       idempotencyKey,
+      usePoints: usePoints && !quote?.points?.blocked,
+      couponCode: appliedCoupon,
     }),
     {}
   );
@@ -200,8 +235,24 @@ export default function CheckoutWizard({
               lines={lines}
               subtotal={subtotal}
               deliveryFee={fee}
-              pending={placing}
+              pending={placing || quoting}
               error={orderState.error ?? stepError}
+              total={quote?.total}
+              discounts={[
+                { label: `Coupon ${appliedCoupon}`, amount: appliedCoupon ? (quote?.couponDiscount ?? 0) : 0 },
+                { label: `Points (${quote?.pointsUsed ?? 0})`, amount: quote?.pointsDiscount ?? 0 },
+              ]}
+              discountPanel={
+                <DiscountPanel
+                  quote={quote}
+                  couponCode={couponCode}
+                  usePoints={usePoints}
+                  busy={quoting}
+                  onApplyCoupon={setCouponCode}
+                  onRemoveCoupon={() => setCouponCode("")}
+                  onTogglePoints={setUsePoints}
+                />
+              }
             />
           </form>
         )}

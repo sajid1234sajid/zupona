@@ -2,10 +2,9 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { CreditCard, Trash2, Plus, LoaderCircle, Smartphone, Banknote } from "lucide-react";
+import { CreditCard, Trash2, LoaderCircle, Smartphone, Banknote } from "lucide-react";
 import type { PaymentMethod } from "@/types";
 import { deletePaymentMethodAction, setDefaultPaymentMethodAction } from "@/app/account/payment-methods/actions";
-import PaymentMethodForm from "./PaymentMethodForm";
 
 const ICONS = {
   card: CreditCard,
@@ -16,13 +15,8 @@ const ICONS = {
 
 export default function PaymentMethodsClient({ methods }: { methods: PaymentMethod[] }) {
   const router = useRouter();
-  const [adding, setAdding] = useState(false);
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [, startTransition] = useTransition();
-
-  if (adding) {
-    return <PaymentMethodForm onDone={() => setAdding(false)} />;
-  }
 
   function remove(id: string) {
     setPendingId(id);
@@ -97,13 +91,8 @@ export default function PaymentMethodsClient({ methods }: { methods: PaymentMeth
         );
       })}
 
-      <button
-        onClick={() => setAdding(true)}
-        className="flex items-center justify-center gap-2 rounded-2xl border border-dashed border-brand/40 py-3.5 text-sm font-semibold text-brand"
-      >
-        <Plus className="h-4 w-4" />
-        Add Payment Method
-      </button>
+      {/* No "Add": checkout takes only the methods listed above, and there is
+          nothing a saved card or wallet would be used for yet. */}
     </div>
   );
 }

@@ -108,6 +108,12 @@ export default async function OrderDetailPage({ params }: PageProps<"/account/or
               <span>Subtotal</span>
               <span className="font-semibold text-heading">{formatPrice(order.subtotal)}</span>
             </div>
+            {order.discountTotal > 0 ? (
+              <div className="flex items-center justify-between text-sm text-ink-slate">
+                <span>Discount{order.couponCode ? ` (${order.couponCode} / points)` : " (points)"}</span>
+                <span className="font-semibold text-success">−{formatPrice(order.discountTotal)}</span>
+              </div>
+            ) : null}
             <div className="flex items-center justify-between text-sm text-ink-slate">
               <span>Shipping</span>
               <span className="font-semibold text-heading">
@@ -118,7 +124,15 @@ export default async function OrderDetailPage({ params }: PageProps<"/account/or
               <span>Total</span>
               <span>{formatPrice(order.total)}</span>
             </div>
-            <p className="text-xs text-brand">+{order.pointsEarned} points earned</p>
+            {order.pointsEarned > 0 ? (
+              <p className="text-xs text-brand">
+                {order.status === "delivered"
+                  ? `+${order.pointsEarned} points earned`
+                  : order.status === "cancelled"
+                    ? "No points for a cancelled order"
+                    : `+${order.pointsEarned} points when delivered`}
+              </p>
+            ) : null}
           </div>
         </section>
       </main>

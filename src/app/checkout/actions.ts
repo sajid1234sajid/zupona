@@ -27,7 +27,7 @@ import { reserveStock, releaseReservation } from "@/lib/inventory";
 import { getBuyNowLine, consumeBuyNowSession, clearBuyNowCookie } from "@/lib/buyNow";
 import { planSuborders, commissionRates, createSuborders } from "@/lib/suborders";
 import { sendPurchase } from "@/lib/analytics";
-import { pointsStatements } from "@/lib/points";
+import { quoteDiscounts } from "@/lib/orderDiscounts";
 import { recordAction } from "@/lib/activity";
 
 export interface SendCodeState {
@@ -123,6 +123,10 @@ export interface CheckoutDetails {
   /** Identifies this attempt at placing an order. A retry carries the same key
    * and lands on the order already written rather than a second one. */
   idempotencyKey: string;
+  /** Pay part of the items with points (signed-in customers only). */
+  usePoints?: boolean;
+  /** A coupon code to apply; re-checked here whatever the preview said. */
+  couponCode?: string;
 }
 
 /** One line about to become an order line, priced from the database. */
@@ -273,8 +277,23 @@ export async function placeOrderAction(
   const payment = getPaymentOption(details.paymentMethod);
   const subtotal = lines.reduce((sum, line) => sum + line.price * line.quantity, 0);
   const delivery = resolveDelivery(details.deliveryMethod, subtotal, settings, freeByProduct);
-  const shippingFee = delivery.fee;
-  const total = subtotal + shippingFee;
+
+  // The coupon and the points, priced the same way the payment step previewed
+  // them. Points belong to a signed-in customer's own account; a guest who
+  // checked out under a number has none to spend here.
+  const quote = await quoteDiscounts({
+    userId: shopper.isGuest ? null : buyer.id,
+    lines,
+    shippingFee: delivery.fee,
+    usePoints: Boolean(details.usePoints),
+    couponCode: details.couponCode ?? null,
+    settings,
+  });
+  if (details.couponCode?.trim() && quote.couponError) return { error: quote.couponError };
+  // The coupon's per-customer limit, for a guest, is checked against the
+  // account the number belongs to.
+  const shippingFee = quote.shippingFee;
+  const total = quote.total;
   const pointsEarned = calcPointsEarned(total);
 
   /* Hold the stock before the order exists. Each hold is a single conditional
@@ -302,6 +321,35 @@ export async function placeOrderAction(
   const orderId = crypto.randomUUID();
   const orderNumber = generateOrderNumber();
 
+  /* Spend the points before the order exists, and only if the balance still
+   * covers them: the conditional UPDATE is what stops two checkouts in two
+   * tabs spending the same points. The ledger row is written only when that
+   * UPDATE took. If the order then fails to write, they are given back. */
+  if (quote.pointsUsed > 0) {
+    const [spend] = await db.batch([
+      db
+        .prepare("UPDATE users SET points = points - ? WHERE id = ? AND points >= ?")
+        .bind(quote.pointsUsed, buyer.id, quote.pointsUsed),
+      db
+        .prepare(
+          `INSERT INTO points_ledger (id, user_id, delta, reason, ref_id, note)
+           SELECT ?, ?, ?, 'redeem', ?, ? WHERE changes() > 0`
+        )
+        .bind(crypto.randomUUID(), buyer.id, -quote.pointsUsed, orderId, `৳${quote.pointsDiscount} off`),
+    ]);
+    if (spend.meta.changes === 0) {
+      await releaseHolds();
+      return { error: "Your points balance changed. Please check the total and try again." };
+    }
+  }
+  const refundPoints = async () => {
+    if (quote.pointsUsed <= 0) return;
+    await db.batch([
+      db.prepare("DELETE FROM points_ledger WHERE user_id = ? AND reason = 'redeem' AND ref_id = ?").bind(buyer.id, orderId),
+      db.prepare("UPDATE users SET points = points + ? WHERE id = ?").bind(quote.pointsUsed, buyer.id),
+    ]);
+  };
+
   /* Writing the order is what claims the idempotency key. If two submissions
    * race past the check above, the unique index lets exactly one through; the
    * loser gives its holds back and joins the winner\'s order rather than
@@ -313,8 +361,9 @@ export async function placeOrderAction(
           (id, order_number, user_id, status, subtotal, shipping_fee, total, points_earned,
            address_label, address_full_name, address_phone, address_line, address_area,
            address_district, address_city,
-           payment_label, delivery_method, idempotency_key, stock_state)
-         VALUES (?, ?, ?, 'placed', ?, ?, ?, ?, 'Home', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+           payment_label, delivery_method, idempotency_key, stock_state,
+           discount_total, coupon_code)
+         VALUES (?, ?, ?, 'placed', ?, ?, ?, ?, 'Home', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .bind(
         orderId,
@@ -333,12 +382,15 @@ export async function placeOrderAction(
         payment.name,
         delivery.id,
         details.idempotencyKey || null,
-        held.length > 0 ? "reserved" : "none"
+        held.length > 0 ? "reserved" : "none",
+        quote.discountTotal,
+        quote.coupon?.code ?? null
       )
       .run();
   } catch (error) {
     // Released once, whatever went wrong, before anything else can throw.
     await releaseHolds();
+    await refundPoints();
 
     const message = error instanceof Error ? error.message : String(error);
     if (/UNIQUE constraint failed/i.test(message)) {
@@ -360,6 +412,20 @@ export async function placeOrderAction(
     sellerId ? (rates.get(sellerId) ?? 0) : 0
   );
   const suborderIds = await createSuborders(orderId, "placed", shares);
+
+  // The coupon is spent now the order exists: one redemption row, and the
+  // usage counter, which a coupon at its limit refuses.
+  if (quote.coupon) {
+    await db.batch([
+      db
+        .prepare(
+          `INSERT INTO coupon_redemptions (id, coupon_id, user_id, order_id, discount_amount)
+           VALUES (?, ?, ?, ?, ?)`
+        )
+        .bind(crypto.randomUUID(), quote.coupon.id, buyer.id, orderId, quote.coupon.discount),
+      db.prepare("UPDATE coupons SET usage_count = usage_count + 1 WHERE id = ?").bind(quote.coupon.id),
+    ]);
+  }
 
   for (const line of lines) {
     await db
@@ -418,12 +484,9 @@ export async function placeOrderAction(
       .run();
   }
 
-  // Through the ledger, so the points page can say which order earned them.
-  if (pointsEarned > 0) {
-    await db.batch(
-      pointsStatements(db, { userId: buyer.id, delta: pointsEarned, reason: "order", refId: orderId })
-    );
-  }
+  // Points are promised on the order (`points_earned`) and credited when it is
+  // delivered -- see `src/lib/orderStatus.ts` -- so a cancelled order never
+  // pays out.
 
   // users.phone is UNIQUE, so only claim the number when it is free. A guest
   // already took it, or found its owner, in `claimGuest`.
@@ -590,4 +653,74 @@ export async function placeOrderAction(
   if (buyer.existing) await createSession(buyer.id);
 
   redirect(`/checkout/confirmed/${orderId}`);
+}
+
+export interface CheckoutQuote {
+  ok: boolean;
+  error?: string;
+  shippingFee?: number;
+  total?: number;
+  couponDiscount?: number;
+  couponCode?: string | null;
+  couponError?: string | null;
+  freeShippingCoupon?: boolean;
+  pointsDiscount?: number;
+  pointsUsed?: number;
+  points?: { balance: number; usable: number; usableDiscount: number; blocked: string | null } | null;
+}
+
+/** The payment step's live total: the same lines, delivery and discounts
+ * `placeOrderAction` will charge, priced from the database, for the coupon
+ * and points choices on screen. Nothing is spent or reserved here. */
+export async function quoteCheckoutAction(input: {
+  source: "cart" | "buynow";
+  deliveryMethod: string;
+  usePoints: boolean;
+  couponCode: string;
+}): Promise<CheckoutQuote> {
+  const shopper = await getShopper();
+  if (!shopper) return { ok: false, error: "Your cart is empty." };
+
+  const buyNow = input.source === "buynow" ? await getBuyNowLine(shopper.id) : null;
+  const items = buyNow ? [] : await getCartItems(shopper.id);
+  const lines = buyNow
+    ? [{ productId: buyNow.productId, price: buyNow.price, quantity: buyNow.quantity, free: buyNow.freeDelivery }]
+    : items
+        .filter((item) => !item.unavailable)
+        .map((item) => ({
+          productId: item.productId,
+          price: item.product.price,
+          quantity: item.quantity,
+          free: item.product.freeDelivery === true,
+        }));
+  if (lines.length === 0) return { ok: false, error: "Your cart is empty." };
+
+  const settings = await getShopSettings();
+  const subtotal = lines.reduce((sum, line) => sum + line.price * line.quantity, 0);
+  const delivery = resolveDelivery(
+    input.deliveryMethod,
+    subtotal,
+    settings,
+    freeDeliveryByProduct(lines.map((line) => ({ freeDelivery: line.free })))
+  );
+  const quote = await quoteDiscounts({
+    userId: shopper.isGuest ? null : shopper.id,
+    lines,
+    shippingFee: delivery.fee,
+    usePoints: input.usePoints,
+    couponCode: input.couponCode || null,
+    settings,
+  });
+  return {
+    ok: true,
+    shippingFee: quote.shippingFee,
+    total: quote.total,
+    couponDiscount: quote.coupon?.discount ?? 0,
+    couponCode: quote.coupon?.code ?? null,
+    couponError: quote.couponError,
+    freeShippingCoupon: quote.coupon?.freeShipping ?? false,
+    pointsDiscount: quote.pointsDiscount,
+    pointsUsed: quote.pointsUsed,
+    points: quote.points,
+  };
 }

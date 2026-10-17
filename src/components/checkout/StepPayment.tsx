@@ -54,6 +54,11 @@ interface StepPaymentProps {
   deliveryFee: number;
   pending: boolean;
   error?: string;
+  /** The coupon and points panel, drawn above the summary. */
+  discountPanel?: React.ReactNode;
+  discounts?: { label: string; amount: number }[];
+  /** The server's total, once it has priced the discounts. */
+  total?: number;
 }
 
 export default function StepPayment({
@@ -74,8 +79,12 @@ export default function StepPayment({
   deliveryFee,
   pending,
   error,
+  discountPanel,
+  discounts = [],
+  total: quotedTotal,
 }: StepPaymentProps) {
-  const total = subtotal + deliveryFee;
+  const total =
+    quotedTotal ?? subtotal - discounts.reduce((sum, line) => sum + line.amount, 0) + deliveryFee;
 
   return (
     <div className="flex flex-col gap-3 px-4 pb-4">
@@ -187,11 +196,14 @@ export default function StepPayment({
         </div>
       </section>
 
+      {discountPanel}
+
       <OrderSummary
         lines={lines}
         subtotal={subtotal}
         deliveryFee={deliveryFee}
         total={total}
+        discounts={discounts}
         subtitle="Review your items and final amount"
       />
 

@@ -198,6 +198,9 @@ export interface Order {
   shippingFee: number;
   total: number;
   pointsEarned: number;
+  /** Taka off from a coupon and points, already reflected in `total`. */
+  discountTotal: number;
+  couponCode: string | null;
   addressLabel: string;
   addressFullName: string;
   addressPhone: string;

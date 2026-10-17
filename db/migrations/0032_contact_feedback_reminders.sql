@@ -43,3 +43,17 @@ CREATE INDEX IF NOT EXISTS idx_flash_sale_reminders_due ON flash_sale_reminders 
 -- a batch as one row with a spreadsheet download instead of every code.
 ALTER TABLE coupons ADD COLUMN batch TEXT;
 CREATE INDEX IF NOT EXISTS idx_coupons_batch ON coupons (batch);
+
+-- Real visitors' page speed (0032): a sample of page views reports its
+-- Core Web Vitals. `page` is the kind of page (home, product, category...),
+-- not the address, so a report groups like with like. Kept 30 days.
+CREATE TABLE IF NOT EXISTS web_vitals (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  page TEXT NOT NULL,
+  metric TEXT NOT NULL, -- LCP | CLS | INP | FCP | TTFB
+  value REAL NOT NULL, -- ms, or unitless for CLS
+  device TEXT NOT NULL DEFAULT 'mobile', -- mobile | desktop
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_web_vitals_report ON web_vitals (metric, page, created_at);

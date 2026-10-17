@@ -70,6 +70,7 @@ export const NAV_ITEMS: NavItem[] = [
     children: [
       { label: "Sales Reports", href: "/admin/reports" },
       { label: "Search Insights", href: "/admin/reports/search" },
+      { label: "Speed", href: "/admin/reports/speed" },
     ],
   },
   { label: "Activity", href: "/admin/activity", icon: "activity" },

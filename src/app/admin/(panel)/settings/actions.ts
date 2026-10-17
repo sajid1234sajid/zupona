@@ -10,6 +10,7 @@ import { normalizeBdPhone } from "@/lib/checkout";
 import { getShopSettings } from "@/lib/shopSettings";
 import { maskPhone, sendSms } from "@/lib/sms";
 import { parseSizeGuide, SIZE_GUIDE_MAX_LENGTH } from "@/lib/sizeGuide";
+import { parseDsn } from "@/lib/errorReport";
 
 export interface SettingsFormState {
   error?: string;
@@ -48,6 +49,8 @@ const EDITABLE: Record<string, "text" | "number" | "boolean"> = {
   otp_demo_mode: "boolean",
   sms_sender_id: "text",
   facebook_pixel_id: "text",
+  ga4_measurement_id: "text",
+  sentry_dsn: "text",
   meta_capi_token: "text",
   ai_provider: "text",
   ai_model: "text",
@@ -173,6 +176,13 @@ export async function saveSettingsAction(
         }
         changed[key] = value.slice(0, SIZE_GUIDE_MAX_LENGTH);
         continue;
+      }
+
+      if (key === "ga4_measurement_id" && value !== "" && !/^G-[A-Z0-9]{4,15}$/i.test(value)) {
+        return { error: "The GA4 Measurement ID looks like G-ABC123XYZ (Admin > Data streams in Google Analytics)." };
+      }
+      if (key === "sentry_dsn" && value !== "" && !parseDsn(value)) {
+        return { error: "The Sentry DSN looks like https://abc123…@o123.ingest.sentry.io/456 (Project settings > Client keys)." };
       }
 
       if (key === "point_value") {

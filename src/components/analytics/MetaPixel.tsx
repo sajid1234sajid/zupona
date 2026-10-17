@@ -114,9 +114,42 @@ export function trackPixel(
   params?: Record<string, unknown>,
   eventId?: string
 ): void {
-  if (typeof window === "undefined" || !window.fbq) return;
+  if (typeof window === "undefined") return;
+  trackGa4(event, params, eventId);
+  if (!window.fbq) return;
   if (eventId) window.fbq("track", event, params ?? {}, { eventID: eventId });
   else window.fbq("track", event, params ?? {});
+}
+
+/** Meta's standard events under GA4's e-commerce names, so one call site
+ * reports to both (Doc 13 §3.6). Nothing happens without GA4 configured. */
+const GA4_NAMES: Record<string, string> = {
+  ViewContent: "view_item",
+  AddToCart: "add_to_cart",
+  InitiateCheckout: "begin_checkout",
+  Purchase: "purchase",
+  AddToWishlist: "add_to_wishlist",
+  Search: "search",
+};
+
+function trackGa4(event: string, params?: Record<string, unknown>, eventId?: string): void {
+  const name = GA4_NAMES[event];
+  if (!name || !window.gtag) return;
+  const contents = Array.isArray(params?.contents)
+    ? (params.contents as { id?: unknown; quantity?: unknown; item_price?: unknown }[])
+    : null;
+  const ids = Array.isArray(params?.content_ids) ? (params.content_ids as unknown[]) : [];
+  const items = contents
+    ? contents.map((line) => ({ item_id: String(line.id), quantity: line.quantity, price: line.item_price }))
+    : ids.map((id) => ({ item_id: String(id), item_name: params?.content_name }));
+  window.gtag("event", name, {
+    currency: params?.currency ?? "BDT",
+    value: params?.value,
+    // A purchase's dedup key is the order id, which is GA4's transaction id.
+    transaction_id: event === "Purchase" ? eventId : undefined,
+    search_term: params?.search_string,
+    items,
+  });
 }
 
 export default function MetaPixel({ pixelId }: { pixelId: string }) {

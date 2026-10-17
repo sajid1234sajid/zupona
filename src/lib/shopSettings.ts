@@ -73,6 +73,10 @@ export interface ShopSettings {
    * the page source of every site that has one -- so unlike the access token
    * behind it, it travels with the rest of the settings. */
   facebookPixelId: string | null;
+  /** Google Analytics 4 measurement id ("G-XXXXXXX"); null keeps GA4 off. */
+  ga4MeasurementId: string | null;
+  /** Where errors are reported (a Sentry DSN); null keeps reporting off. */
+  sentryDsn: string | null;
 
   /** Whether a phone visitor is offered the "Get the Zupona app" strip above
    * the header. On by default: the shop is already installable, and the strip
@@ -126,6 +130,8 @@ export const DEFAULT_SETTINGS: ShopSettings = {
   otpDemoMode: false,
   smsSenderId: null,
   facebookPixelId: null,
+  ga4MeasurementId: null,
+  sentryDsn: null,
   appBannerEnabled: true,
   appBannerSnoozeDays: 7,
   social: { facebook: null, instagram: null, youtube: null, tiktok: null, whatsapp: null },
@@ -198,6 +204,8 @@ async function querySettings(): Promise<ShopSettings> {
     otpDemoMode: readFlag(map.get("otp_demo_mode"), DEFAULT_SETTINGS.otpDemoMode),
     smsSenderId: map.get("sms_sender_id")?.trim() || null,
     facebookPixelId: map.get("facebook_pixel_id")?.trim() || null,
+    ga4MeasurementId: map.get("ga4_measurement_id")?.trim() || null,
+    sentryDsn: map.get("sentry_dsn")?.trim() || null,
     appBannerEnabled: readFlag(map.get("app_banner_enabled"), DEFAULT_SETTINGS.appBannerEnabled),
     appBannerSnoozeDays: readInt(
       map.get("app_banner_snooze_days"),

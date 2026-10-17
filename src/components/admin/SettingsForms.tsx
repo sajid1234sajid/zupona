@@ -371,6 +371,35 @@ export function StoreSettingsForm({
 
       <Card>
         <CardHeader
+          title="Google Analytics & error alerts"
+          subtitle="Both optional. Empty keeps them off; neither slows the shop down."
+        />
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="GA4 Measurement ID" hint="Google Analytics -> Admin -> Data streams -> your web stream. Looks like G-ABC123XYZ.">
+            <input
+              name="ga4_measurement_id"
+              autoComplete="off"
+              spellCheck={false}
+              defaultValue={settings.ga4MeasurementId ?? ""}
+              placeholder="G-XXXXXXXXXX"
+              className={fieldStyles}
+            />
+          </Field>
+          <Field label="Sentry DSN" hint="sentry.io -> Project settings -> Client keys (DSN). Errors on the shop and the server are sent there.">
+            <input
+              name="sentry_dsn"
+              autoComplete="off"
+              spellCheck={false}
+              defaultValue={settings.sentryDsn ?? ""}
+              placeholder="https://…@o123.ingest.sentry.io/456"
+              className={fieldStyles}
+            />
+          </Field>
+        </div>
+      </Card>
+
+      <Card>
+        <CardHeader
           title="App Banner"
           subtitle="The “Get the Zupona app” strip above the header on phones"
         />

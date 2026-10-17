@@ -980,6 +980,18 @@ CREATE TABLE IF NOT EXISTS flash_sale_reminders (
 
 CREATE INDEX IF NOT EXISTS idx_flash_sale_reminders_due ON flash_sale_reminders (notified_at, flash_sale_id);
 
+-- Real visitors' page speed, sampled; kept 30 days (0032).
+CREATE TABLE IF NOT EXISTS web_vitals (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  page TEXT NOT NULL,
+  metric TEXT NOT NULL, -- LCP | CLS | INP | FCP | TTFB
+  value REAL NOT NULL, -- ms, or unitless for CLS
+  device TEXT NOT NULL DEFAULT 'mobile', -- mobile | desktop
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_web_vitals_report ON web_vitals (metric, page, created_at);
+
 -- ============================================================================
 -- 10. ADMIN & PLATFORM CONFIG
 -- ============================================================================

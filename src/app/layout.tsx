@@ -4,6 +4,8 @@ import ServiceWorkerRegistration from "@/components/app/ServiceWorkerRegistratio
 import AppBanner from "@/components/app/AppBanner";
 import { appBannerScript } from "@/components/app/appBannerScript";
 import MetaPixel from "@/components/analytics/MetaPixel";
+import GoogleAnalytics from "@/components/analytics/GoogleAnalytics";
+import Monitoring from "@/components/analytics/Monitoring";
 import ActivityTracker from "@/components/analytics/ActivityTracker";
 import { getShopSettings } from "@/lib/shopSettings";
 import { SITE_URL, shareMetadata } from "@/lib/shareCard";
@@ -123,6 +125,8 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         {children}
         <ServiceWorkerRegistration />
         {facebookPixelId ? <MetaPixel pixelId={facebookPixelId} /> : null}
+        {settings.ga4MeasurementId ? <GoogleAnalytics measurementId={settings.ga4MeasurementId} /> : null}
+        <Monitoring reportErrors={Boolean(settings.sentryDsn)} />
         <ActivityTracker />
       </body>
     </html>

@@ -16,6 +16,7 @@ import JsonLd from "@/components/seo/JsonLd";
 import { breadcrumbSchema, productMetaDescription, productSchema } from "@/lib/seo";
 import { getPolicyFacts } from "@/lib/policyFacts";
 import PixelEvent from "@/components/analytics/PixelEvent";
+import RecordView from "@/components/product/RecordView";
 import { DELIVERY_DAYS, deliveryOptionsFor } from "@/lib/checkout";
 import { formatPrice } from "@/lib/format";
 import { getCurrentUser } from "@/lib/session";
@@ -159,6 +160,7 @@ export default async function DynamicProductPage({ params }: PageProps<"/product
   return (
     <StoreShell withStickyActions>
       <JsonLd data={structuredData} />
+      <RecordView id={product.id} categoryId={product.categoryId} />
       {/* Facebook and WhatsApp read these to label a shared link as a product
           with its price. React moves them into <head>. */}
       <meta property="og:type" content="product" />

@@ -76,8 +76,8 @@ interface SaleItemRow {
   image: string | null;
 }
 
-async function runningSaleItems(): Promise<SaleItemRow[]> {
-  const sale = await runningSale();
+async function runningSaleItems(given?: SaleRow | null): Promise<SaleItemRow[]> {
+  const sale = given === undefined ? await runningSale() : given;
   if (!sale) return [];
 
   const db = await getDB();
@@ -99,8 +99,8 @@ async function runningSaleItems(): Promise<SaleItemRow[]> {
 
 /** Resolves each sale line against the catalog. A line whose product has been
  * archived since is dropped rather than rendering an empty card. */
-export async function flashSaleItems(): Promise<FlashSaleItem[]> {
-  const rows = await runningSaleItems();
+export async function flashSaleItems(given?: SaleRow | null): Promise<FlashSaleItem[]> {
+  const rows = await runningSaleItems(given);
 
   return rows.map((row) => {
     // A null stock_limit means "no cap"; it can never sell out, so the
@@ -131,6 +131,23 @@ export async function flashSaleItems(): Promise<FlashSaleItem[]> {
       soldOut: limit > 0 && soldCount >= limit,
     } satisfies FlashSaleItem;
   });
+}
+
+/** The running sale in one go -- its name, its end and its lines -- for a
+ * page that needs all three, so the sale is looked up once rather than three
+ * times. Null when no sale is live. */
+export async function liveFlashSale(): Promise<{
+  name: string;
+  endsAt: string;
+  items: FlashSaleItem[];
+} | null> {
+  const sale = await runningSale();
+  if (!sale) return null;
+  return {
+    name: sale.name,
+    endsAt: new Date(`${sale.ends_at.replace(" ", "T")}Z`).toISOString(),
+    items: await flashSaleItems(sale),
+  };
 }
 
 /** Sale price for one product, or null when it is not in the running sale or

@@ -21,7 +21,6 @@ import {
   type StoreSort,
   type StoreSubcategory,
 } from "@/lib/storefront";
-import type { ProductSummary } from "@/types";
 import type { CategorySort } from "@/lib/categorySorts";
 
 // Re-exported so existing server-side imports keep working; the definitions
@@ -56,31 +55,8 @@ export async function categoryName(categoryId: string | null): Promise<string> {
   return "Uncategorised";
 }
 
-/** Trims a catalog row to the shape client components receive. The database
- * row already carries only serializable values, so this is a narrowing rather
- * than the icon-stripping it used to be. */
-export function toSummary(product: StoreProductCard): ProductSummary {
-  return {
-    id: product.id,
-    slug: product.slug,
-    name: product.name,
-    image: product.image,
-    price: product.price,
-    oldPrice: product.oldPrice,
-    discountPercent: product.discountPercent,
-    rating: product.rating,
-    reviews: product.reviews,
-    soldCount: product.soldCount,
-    stockLeft: product.stockLeft,
-    freeDelivery: product.freeDelivery,
-    badgeLabel: product.badgeLabel,
-    bestSeller: product.bestSeller,
-    brand: product.brand,
-    hasOptions: product.hasOptions,
-    hasVideo: product.hasVideo,
-    rank: product.rank ?? null,
-  };
-}
+// Lives in a database-free module so a client component can call it too.
+export { toSummary } from "@/lib/summary";
 
 export interface CategoryQuery {
   categoryId: string;

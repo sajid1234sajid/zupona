@@ -8,6 +8,8 @@ import FeaturedProducts from "@/components/home/FeaturedProducts";
 import SearchProvider from "@/components/search/SearchProvider";
 import HideWhileSearching from "@/components/search/HideWhileSearching";
 import ScamNotice from "@/components/info/ScamNotice";
+import TrustBar from "@/components/home/TrustBar";
+import HomeRails from "@/components/home/HomeRails";
 import { getCurrentUser } from "@/lib/session";
 import { getWishlistProductIds } from "@/lib/wishlist";
 import { listStoreCategories, listStoreProducts, withProducts } from "@/lib/storefront";
@@ -60,7 +62,13 @@ export default async function Home() {
             </div>
             {/* Below the hero, never above it: the hero is the page's
                 largest paint and nothing should push it down. */}
+            <TrustBar />
             <ScamNotice className="mx-3.5 mt-3 tab:mx-0" />
+            <HomeRails
+              catalog={catalog}
+              wishlistIds={Array.from(wishlistIds)}
+              isSignedIn={Boolean(user)}
+            />
           </HideWhileSearching>
           <FeaturedProducts
             featured={featured}

@@ -31,13 +31,17 @@ const BADGES: { kind: BadgeKind; text: string }[] = [
   { kind: "sold", text: "120+ sold" },
 ];
 
+function anHourFromNow(): string {
+  return new Date(Date.now() + 60 * 60 * 1000).toISOString();
+}
+
 /** Every shared storefront component and its variants on one page, for
  * checking a change to one of them everywhere at once. Admins only. */
 export default async function DevUiPage() {
   // Anyone else gets a plain 404: the page's existence is nobody's business.
   await requireAdmin().catch(() => notFound());
   const sample = (await listStoreProducts({ sort: "popular", limit: 4 })).map(toSummary);
-  const inAnHour = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+  const inAnHour = anHourFromNow();
 
   return (
     <main className="mx-auto max-w-5xl space-y-4 bg-surface p-6">

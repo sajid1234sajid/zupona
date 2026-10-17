@@ -542,6 +542,11 @@ export default function ProductView({
           <div ref={actionsRef} className="mt-4 hidden gap-3 tab:flex">
             {actions}
           </div>
+          {sellable && missingGroup && !feedback ? (
+            <p className="mt-2 text-center text-[12px] font-semibold text-ink-slate">
+              Please select a {missingGroup.name.toLowerCase()} to continue.
+            </p>
+          ) : null}
 
           <a
             href={whatsappHref}

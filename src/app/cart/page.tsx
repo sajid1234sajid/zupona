@@ -11,6 +11,16 @@ import { getCartItems, cartSubtotal, cartFreeDelivery } from "@/lib/cart";
 import { resolveDelivery } from "@/lib/checkout";
 import { getShopSettings } from "@/lib/shopSettings";
 import { formatPrice } from "@/lib/format";
+import { getCurrentUser } from "@/lib/session";
+import { listStoreProducts } from "@/lib/storefront";
+import { getWishlistProductIds } from "@/lib/wishlist";
+import { getPolicyFacts } from "@/lib/policyFacts";
+import { toSummary } from "@/lib/summary";
+import ProductRail from "@/components/home/ProductRail";
+import ProductPromises from "@/components/product/ProductPromises";
+
+/** How many products "You may also like" offers under the cart. */
+const SUGGESTION_LIMIT = 10;
 
 export default async function CartPage() {
   // A browser that has never added anything has no shopper yet, and simply an
@@ -18,8 +28,23 @@ export default async function CartPage() {
   // The shop's settings are the same for everybody, so they are asked for
   // alongside the session rather than after it -- three waits in a row was
   // three round trips for a screen that needs two.
-  const [shopper, settings] = await Promise.all([getShopper(), getShopSettings()]);
-  const items = shopper ? await getCartItems(shopper.id) : [];
+  const [shopper, settings, user, popular, facts] = await Promise.all([
+    getShopper(),
+    getShopSettings(),
+    getCurrentUser(),
+    listStoreProducts({ sort: "popular" }),
+    getPolicyFacts(),
+  ]);
+  const [items, wishlistIds] = await Promise.all([
+    shopper ? getCartItems(shopper.id) : Promise.resolve([]),
+    getWishlistProductIds(user?.id ?? null),
+  ]);
+  // Popular products that are not already in the cart.
+  const inCart = new Set(items.map((item) => item.productId));
+  const suggestions = popular
+    .filter((product) => product.inStock && !inCart.has(product.id))
+    .slice(0, SUGGESTION_LIMIT)
+    .map(toSummary);
   const subtotal = cartSubtotal(items);
   // Quoted from the option checkout opens on -- home delivery -- so the two
   // screens agree. Free delivery is the shopper's to choose there, and the
@@ -77,6 +102,7 @@ export default async function CartPage() {
               {items.map((item) => (
                 <CartItemRow key={item.id} item={item} />
               ))}
+              <ProductPromises facts={facts} />
             </div>
 
             <div className="mt-4 space-y-2 rounded-2xl bg-white p-4 shadow-card tab:sticky tab:top-20 tab:mt-3 tab:p-5">
@@ -112,6 +138,16 @@ export default async function CartPage() {
             </div>
           </div>
         )}
+
+        {suggestions.length > 0 ? (
+          <ProductRail
+            id="cart-suggestions"
+            title="You may also like"
+            products={suggestions}
+            wishlistIds={[...wishlistIds]}
+            isSignedIn={Boolean(user)}
+          />
+        ) : null}
       </main>
 
       <SiteFooter />

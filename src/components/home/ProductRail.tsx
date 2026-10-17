@@ -76,7 +76,7 @@ export default function ProductRail({
   }
 
   return (
-    <section ref={sentinelRef} aria-labelledby={`${id}-title`} className="pt-5 tab:pt-8">
+    <section id={id} ref={sentinelRef} aria-labelledby={`${id}-title`} className="scroll-mt-20 pt-5 tab:pt-8">
       <div className="flex items-center justify-between gap-2 px-3.5 tab:px-0">
         <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
           <h2 id={`${id}-title`} className="flex items-center gap-1.5 text-[15px] font-bold text-heading tab:text-xl">

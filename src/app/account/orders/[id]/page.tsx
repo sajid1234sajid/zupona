@@ -77,7 +77,7 @@ export default async function OrderDetailPage({ params }: PageProps<"/account/or
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold text-heading">{item.name}</p>
-                  {item.color && <p className="text-xs text-ink-slate">Color: {item.color}</p>}
+                  {item.color && <p className="text-xs text-ink-slate">{item.color}</p>}
                   <p className="text-xs text-ink-slate">Qty {item.quantity}</p>
                   {(() => {
                     const review = reviewStates.get(item.id);

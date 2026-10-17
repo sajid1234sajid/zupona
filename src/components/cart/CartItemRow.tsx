@@ -44,7 +44,7 @@ export default function CartItemRow({ item }: { item: CartItem }) {
           <Link href={`/products/${item.product.slug}`} className="line-clamp-1 text-sm font-semibold text-heading">
             {item.product.name}
           </Link>
-          {item.color && <p className="mt-0.5 text-xs text-ink-slate">Color: {item.color}</p>}
+          {item.color && <p className="mt-0.5 text-xs text-ink-slate">{item.color}</p>}
           {gone && (
             <p className="mt-1 text-xs font-medium text-accent-red">
               No longer available — remove it to check out

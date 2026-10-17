@@ -3,6 +3,8 @@ import Link from "next/link";
 import { Clock, HelpCircle, Mail, MessageCircle, Package, Phone } from "lucide-react";
 import InfoPage, { Section } from "@/components/info/InfoPage";
 import { getSupportContact, formatWhatsapp } from "@/lib/contact";
+import { getCurrentUser } from "@/lib/session";
+import ContactForm from "@/components/info/ContactForm";
 
 export const metadata: Metadata = {
   title: "Contact Zupona — WhatsApp, Phone & Email Support",
@@ -15,7 +17,7 @@ export const metadata: Metadata = {
  * email and Facebook appear only once Settings holds them, so this page never
  * lists an address nobody reads. */
 export default async function ContactPage() {
-  const contact = await getSupportContact();
+  const [contact, user] = await Promise.all([getSupportContact(), getCurrentUser()]);
 
   const channels = [
     {
@@ -98,6 +100,13 @@ export default async function ContactPage() {
         <Clock className="h-4 w-4 text-brand" />
         We reply to WhatsApp messages as soon as we can, usually the same day.
       </p>
+
+      <Section title="Send us a message">
+        <p>Leave your number and we&apos;ll get back to you, usually within one working day.</p>
+        <div className="mt-3">
+          <ContactForm defaults={{ name: user?.name ?? "", phone: user?.phone ?? "" }} />
+        </div>
+      </Section>
 
       <Section title="Before you message">
         <ul>

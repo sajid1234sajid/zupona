@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { voteFaqAction } from "@/app/support/actions";
 import { ChevronDown, Search, X } from "lucide-react";
 
 export interface ResolvedTopic {
@@ -183,9 +184,10 @@ export default function SupportCenter({ topics }: { topics: ResolvedTopic[] }) {
                     />
                   </button>
                   {expanded ? (
-                    <p className="px-4 pb-4 text-[13px] leading-relaxed text-ink-slate tab:text-[14px]">
-                      {item.a}
-                    </p>
+                    <div className="px-4 pb-4">
+                      <p className="text-[13px] leading-relaxed text-ink-slate tab:text-[14px]">{item.a}</p>
+                      <Helpful question={item.q} />
+                    </div>
                   ) : null}
                 </li>
               );
@@ -193,6 +195,38 @@ export default function SupportCenter({ topics }: { topics: ResolvedTopic[] }) {
           </ul>
         </div>
       </div>
+    </div>
+  );
+}
+
+/** "Was this helpful?" under an answer. The vote is sent and forgotten; the
+ * thanks shows at once either way. */
+function Helpful({ question }: { question: string }) {
+  const [voted, setVoted] = useState<boolean | null>(null);
+  if (voted !== null) {
+    return (
+      <p className="mt-3 text-[12px] font-semibold text-ink-muted">
+        {voted ? "Thanks for letting us know." : "Thanks. Still stuck? Contact us below and we'll help."}
+      </p>
+    );
+  }
+  const vote = (helpful: boolean) => {
+    setVoted(helpful);
+    void voteFaqAction(question, helpful);
+  };
+  return (
+    <div className="mt-3 flex items-center gap-2 text-[12px] text-ink-muted">
+      Was this helpful?
+      {[true, false].map((helpful) => (
+        <button
+          key={String(helpful)}
+          type="button"
+          onClick={() => vote(helpful)}
+          className="h-8 rounded-full border border-line bg-white px-3 font-semibold text-ink hover:border-brand"
+        >
+          {helpful ? "Yes" : "No"}
+        </button>
+      ))}
     </div>
   );
 }

@@ -42,7 +42,15 @@ export const NAV_ITEMS: NavItem[] = [
       { label: "Returns", href: "/admin/orders/returns" },
     ],
   },
-  { label: "Customers", href: "/admin/customers", icon: "customers" },
+  {
+    label: "Customers",
+    href: "/admin/customers",
+    icon: "customers",
+    children: [
+      { label: "All Customers", href: "/admin/customers" },
+      { label: "Messages", href: "/admin/customers/messages" },
+    ],
+  },
   { label: "Distributors", href: "/admin/distributors", icon: "distributors" },
   { label: "Coupons", href: "/admin/coupons", icon: "coupons" },
   {

@@ -7,7 +7,7 @@ import StoreShell, { StoreContainer } from "@/components/layout/StoreShell";
 import ProductView from "@/components/product/dynamic/ProductView";
 import ProductDescription from "@/components/product/dynamic/ProductDescription";
 import ProductReviews from "@/components/product/dynamic/ProductReviews";
-import SimilarProducts from "@/components/product/dynamic/SimilarProducts";
+import ProductRail from "@/components/home/ProductRail";
 import type { DeliveryLine } from "@/components/product/dynamic/PurchaseInfo";
 import { getStoreProductBySlug, getStoreCategory, listStoreProducts } from "@/lib/storefront";
 import { getShopSettings } from "@/lib/shopSettings";
@@ -43,7 +43,7 @@ import MountWhenNear from "@/components/ui/MountWhenNear";
 
 /** Reviews loaded with the page; the list shows the first few of these. */
 const REVIEW_LIMIT = 50;
-const SIMILAR_LIMIT = 12;
+const SIMILAR_LIMIT = 10;
 
 /** The standard delivery window as dates in Bangladesh, e.g. "18–19 September"
  * or "30 Sep – 2 Oct" across a month end. */
@@ -259,11 +259,15 @@ export default async function DynamicProductPage({ params, searchParams }: PageP
           />
 
           <div className="mt-6 space-y-6 tab:mt-10">
-            <SimilarProducts
-              products={similar}
-              wishlistIds={[...wishlistIds]}
-              isSignedIn={Boolean(user)}
-            />
+            {similar.length > 0 ? (
+              <ProductRail
+                id="similar"
+                title="You may also like"
+                products={similar.map(toSummary)}
+                wishlistIds={[...wishlistIds]}
+                isSignedIn={Boolean(user)}
+              />
+            ) : null}
             {explore.length > 0 ? (
               <section aria-labelledby="explore-title">
                 <h2 id="explore-title" className="text-base font-extrabold text-heading">
